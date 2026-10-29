@@ -5,6 +5,7 @@ on:
   push:
     branches: [main]
     paths:
+      - "qa/run_backend_unit_tests.py"
       - ".github/workflows/pflegequellen.yml"
       - "tools/pflegequellen_live.py"
       - "tools/pflegeprofil_qualitaet.py"
@@ -30,7 +31,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Modul- und Sicherheitstests
-        run: python -m unittest discover -s tests -v
+        run: python -m qa.run_backend_unit_tests
       - name: Optionale Live-Abfragen ohne Veröffentlichung der Quelltexte
         run: python -m tools.pflegequellen_live
       - name: Bericht bereitstellen
