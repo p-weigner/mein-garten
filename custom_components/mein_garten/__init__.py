@@ -10,8 +10,12 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
+from homeassistant.helpers import config_validation as cv
+
 from .const import DOMAIN, SIGNAL_UPDATED, STORAGE_KEY, STORAGE_VERSION
 from .model import GartenDaten
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 class GartenBackend:
