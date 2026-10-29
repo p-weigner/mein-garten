@@ -18,7 +18,7 @@ Ein eigenständiges, dunkelgrünes Gartendashboard mit den Ansichten **Start, Pf
 | Übersetzungs-Cache | Lokal und atomar, offline getestet |
 | Permapeople-Anbindung | **19/21** exakte Arten mit vier Basisfeldern; authentifizierter Live-Test erfolgreich. Keine strukturierten Schnitt-/Düngefelder in der Stichprobe. |
 | Azure Translator | Optionaler Adapter und Zeichenbudget vorhanden; **noch kein Live-Test** |
-| OpenPlantbook-Pflegeantworten | Normalisierung getestet; **noch kein GitHub-Livetest** |
+| OpenPlantbook-Pflegeantworten | Vollständiges temporäres HA-Testskript erstellt; **echter Lauf auf Home Assistant Green noch ausstehend** |
 | Home-Assistant-Anwendung | **Noch nicht neu implementiert** |
 
 **40 Offline-Tests** einschließlich der Hybridprüfung wurden auf GitHub Actions erfolgreich ausgeführt. Alle Aussagen zur erfolgreichen Live-Abfrage beziehen sich ausschließlich auf die botanische Namenssuche.
@@ -29,6 +29,8 @@ Ein eigenständiges, dunkelgrünes Gartendashboard mit den Ansichten **Start, Pf
 - [Pflegewissen-Prototyp – erfolgreiche Offline-Tests](https://github.com/p-weigner/mein-garten/actions/runs/40865952351)
 - [Phasen-Ergebnisse und offene Prüfungen](docs/ERGEBNISSE_PHASE1_UND_2.md)
 - [Permapeople-Livetest und Entscheidung zur Nutzung als Ergänzungsquelle](docs/PERMAPEOPLE_LIVETEST_2026-10-29.md)
+- [OpenPlantbook: vollständiges HA-Testskript und Ausführung ohne zusätzliche API-Schlüssel](docs/OPENPLANTBOOK_PFLEGEFELDTEST.md)
+- [OpenPlantbook: erfolgreiche YAML- und Jinja-Prüfung (11 Tests)](https://github.com/p-weigner/mein-garten/actions/runs/40870073238)
 - [Vertiefter Datenquellen-Workflow](https://github.com/p-weigner/mein-garten/actions/runs/40868329416)
 - [Optionale API-Tests ohne eigenen PC](docs/API_TEST_OHNE_PC.md)
 
