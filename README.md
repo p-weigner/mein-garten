@@ -1,31 +1,37 @@
 # Mein Garten 🌿
 
-Eigenständiges Home-Assistant-Gartendashboard. **Neuaufbau V1 – derzeit Datenquellen-Prüfung, noch keine installierbare Integration.**
+**Neuaufbau V1 für Home Assistant Green.** Derzeit werden Datenquellen und die Pflegewissen-Architektur geprüft; **noch keine installierbare Home-Assistant-Integration**.
 
-## Verbindliche Anforderungen
+## Projektziel
 
-- Das vorhandene Home-Assistant-Dashboard **„Zuhause“ bleibt unangetastet**.
-- Freigegebenes dunkelgrünes Design; Navigation **Start · Pflanzen · Kalender · Bereiche**.
-- Neue Pflanzen jederzeit per Suchfeld hinzufügen, **ohne Codeänderung**.
-- Pflegedaten aus dynamischen Quellen, automatisch auf Deutsch, mit Quelle, Prüfstatus und lokalem Cache.
-- Pflegeregeln berücksichtigen Pflanzenart, bei Bedarf Sorte und Bedingungen. Keine ungesicherten Schnitt-/Giftigkeits-/Düngeempfehlungen als automatische Aufgaben.
-- Gartenbereiche dynamisch anlegen, umbenennen und entfernen; Pflegehistorie.
-- Später: Freitag-Nachmittag-Zusammenfassung an Angelinas iPhone und zusätzliche wichtige Frost-/Wetterwarnungen.
-- Keine monatlichen Pflicht-Abonnements oder ungeprüften Cloud-Kosten.
+Ein eigenständiges, dunkelgrünes Gartendashboard mit den Ansichten **Start, Pflanzen, Kalender und Bereiche**. Neue Pflanzen werden per Suche hinzugefügt – ohne Programmänderung. Pflegeinformationen werden automatisch deutschsprachig aufbereitet, mit Quellenangabe und lokalem Cache, sobald die Rechte dafür geklärt sind. Gartenbereiche, Pflegehistorie, intelligente Pflegeaufgaben und Wetter-/iPhone-Hinweise sind geplant.
 
-## Was jetzt im Repository passiert
+**Das vorhandene Dashboard „Zuhause“ bleibt unverändert.**
 
-**Phase 1:** Öffentliche botanische Namenssuche mit GBIF und iNaturalist an 21 Beispielpflanzen automatisch auf GitHub Actions testen. Anschließend getrennt die authentifizierten Pflege-Datenquellen und die deutsche Übersetzung prüfen.
+## Nachgewiesener Entwicklungsstand
 
-Die Testpflanzen sind ausschließlich **öffentliche Beispielfälle**. Sie werden nicht als feste Pflanzenliste in das Gartendashboard eingebaut.
+| Prüfung | Stand |
+|---|---|
+| GBIF: botanische Namenssuche | **19 von 21** Beispielarten exakt; Live-API-Test erfolgreich |
+| iNaturalist: botanische Namenssuche | **19 von 21** Beispielarten exakt; Live-API-Test erfolgreich |
+| Pflegewissen-Datenmodell | Quellen, Artabgleich, Rechte, Prüfstatus und Übersetzungsfelder implementiert |
+| Übersetzungs-Cache | Lokal und atomar, offline getestet |
+| Permapeople-Anbindung | API-Adapter vorhanden; **noch kein authentifizierter Live-Test** |
+| Azure Translator | Optionaler Adapter und Zeichenbudget vorhanden; **noch kein Live-Test** |
+| OpenPlantbook-Pflegeantworten | Normalisierung getestet; **noch kein GitHub-Livetest** |
+| Home-Assistant-Anwendung | **Noch nicht neu implementiert** |
 
-> Aktueller Code und Testberichte sind **kein Home-Assistant-Update**. Keine Daten des bestehenden Systems werden verändert.
+Die **33 Offline-Tests** von Phase 2 wurden erfolgreich auf GitHub Actions ausgeführt. Alle Aussagen zur erfolgreichen Live-Abfrage beziehen sich ausschließlich auf die botanische Namenssuche.
 
-## Datenschutz und Sicherheit
+## Links zum Nachvollziehen
 
-- Keine privaten Pflanzenfotos, Gartenstandorte, Home-Assistant-Konfigurationen oder API-Schlüssel einchecken.
-- Öffentliche API-Tests benötigen keine Zugangsdaten.
-- Eventuelle spätere Zugangsdaten ausschließlich als GitHub Actions Secrets oder lokal in Home Assistant einrichten; nie in Logs oder Berichten veröffentlichen.
-- GitHub-Actions-Rechte so gering wie möglich halten (`contents: read`).
+- [Botanische Namenssuche – erfolgreich geprüfter Live-Test](https://github.com/p-weigner/mein-garten/actions/runs/40864984736)
+- [Pflegewissen-Prototyp – erfolgreiche Offline-Tests](https://github.com/p-weigner/mein-garten/actions/runs/40865952351)
+- [Phasen-Ergebnisse und offene Prüfungen](docs/ERGEBNISSE_PHASE1_UND_2.md)
+- [Optionale API-Tests ohne eigenen PC](docs/API_TEST_OHNE_PC.md)
 
-Weitere Hinweise zur Ausführung unter **Actions** werden mit dem Datenquellen-Workflow ergänzt.
+## Sicherheitsregeln
+
+Das Repository ist öffentlich. Keine API-Schlüssel, Fotos, Adressen, privaten Pflanzendaten oder Home-Assistant-Konfigurationen veröffentlichen. Geheimnisse nur über GitHub Actions Secrets bzw. später die sichere HA-Konfiguration verwalten. **Keine laufenden Pflicht-Abos**, keine ungeprüfte automatische Freigabe kritischer Pflegehandlungen. Übersetzungen gelten nicht automatisch als fachlich geprüft.
+
+Öffentliche Beispielarten unter `daten/testpflanzen.json` dienen allein den Tests. Sie sind **keine fest einprogrammierte Pflanzenbibliothek**.
