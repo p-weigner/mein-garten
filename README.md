@@ -12,8 +12,8 @@ Ein eigenständiges, dunkelgrünes Gartendashboard mit den Ansichten **Start, Pf
 
 | Prüfung | Stand |
 |---|---|
-| GBIF: botanische Namenssuche | **19 von 21** Beispielarten exakt; Live-API-Test erfolgreich |
-| iNaturalist: botanische Namenssuche | **19 von 21** Beispielarten exakt; Live-API-Test erfolgreich |
+| GBIF: botanische Namenssuche | **19 exakte Namen + 2 bestätigte Hybrid-Schreibweisen** von 21 Beispielarten |
+| iNaturalist: botanische Namenssuche | **21 von 21** Beispielarten exakt, einschließlich Hybriden |
 | Pflegewissen-Datenmodell | Quellen, Artabgleich, Rechte, Prüfstatus und Übersetzungsfelder implementiert |
 | Übersetzungs-Cache | Lokal und atomar, offline getestet |
 | Permapeople-Anbindung | API-Adapter vorhanden; **noch kein authentifizierter Live-Test** |
@@ -21,11 +21,11 @@ Ein eigenständiges, dunkelgrünes Gartendashboard mit den Ansichten **Start, Pf
 | OpenPlantbook-Pflegeantworten | Normalisierung getestet; **noch kein GitHub-Livetest** |
 | Home-Assistant-Anwendung | **Noch nicht neu implementiert** |
 
-Die **33 Offline-Tests** von Phase 2 wurden erfolgreich auf GitHub Actions ausgeführt. Alle Aussagen zur erfolgreichen Live-Abfrage beziehen sich ausschließlich auf die botanische Namenssuche.
+**40 Offline-Tests** einschließlich der Hybridprüfung wurden auf GitHub Actions erfolgreich ausgeführt. Alle Aussagen zur erfolgreichen Live-Abfrage beziehen sich ausschließlich auf die botanische Namenssuche.
 
 ## Links zum Nachvollziehen
 
-- [Botanische Namenssuche – erfolgreich geprüfter Live-Test](https://github.com/p-weigner/mein-garten/actions/runs/40864984736)
+- [Botanische Namenssuche – korrigierter Live-Test](https://github.com/p-weigner/mein-garten/actions/runs/40866511116)
 - [Pflegewissen-Prototyp – erfolgreiche Offline-Tests](https://github.com/p-weigner/mein-garten/actions/runs/40865952351)
 - [Phasen-Ergebnisse und offene Prüfungen](docs/ERGEBNISSE_PHASE1_UND_2.md)
 - [Optionale API-Tests ohne eigenen PC](docs/API_TEST_OHNE_PC.md)
