@@ -42,7 +42,7 @@ Alte Garten-Prototypen werden **nicht migriert oder überschrieben**. Das bisher
 ## Prüfungen
 
 - Reine Pflanzen-/Aufgabenmodell-Tests, Formatprüfungen, WebSocket-Vertragstests.
-- Asynchrone Store-Tests mit simuliertem Home-Assistant-Storage, einschließlich Schreiba usfall und Parallelität.
+- Asynchrone Store-Tests mit simuliertem Home-Assistant-Storage, einschließlich Schreibausfall und Parallelität.
 - Python-Syntaxprüfung.
 - **Kein echter Home-Assistant-Green-Installations- oder Laufzeittest.** Die WebSocket-Antworten wurden noch nicht auf einer realen laufenden Home-Assistant-Version geprüft.
 
