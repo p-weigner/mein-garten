@@ -7,7 +7,7 @@ außer dem Suchbegriff; kein API-Schlüssel notwendig.
 from __future__ import annotations
 
 import asyncio
-from datetime import monotonic
+from time import monotonic
 import logging
 import re
 from typing import Any
