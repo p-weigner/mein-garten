@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "frontend/**"
+      - "custom_components/mein_garten/frontend/**"
       - ".github/workflows/garten-frontend.yml"
 
 permissions:
@@ -24,5 +25,7 @@ jobs:
           node-version: "22"
       - name: JavaScript-Syntax prüfen
         run: node --check frontend/mein-garten-card.js
+      - name: Beide JS-Kopien müssen bitgleich sein
+        run: cmp frontend/mein-garten-card.js custom_components/mein_garten/frontend/mein-garten-card.js
       - name: Komponenten- und Sicherheitstests
         run: node --test frontend/tests/card.test.mjs
