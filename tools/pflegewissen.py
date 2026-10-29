@@ -124,7 +124,9 @@ def normalisiere_permapeople(antwort: dict, erwartete_art: str) -> list[Pflegehi
     sid = str(antwort.get("id") or "")
     url = QUELLEN["permapeople"]["url"].rstrip("/") + str(antwort.get("link") or "/")
     ergebnisse = []
-    attributes = antwort.get("data") or []
+    attributes = antwort.get("data")
+    if attributes is None:
+        attributes = []
     if not isinstance(attributes, list):
         raise ValueError("Ungültige Attributliste")
     for attr in attributes:
