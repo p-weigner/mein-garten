@@ -26,22 +26,27 @@ GitHub Actions: https://github.com/p-weigner/mein-garten/actions/runs/4086595235
 - Der Übersetzungscache wird privat und atomar geschrieben; eine Beispielübersetzung wird **simuliert**.
 - Die technischen API-Adapter wurden nur mit simulierten Antworten getestet.
 
-### Was die Prüfung ausdrücklich NICHT bestätigt
+## Phase 2b: Permapeople live geprüft (AUTHENTIFIZIERT)
 
-- **Permapeople:** API-Livetest nicht durchgeführt, weil keine Zugangsdaten gesetzt sind.
-- **Azure Translator:** API-Livetest nicht durchgeführt, weil kein Schlüssel eingerichtet ist. Es wurde **kein Azure-Konto** angelegt.
-- **OpenPlantbook:** In GitHub kein Live-Test, da vorhandene API-Zugangsdaten nur auf Home Assistant liegen.
-- **Pflegequalität und deutschsprachige Fachtexte:** Noch nicht bei einer ausreichenden Zahl echter API-Antworten geprüft.
-- **Lizenzfragen:** Die dauerhafte Nutzung jedes importierten Volltextes ist noch nicht freigegeben.
+**Vollständiger Bericht:** [Permapeople-Livetest vom 29.10.2026](PERMAPEOPLE_LIVETEST_2026-10-29.md)  
+**Vertiefter GitHub-Lauf:** https://github.com/p-weigner/mein-garten/actions/runs/40868329416
 
-Beim Pflegequellen-Workflow lautet das Ergebnis ohne Zugangsdaten ausdrücklich \`nicht_getestet\`. Ein grüner Workflow bedeutet lediglich, dass Tests und Berichtserstellung korrekt laufen.
+- 19 von 21 Testpflanzen mit exaktem botanischem Treffer und Grunddaten.
+- Die beiden nicht exakt gefundenen Arten sind Sommerflieder und Zitrone; Synonyme wurden noch nicht getestet.
+- Alle 19 haben Angaben zu Wasser, Licht, Boden und Winterhärte.
+- 11 haben ein deutsches Namensfeld; 11 einen längeren Beschreibungstext.
+- Nur 3 haben eine strukturierte saisonale Angabe.
+- Keines der 19 Profile hat ein eigenes strukturiertes Rückschnitt- oder Düngefeld (die Texte der Beschreibungen wurden nicht fachlich geprüft).
+- **46 Offline-Tests** bestanden, API-Aufrufe erfolgreich.
+- Die Pflegequellen-Tests veröffentlichen keine API-Schlüssel oder vollständigen Quelltexte.
 
-## Nächste Freigabeschritte
+**Technisches Urteil:** Permapeople dient als **optionale Ergänzung für Pflanzensteckbriefe**. Keine ausreichende alleinige Grundlage für das gewünschte automatische Pflegewissen.
 
-1. Permapeople-API mit einem freiwillig eingerichteten privaten Testzugang an 21 Arten prüfen.
-2. OpenPlantbook-Pflegeantworten über die vorhandene HA-Integration an denselben Arten vergleichen (ohne Schlüsselübertragung nach GitHub).
-3. Deutsche Übersetzung über einen bewusst gewählten Dienst mit echter kurzer Testübersetzung prüfen. Kein kostenpflichtiger Tarif als Voraussetzung.
-4. Nutzungsrechte für lokales Speichern + Übersetzen der Quellen klären.
-5. Erst danach neue Home-Assistant-Integration und Dashboard implementieren.
+## Noch offene Prüfungen
+
+1. **OpenPlantbook:** Echte `get`-Antworten mit `include: care` bei repräsentativen Gartenarten vergleichen (die vorhandene HA-Integration soll verwendet werden, ohne private Schlüssel nach GitHub zu übertragen).
+2. **Übersetzung:** Reale Übersetzung eines zulässig genutzten kurzen Fachtexts; rechtlicher Rahmen und sicherer kostenloser Tarif.
+3. **Datenqualität:** Quelltextinhalte, Fachqualität, Sortenzuordnung und Wiederverwendungsrechte.
+4. **Entwicklungsfreigabe:** Danach neue Home-Assistant-Integration implementieren. Das bisherige Gartenprojekt darf vollständig ersetzt werden; das Dashboard „Zuhause“ bleibt unberührt.
 
 Die bestehende Installation und das Dashboard „Zuhause“ werden durch keinen dieser Tests verändert.
