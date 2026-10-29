@@ -1,44 +1,62 @@
-# Mein Garten 🌿
+# 🌿 Mein Garten – Home Assistant Green
 
-**Neuaufbau V1 für Home Assistant Green.** Derzeit werden Datenquellen und die Pflegewissen-Architektur geprüft; **noch keine installierbare Home-Assistant-Integration**.
+Eigenständige Gartenverwaltung mit dynamischer Pflanzensuche, deutschsprachigen Pflegeinformationen, Bereichen, Aufgaben und Pflegehistorie.
 
-## Projektziel
+**Status: Neuaufbau V1 – Forschungsphase und Backend-Vorversion. Noch kein fertiges installierbares Gartendashboard.**
 
-Ein eigenständiges, dunkelgrünes Gartendashboard mit den Ansichten **Start, Pflanzen, Kalender und Bereiche**. Neue Pflanzen werden per Suche hinzugefügt – ohne Programmänderung. Pflegeinformationen werden automatisch deutschsprachig aufbereitet, mit Quellenangabe und lokalem Cache, sobald die Rechte dafür geklärt sind. Gartenbereiche, Pflegehistorie, intelligente Pflegeaufgaben und Wetter-/iPhone-Hinweise sind geplant.
+## Verbindliche Ziele
 
-**Das vorhandene Dashboard „Zuhause“ bleibt unverändert.**
+Das bisherige Home-Assistant-Dashboard **„Zuhause“ wird nicht verändert**. Die Gartenoberfläche behält das bereits freigegebene dunkelgrüne Design mit den vier Seiten **Start · Pflanzen · Kalender · Bereiche**.
 
-## Nachgewiesener Entwicklungsstand
+Pflanzen sollen ohne Programmänderungen nach deutschem oder wissenschaftlichem Namen gefunden und angelegt werden können. Englische Pflegeinformationen werden mit Quellenangabe und lokalem Cache automatisch ins Deutsche übertragen. Pflegekalender, Pflegehistorie, individuelle Gartenbereiche, Friday-Nachmittags-Zusammenfassung für Angelinas iPhone und wichtige Wetter-/Frosthinweise bleiben Projektbestandteile.
 
-| Prüfung | Stand |
+**Keine monatlichen Pflicht-Abonnements und keine unkontrollierte Abrechnung.**
+
+## Was tatsächlich geprüft ist
+
+| Bestandteil | Nachgewiesener Stand |
 |---|---|
-| GBIF: botanische Namenssuche | **19 exakte Namen + 2 bestätigte Hybrid-Schreibweisen** von 21 Beispielarten |
-| iNaturalist: botanische Namenssuche | **21 von 21** Beispielarten exakt, einschließlich Hybriden |
-| Pflegewissen-Datenmodell | Quellen, Artabgleich, Rechte, Prüfstatus und Übersetzungsfelder implementiert |
-| Übersetzungs-Cache | Lokal und atomar, offline getestet |
-| Permapeople-Anbindung | **19/21** exakte Arten mit vier Basisfeldern; authentifizierter Live-Test erfolgreich. Keine strukturierten Schnitt-/Düngefelder in der Stichprobe. |
-| Azure Translator | Optionaler Adapter und Zeichenbudget vorhanden; **noch kein Live-Test** |
-| OpenPlantbook-Pflegeantworten | **10/13** exakt passende Profile mit fünf nichtleeren Pflegefeldern – echter Home-Assistant-Test erfolgreich; Qualität und Rechte noch offen |
-| Quellübergreifende deutsche Pflegeanzeige | Modul implementiert, private Hinweise priorisiert, Quellen getrennt, ungeprüfte Aufgaben gesperrt; 12 neue Tests bestanden |
-| Home-Assistant-Anwendung | **Noch nicht neu implementiert** |
+| Botanische Namenssuche | **21/21** Testarten durch iNaturalist exakt; GBIF **19 exakt + 2 bestätigte Hybrid-Schreibweisen** |
+| Deutsche Pflanzennamen | iNaturalist liefert für viele Begriffe Vorschläge; Wikidata findet **Bauernhortensie → Hydrangea macrophylla** |
+| Permapeople | **19/21** exakte Arten mit strukturierten Grunddaten; keine strukturierten Schnitt-/Düngefelder in dieser Stichprobe |
+| OpenPlantbook | Echter Home-Assistant-Test: **10/13** exakte Arten mit allen fünf Pflegefreitextfeldern; Qualität und Textnutzungsrechte noch offen |
+| Kostenlose deutsche Übersetzung | MyMemory live geprüft: **5/5** selbst verfasste englische Garten-Sätze ins Deutsche übertragen |
+| Übersetzungssicherheit | Lokales Tagesbudget (anonym höchstens 5.000 Zeichen), 500-Byte-Segmentgrenze, privater Cache und Fehlerbehandlung implementiert |
+| Lokal gespeicherte Pflanzen/Bereiche/Aufgaben | Datenmodell und HA-Backend-Grundlage implementiert; noch kein echter HA-Green-Lauf |
+| Backend-Tests | **124 Python-Tests** in GitHub Actions bestanden; zusätzliche 11 YAML-/Jinja-Skripttests |
+| Fertige Benutzeroberfläche | Noch nicht neu umgesetzt |
 
-**58 Offline-Tests** bestehen in GitHub Actions. Live-Abfragen erfolgten für GBIF, iNaturalist und Permapeople; OpenPlantbook wurde getrennt auf dem Home Assistant Green getestet. Die neue Quellen-Zusammenführung ist vorerst ein Prototyp, noch keine installierbare HA-Integration.
+Eine bestandene Prüfung bedeutet **nicht**, dass alle Arten weltweit vollständig erfasst sind, dass übersetzte Pflegetexte fachlich geprüft wären oder dass die neue Backend-Vorversion bereits produktionsreif ist.
 
-## Links zum Nachvollziehen
+## Projektstruktur
 
-- [Botanische Namenssuche – korrigierter Live-Test](https://github.com/p-weigner/mein-garten/actions/runs/40866511116)
-- [Pflegewissen-Prototyp – erfolgreiche Offline-Tests](https://github.com/p-weigner/mein-garten/actions/runs/40865952351)
-- [Phasen-Ergebnisse und offene Prüfungen](docs/ERGEBNISSE_PHASE1_UND_2.md)
-- [Permapeople-Livetest und Entscheidung zur Nutzung als Ergänzungsquelle](docs/PERMAPEOPLE_LIVETEST_2026-10-29.md)
-- [OpenPlantbook: vollständiges HA-Testskript und Ausführung ohne zusätzliche API-Schlüssel](docs/OPENPLANTBOOK_PFLEGEFELDTEST.md)
-- [OpenPlantbook: erfolgreiche YAML- und Jinja-Prüfung (11 Tests)](https://github.com/p-weigner/mein-garten/actions/runs/40870073238)
-- [OpenPlantbook: realer Pflegefeldbericht, Quellenentscheidung](docs/OPENPLANTBOOK_LIVETEST_2026-10-29.md)
-- [Quellen-Zusammenführung: 58 erfolgreiche Tests](https://github.com/p-weigner/mein-garten/actions/runs/40871670623)
-- [Vertiefter Datenquellen-Workflow](https://github.com/p-weigner/mein-garten/actions/runs/40868329416)
-- [Optionale API-Tests ohne eigenen PC](docs/API_TEST_OHNE_PC.md)
+- `custom_components/mein_garten/` – neue, lokal speichernde Home-Assistant-Backend-Vorversion. Pflanzen, Bereiche, Aufgaben, Historie und authentifizierte WebSocket-Befehle.
+- `tools/` – dynamische Arten-/Aliassuche, Datenquellen-Fusion und kostenlose Übersetzung; Forschungsadapter, noch nicht vollständig ans HA-Backend angeschlossen.
+- `tests/`, `qa/` – Offline-/Sicherheitstests und einmaliges OpenPlantbook-Testskript.
+- `docs/` – echte Live-Ergebnisse, Architekturentscheidungen und offene Prüfungen.
+- `.github/workflows/` – automatische Tests ohne privaten PC.
 
-## Sicherheitsregeln
+## Dokumentierte Live-Tests
 
-Das Repository ist öffentlich. Keine API-Schlüssel, Fotos, Adressen, privaten Pflanzendaten oder Home-Assistant-Konfigurationen veröffentlichen. Geheimnisse nur über GitHub Actions Secrets bzw. später die sichere HA-Konfiguration verwalten. **Keine laufenden Pflicht-Abos**, keine ungeprüfte automatische Freigabe kritischer Pflegehandlungen. Übersetzungen gelten nicht automatisch als fachlich geprüft.
+- [Deutsche Pflanzennamen und Garten-/Bauernhortensie](docs/DEUTSCHE_PFLANZENSUCHE_2026-10-29.md)
+- [OpenPlantbook-Pflegefelder](docs/OPENPLANTBOOK_LIVETEST_2026-10-29.md)
+- [Permapeople-Pflanzendaten](docs/PERMAPEOPLE_LIVETEST_2026-10-29.md)
+- [Automatische deutsche Übersetzung, Kosten und Rechte](docs/UEBERSETZUNG_LIVETEST_2026-10-29.md)
+- [HA-Backend-Vorversion mit Funktionsumfang und Grenzen](docs/HA_BACKEND_BETA.md)
 
-Öffentliche Beispielarten unter `daten/testpflanzen.json` dienen allein den Tests. Sie sind **keine fest einprogrammierte Pflanzenbibliothek**.
+## Nachprüfbare GitHub-Läufe
+
+- [Botanische Artnamen](https://github.com/p-weigner/mein-garten/actions/runs/40866511116)
+- [Kostenlose Übersetzung und echte deutsche Ergebnisse](https://github.com/p-weigner/mein-garten/actions/runs/40872712042)
+- [Deutsche Pflanzen-Aliase über Wikidata](https://github.com/p-weigner/mein-garten/actions/runs/40874298208)
+- [Backend- und Speicherverträge](https://github.com/p-weigner/mein-garten/actions/runs/40873699383)
+
+## Noch zu entwickeln
+
+Die aktuellen Quellenmodule werden zum Home-Assistant-Backend verbunden. Danach folgen das bereits vereinbarte dunkelgrüne Dashboard, intelligente bestätigte Pflegeaufgaben, Kalender, Wetterwarnungen und iPhone-Benachrichtigungen. Vor einer Installation müssen die tatsächliche Home-Assistant-Laufzeitkompatibilität und die Rechte an dauerhaft gespeicherten OpenPlantbook-Pflegefreitexten geklärt werden.
+
+**Bitte noch keine Dateien aus diesem Repository nach `/config/custom_components/` kopieren.** Die neue Garteninstallation wird später als vollständiges geprüftes Paket bereitgestellt.
+
+## Datensicherheit
+
+Das Repository ist öffentlich: Keine privaten Fotos, Adressen, Gartenstandorte, persönlichen Nutzernotizen oder API-Schlüssel einchecken. Alle bisherigen GitHub-Livetests verwenden nur öffentliche Pflanzennamen, anonymisierte Feldzahlen oder selbst verfasste Übersetzungsbeispiele. Die Daten des bisherigen Gartendashboards und von „Zuhause“ werden nicht verändert.
