@@ -11,7 +11,7 @@ Diese Anleitung ist für einen **bewussten Test der neuen Gartenverwaltung** ged
 - Manuelle Aufgaben mit Fälligkeit anlegen, erledigen, wieder öffnen und löschen.
 - Aufgabenübersicht unter „Kalender“, einfache Erledigungshistorie und Synchronisierung über Home Assistant.
 - Lokale Daten in einem neuen Home-Assistant-Store `.storage/mein_garten_v1.data`.
-- Die JavaScript-Karte wird **von der Integration selbst** unter `/api/mein_garten/mein-garten-card.js` ausgeliefert; kein separater `www`-Upload erforderlich.
+- Die JavaScript-Karte wird **von der Integration selbst** unter `/api/mein_garten/mein-garten-v1-card.js` ausgeliefert; kein separater `www`-Upload erforderlich.
 
 ## Was NOCH NICHT funktioniert
 
@@ -31,10 +31,10 @@ Die Quellen- und Übersetzungsmodule wurden separat entwickelt und getestet; sie
 ### Variante A – HACS
 
 1. In HACS das Repository `https://github.com/p-weigner/mein-garten` als **benutzerdefiniertes Repository, Kategorie Integration** hinzufügen.
-2. **Mein Garten** installieren und Home Assistant neu starten.
+2. **Mein Garten** installieren bzw. auf mindestens Version `1.0.0b2` aktualisieren und Home Assistant vollständig neu starten.
 3. Unter **Einstellungen → Geräte & Dienste → Integration hinzufügen** die Integration **Mein Garten** einmalig einrichten. Wenn bereits eine alte „Mein Garten“-Integration existiert, deren Status prüfen, bevor du sie erneut hinzufügst.
-4. Unter **Einstellungen → Dashboards → Ressourcen** (gegebenenfalls über das Drei-Punkte-Menü) die JavaScript-Ressource `/api/mein_garten/mein-garten-card.js` vom Typ **JavaScript-Modul** hinzufügen.
-5. **Ein separates Dashboard** „Mein Garten“ erstellen und dessen Rohkonfiguration durch den vollständigen Inhalt aus `frontend/dashboard-mein-garten.yaml` ersetzen. **Nicht die Rohkonfiguration von „Zuhause“ bearbeiten.**
+4. Unter **Einstellungen → Dashboards → Ressourcen** (gegebenenfalls über das Drei-Punkte-Menü) die neue JavaScript-Ressource `/api/mein_garten/mein-garten-v1-card.js?v=1.0.0b2` vom Typ **JavaScript-Modul zusätzlich** hinzufügen. Eine frühere Gartenressource nicht ersetzen; die neue Karte besitzt einen eigenen Namen.
+5. **Ein separates Dashboard** „Mein Garten“ erstellen und dessen Rohkonfiguration durch den vollständigen Inhalt aus `frontend/dashboard-mein-garten.yaml` ersetzen. Die V1-YAML verwendet `custom:mein-garten-v1-card`. **Nicht die Rohkonfiguration von „Zuhause“ bearbeiten.**
 
 ### Variante B – Manuell
 
@@ -59,3 +59,7 @@ Die Module wurden mit Python- und Node-Tests in GitHub Actions überprüft. Ein 
 Für die neue Version wurden keine Dateien des vorhandenen Dashboards „Zuhause“ geändert. Alle Eingriffe erfolgen ausschließlich im eigenständigen Gartenbereich.
 
 **Hinweis:** Beim Öffnen der Pflanzensuche werden die eingegebenen Suchbegriffe an iNaturalist und Wikidata übermittelt. Andere persönliche Gartendaten werden von dieser Suchfunktion nicht übertragen.
+
+### Konfigurationsfehler nach Ressourcenwechsel
+
+Falls nach der Änderung „Konfigurationsfehler“ erscheint, prüfe die [vollständige Anleitung zur Karten- und Ressourcen-Trennung](KONFIGURATIONSFEHLER_LOVELACE.md). Die alte Karte und die neue V1 müssen **verschiedene Elementnamen** und **eigene JavaScript-Ressourcen** verwenden. Im iPhone kann zusätzlich der Frontend-Cache veraltet sein.
