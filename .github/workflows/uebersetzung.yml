@@ -6,6 +6,9 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/uebersetzung.yml"
+      - "tools/mymemory.py"
+      - "tools/uebersetzung_live.py"
+      - "tests/test_mymemory.py"
 
 permissions:
   contents: read
