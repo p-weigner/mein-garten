@@ -6,7 +6,7 @@ Aktuell reine Stammdaten- und Pflegeaufgabenverwaltung.
 from __future__ import annotations
 
 import logging
-import voluptuous as vol
+import probatio
 
 from homeassistant.components import websocket_api
 from homeassistant.core import callback
@@ -47,7 +47,7 @@ async def _aendern(hass, connection, msg, methode, parameter):
     connection.send_result(msg["id"], {"objekt": objekt, **_snapshot(backend)})
 
 
-@websocket_api.websocket_command({vol.Required("type"): "mein_garten/get"})
+@websocket_api.websocket_command({probatio.Required("type"): "mein_garten/get"})
 @callback
 def ws_get(hass, connection, msg):
     backend = _backend(hass)
@@ -57,7 +57,7 @@ def ws_get(hass, connection, msg):
     connection.send_result(msg["id"], _snapshot(backend))
 
 
-@websocket_api.websocket_command({vol.Required("type"): "mein_garten/subscribe"})
+@websocket_api.websocket_command({probatio.Required("type"): "mein_garten/subscribe"})
 @callback
 def ws_subscribe(hass, connection, msg):
     """Live-Aktualisierung für mehrere Geräte, ohne Polling."""
@@ -79,8 +79,8 @@ def ws_subscribe(hass, connection, msg):
 
 
 @websocket_api.websocket_command({
-    vol.Required("type"): "mein_garten/pflanzen_suchen",
-    vol.Required("suchbegriff"): str,
+    probatio.Required("type"): "mein_garten/pflanzen_suchen",
+    probatio.Required("suchbegriff"): str,
 })
 @websocket_api.async_response
 async def ws_pflanzen_suchen(hass, connection, msg):
@@ -103,8 +103,8 @@ async def ws_pflanzen_suchen(hass, connection, msg):
 
 
 @websocket_api.websocket_command({
-    vol.Required("type"): "mein_garten/bereich_anlegen",
-    vol.Required("name"): str,
+    probatio.Required("type"): "mein_garten/bereich_anlegen",
+    probatio.Required("name"): str,
 })
 @websocket_api.async_response
 async def ws_bereich_anlegen(hass, connection, msg):
@@ -112,9 +112,9 @@ async def ws_bereich_anlegen(hass, connection, msg):
 
 
 @websocket_api.websocket_command({
-    vol.Required("type"): "mein_garten/bereich_umbenennen",
-    vol.Required("bereich_id"): str,
-    vol.Required("name"): str,
+    probatio.Required("type"): "mein_garten/bereich_umbenennen",
+    probatio.Required("bereich_id"): str,
+    probatio.Required("name"): str,
 })
 @websocket_api.async_response
 async def ws_bereich_umbenennen(hass, connection, msg):
@@ -124,8 +124,8 @@ async def ws_bereich_umbenennen(hass, connection, msg):
 
 
 @websocket_api.websocket_command({
-    vol.Required("type"): "mein_garten/bereich_entfernen",
-    vol.Required("bereich_id"): str,
+    probatio.Required("type"): "mein_garten/bereich_entfernen",
+    probatio.Required("bereich_id"): str,
 })
 @websocket_api.async_response
 async def ws_bereich_entfernen(hass, connection, msg):
@@ -135,12 +135,12 @@ async def ws_bereich_entfernen(hass, connection, msg):
 
 
 @websocket_api.websocket_command({
-    vol.Required("type"): "mein_garten/pflanze_anlegen",
-    vol.Required("name"): str,
-    vol.Optional("wissenschaftlich", default=""): str,
-    vol.Optional("bereich_id"): vol.Any(None, str),
-    vol.Optional("gruppe"): vol.Any(None, str),
-    vol.Optional("notizen", default=""): str,
+    probatio.Required("type"): "mein_garten/pflanze_anlegen",
+    probatio.Required("name"): str,
+    probatio.Optional("wissenschaftlich", default=""): str,
+    probatio.Optional("bereich_id"): probatio.Any(None, str),
+    probatio.Optional("gruppe"): probatio.Any(None, str),
+    probatio.Optional("notizen", default=""): str,
 })
 @websocket_api.async_response
 async def ws_pflanze_anlegen(hass, connection, msg):
@@ -152,13 +152,13 @@ async def ws_pflanze_anlegen(hass, connection, msg):
 
 
 @websocket_api.websocket_command({
-    vol.Required("type"): "mein_garten/pflanze_bearbeiten",
-    vol.Required("pflanzen_id"): str,
-    vol.Optional("name"): str,
-    vol.Optional("wissenschaftlich"): str,
-    vol.Optional("bereich_id"): vol.Any(None, str),
-    vol.Optional("gruppe"): vol.Any(None, str),
-    vol.Optional("notizen"): str,
+    probatio.Required("type"): "mein_garten/pflanze_bearbeiten",
+    probatio.Required("pflanzen_id"): str,
+    probatio.Optional("name"): str,
+    probatio.Optional("wissenschaftlich"): str,
+    probatio.Optional("bereich_id"): probatio.Any(None, str),
+    probatio.Optional("gruppe"): probatio.Any(None, str),
+    probatio.Optional("notizen"): str,
 })
 @websocket_api.async_response
 async def ws_pflanze_bearbeiten(hass, connection, msg):
@@ -173,8 +173,8 @@ async def ws_pflanze_bearbeiten(hass, connection, msg):
 
 
 @websocket_api.websocket_command({
-    vol.Required("type"): "mein_garten/pflanze_entfernen",
-    vol.Required("pflanzen_id"): str,
+    probatio.Required("type"): "mein_garten/pflanze_entfernen",
+    probatio.Required("pflanzen_id"): str,
 })
 @websocket_api.async_response
 async def ws_pflanze_entfernen(hass, connection, msg):
@@ -184,11 +184,11 @@ async def ws_pflanze_entfernen(hass, connection, msg):
 
 
 @websocket_api.websocket_command({
-    vol.Required("type"): "mein_garten/aufgabe_anlegen",
-    vol.Required("name"): str,
-    vol.Optional("faellig_am"): vol.Any(None, str),
-    vol.Optional("pflanzen_id"): vol.Any(None, str),
-    vol.Optional("bereich_id"): vol.Any(None, str),
+    probatio.Required("type"): "mein_garten/aufgabe_anlegen",
+    probatio.Required("name"): str,
+    probatio.Optional("faellig_am"): probatio.Any(None, str),
+    probatio.Optional("pflanzen_id"): probatio.Any(None, str),
+    probatio.Optional("bereich_id"): probatio.Any(None, str),
 })
 @websocket_api.async_response
 async def ws_aufgabe_anlegen(hass, connection, msg):
@@ -200,8 +200,8 @@ async def ws_aufgabe_anlegen(hass, connection, msg):
 
 
 @websocket_api.websocket_command({
-    vol.Required("type"): "mein_garten/aufgabe_erledigen",
-    vol.Required("aufgaben_id"): str,
+    probatio.Required("type"): "mein_garten/aufgabe_erledigen",
+    probatio.Required("aufgaben_id"): str,
 })
 @websocket_api.async_response
 async def ws_aufgabe_erledigen(hass, connection, msg):
@@ -212,8 +212,8 @@ async def ws_aufgabe_erledigen(hass, connection, msg):
 
 
 @websocket_api.websocket_command({
-    vol.Required("type"): "mein_garten/aufgabe_wieder_oeffnen",
-    vol.Required("aufgaben_id"): str,
+    probatio.Required("type"): "mein_garten/aufgabe_wieder_oeffnen",
+    probatio.Required("aufgaben_id"): str,
 })
 @websocket_api.async_response
 async def ws_aufgabe_wieder_oeffnen(hass, connection, msg):
@@ -224,8 +224,8 @@ async def ws_aufgabe_wieder_oeffnen(hass, connection, msg):
 
 
 @websocket_api.websocket_command({
-    vol.Required("type"): "mein_garten/aufgabe_entfernen",
-    vol.Required("aufgaben_id"): str,
+    probatio.Required("type"): "mein_garten/aufgabe_entfernen",
+    probatio.Required("aufgaben_id"): str,
 })
 @websocket_api.async_response
 async def ws_aufgabe_entfernen(hass, connection, msg):
