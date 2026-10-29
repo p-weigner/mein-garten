@@ -1,0 +1,39 @@
+name: Wikidata – deutsche Pflanzen-Aliase
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/wikidata-namen.yml"
+      - "tools/wikidata_namen.py"
+      - "tools/wikidata_namen_live.py"
+
+permissions:
+  contents: read
+
+jobs:
+  suche:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Repository laden
+        uses: actions/checkout@v4
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Taxon- und Alias-Tests
+        run: python -m unittest discover -s tests -p "test_wikidata_namen.py" -v
+      - name: Sechs deutsche Pflanzenbegriffe suchen
+        run: python -m tools.wikidata_namen_live
+      - name: Öffentlichen Artenbericht bereitstellen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mein-garten-wikidata-deutsche-namen
+          path: |
+            berichte/wikidata_namen.json
+            berichte/wikidata_namen.md
+          retention-days: 15
+          if-no-files-found: warn
