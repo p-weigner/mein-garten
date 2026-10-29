@@ -42,10 +42,10 @@ class FakeConnection:
 
 class TestGartenWebsocket(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
-        vol = types.ModuleType("voluptuous")
-        vol.Required = lambda key, **kwargs: key
-        vol.Optional = lambda key, **kwargs: key
-        vol.Any = lambda *args, **kwargs: args
+        probatio = types.ModuleType("probatio")
+        probatio.Required = lambda key, **kwargs: key
+        probatio.Optional = lambda key, **kwargs: key
+        probatio.Any = lambda *args, **kwargs: args
         ws = types.ModuleType("homeassistant.components.websocket_api")
         ws.websocket_command = lambda schema: (lambda f: f)
         ws.async_response = lambda f: f
@@ -69,7 +69,7 @@ class TestGartenWebsocket(unittest.IsolatedAsyncioTestCase):
         homeassistant.core = core
         homeassistant.helpers = helpers
         self.modules = patch.dict(sys.modules, {
-            "voluptuous": vol,
+            "probatio": probatio,
             "homeassistant": homeassistant,
             "homeassistant.components": components,
             "homeassistant.components.websocket_api": ws,
