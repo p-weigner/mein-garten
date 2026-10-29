@@ -1,0 +1,38 @@
+name: Datenquellen-Livetest
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "tools/**"
+      - "daten/**"
+      - "tests/**"
+      - ".github/workflows/datenquellen.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Offline-Tests
+        run: python -m unittest discover -s tests -v
+      - name: Öffentliche APIs abfragen
+        run: python -m tools.live_test
+      - name: Berichte hochladen (auch bei API-Fehlern)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mein-garten-datenquellenbericht
+          path: berichte/
+          if-no-files-found: warn
+          retention-days: 30
