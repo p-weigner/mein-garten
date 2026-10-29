@@ -7,6 +7,7 @@ die früheren Garten-Prototypen. Das Dashboard "Zuhause" wird nicht berührt.
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from typing import Any
 
 from .const import DOMAIN, SIGNAL_UPDATED, STORAGE_KEY, STORAGE_VERSION
@@ -62,6 +63,19 @@ async def async_setup(hass, config) -> bool:
     if not bucket.get("_websocket_aktiv", False):
         registriere_ws_befehle(hass)
         bucket["_websocket_aktiv"] = True
+
+    if not bucket.get("_frontend_aktiv", False):
+        from homeassistant.components.http import StaticPathConfig
+
+        frontend = Path(__file__).parent / "frontend" / "mein-garten-card.js"
+        await hass.http.async_register_static_paths([
+            StaticPathConfig(
+                "/api/mein_garten/mein-garten-card.js",
+                str(frontend),
+                cache_headers=False,
+            ),
+        ])
+        bucket["_frontend_aktiv"] = True
     return True
 
 
