@@ -44,7 +44,7 @@ class TestStatischesGartenFrontend(unittest.IsolatedAsyncioTestCase):
         args = hass.http.async_register_static_paths.await_args.args[0]
         self.assertEqual(len(args), 1)
         self.assertEqual(
-            args[0].url_path, "/api/mein_garten/mein-garten-card.js"
+            args[0].url_path, "/api/mein_garten/mein-garten-v1-card.js"
         )
         self.assertTrue(Path(args[0].path).is_file())
         self.assertEqual(len(registered), 1)
