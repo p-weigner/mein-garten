@@ -5,6 +5,7 @@ on:
   push:
     branches: [main]
     paths:
+      - "qa/run_backend_unit_tests.py"
       - "custom_components/mein_garten/**"
       - "frontend/**"
       - "tests/**"
@@ -30,7 +31,7 @@ jobs:
       - name: Python-Quelltexte prüfen
         run: python -m compileall -q custom_components/mein_garten
       - name: Backend-, Such- und Speicher-Tests
-        run: python -m unittest discover -s tests -v
+        run: python -m qa.run_backend_unit_tests
       - name: Home-Assistant-2026.10-Schema-Bibliothek installieren
         run: python -m pip install "probatio==0.13.0"
       - name: Reale Probatio-WebSocket-Schemas prüfen
