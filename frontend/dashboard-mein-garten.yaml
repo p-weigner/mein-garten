@@ -5,4 +5,4 @@ views:
     icon: mdi:flower
     type: panel
     cards:
-      - type: custom:mein-garten-card
+      - type: custom:mein-garten-v1-card
