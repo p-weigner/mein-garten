@@ -79,6 +79,30 @@ def ws_subscribe(hass, connection, msg):
 
 
 @websocket_api.websocket_command({
+    vol.Required("type"): "mein_garten/pflanzen_suchen",
+    vol.Required("suchbegriff"): str,
+})
+@websocket_api.async_response
+async def ws_pflanzen_suchen(hass, connection, msg):
+    """Suche nach deutschen und wissenschaftlichen Pflanzennamen."""
+    backend = _backend(hass)
+    service = hass.data.get(DOMAIN, {}).get("suche")
+    if backend is None or service is None:
+        connection.send_error(msg["id"], "nicht_eingerichtet", "Mein Garten ist nicht eingerichtet")
+        return
+    try:
+        result = await service.async_suchen(msg["suchbegriff"])
+    except ValueError as exc:
+        connection.send_error(msg["id"], "ungueltige_eingabe", str(exc))
+        return
+    except Exception:
+        _LOGGER.exception("Mein Garten: externe Pflanzensuche fehlgeschlagen")
+        connection.send_error(msg["id"], "suchfehler", "Pflanzensuche momentan nicht verfügbar")
+        return
+    connection.send_result(msg["id"], result)
+
+
+@websocket_api.websocket_command({
     vol.Required("type"): "mein_garten/bereich_anlegen",
     vol.Required("name"): str,
 })
@@ -214,7 +238,7 @@ async def ws_aufgabe_entfernen(hass, connection, msg):
 def registriere_ws_befehle(hass) -> None:
     """Registriert nur lokale Befehle für authentifizierte HA-Nutzer."""
     for handler in (
-        ws_get, ws_subscribe,
+        ws_get, ws_subscribe, ws_pflanzen_suchen,
         ws_bereich_anlegen, ws_bereich_umbenennen, ws_bereich_entfernen,
         ws_pflanze_anlegen, ws_pflanze_bearbeiten, ws_pflanze_entfernen,
         ws_aufgabe_anlegen, ws_aufgabe_erledigen,
