@@ -91,6 +91,11 @@ def run():
         print(f"Suche {query!r}: "
               f"iNaturalist={entry['anbieter']['inat']['status']}, "
               f"GBIF={entry['anbieter']['gbif']['status']}", flush=True)
+        for provider in ("inat", "gbif"):
+            candidates = entry["anbieter"][provider].get("kandidaten", [])
+            first = [(v["wissenschaftlich"], v["deutscher_name"], v["rang"])
+                     for v in candidates[:5]]
+            print(f"  {provider}: {first}", flush=True)
 
     report = {
         "zeitpunkt_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
