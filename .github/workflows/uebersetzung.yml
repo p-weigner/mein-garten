@@ -5,6 +5,7 @@ on:
   push:
     branches: [main]
     paths:
+      - "qa/run_backend_unit_tests.py"
       - ".github/workflows/uebersetzung.yml"
       - "tools/mymemory.py"
       - "tools/uebersetzung_live.py"
@@ -25,7 +26,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Sicherheits- und API-Adaptertests
-        run: python -m unittest discover -s tests -v
+        run: python -m qa.run_backend_unit_tests
       - name: MyMemory mit eigenen Testsätzen live abfragen
         run: python -m tools.uebersetzung_live
       - name: Ergebnisse ohne Geheimnisse und fremde Quelltexte hochladen
