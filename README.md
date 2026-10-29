@@ -16,7 +16,7 @@ Ein eigenständiges, dunkelgrünes Gartendashboard mit den Ansichten **Start, Pf
 | iNaturalist: botanische Namenssuche | **21 von 21** Beispielarten exakt, einschließlich Hybriden |
 | Pflegewissen-Datenmodell | Quellen, Artabgleich, Rechte, Prüfstatus und Übersetzungsfelder implementiert |
 | Übersetzungs-Cache | Lokal und atomar, offline getestet |
-| Permapeople-Anbindung | API-Adapter vorhanden; **noch kein authentifizierter Live-Test** |
+| Permapeople-Anbindung | **19/21** exakte Arten mit vier Basisfeldern; authentifizierter Live-Test erfolgreich. Keine strukturierten Schnitt-/Düngefelder in der Stichprobe. |
 | Azure Translator | Optionaler Adapter und Zeichenbudget vorhanden; **noch kein Live-Test** |
 | OpenPlantbook-Pflegeantworten | Normalisierung getestet; **noch kein GitHub-Livetest** |
 | Home-Assistant-Anwendung | **Noch nicht neu implementiert** |
@@ -28,6 +28,8 @@ Ein eigenständiges, dunkelgrünes Gartendashboard mit den Ansichten **Start, Pf
 - [Botanische Namenssuche – korrigierter Live-Test](https://github.com/p-weigner/mein-garten/actions/runs/40866511116)
 - [Pflegewissen-Prototyp – erfolgreiche Offline-Tests](https://github.com/p-weigner/mein-garten/actions/runs/40865952351)
 - [Phasen-Ergebnisse und offene Prüfungen](docs/ERGEBNISSE_PHASE1_UND_2.md)
+- [Permapeople-Livetest und Entscheidung zur Nutzung als Ergänzungsquelle](docs/PERMAPEOPLE_LIVETEST_2026-10-29.md)
+- [Vertiefter Datenquellen-Workflow](https://github.com/p-weigner/mein-garten/actions/runs/40868329416)
 - [Optionale API-Tests ohne eigenen PC](docs/API_TEST_OHNE_PC.md)
 
 ## Sicherheitsregeln
