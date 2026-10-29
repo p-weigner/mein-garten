@@ -5,6 +5,10 @@ import { runInNewContext } from "node:vm";
 import { test } from "node:test";
 
 const definitions = new Map();
+// Simuliert die bereits installierte frühere Gartenkarte: beide Versionen
+// müssen gleichzeitig verwendbar bleiben.
+const LegacyGardenCard = class {};
+definitions.set("mein-garten-card", LegacyGardenCard);
 const customCards = [];
 
 class FakeHTMLElement {
@@ -57,6 +61,18 @@ function buildCard() {
   card._render();
   return card;
 }
+
+test("Neue Karte kollidiert nicht mit der früheren Gartenkarte", () => {
+  assert.equal(definitions.get("mein-garten-card"), LegacyGardenCard);
+  assert.notEqual(definitions.get("mein-garten-v1-card"), LegacyGardenCard);
+  assert.equal(customCards.some((c) => c.type === "mein-garten-card"), false);
+});
+
+test("Vollständige Dashboard-YAML verwendet ausschließlich den V1-Typ", () => {
+  const dashboard = readFileSync(new URL("../dashboard-mein-garten.yaml", import.meta.url), "utf8");
+  assert.ok(dashboard.includes("type: custom:mein-garten-v1-card"));
+  assert.ok(!dashboard.includes("type: custom:mein-garten-card"));
+});
 
 test("Karte wird als eigenes Lovelace-Element registriert", () => {
   assert.equal(typeof Card, "function");
