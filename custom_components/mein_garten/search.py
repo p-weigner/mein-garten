@@ -41,14 +41,21 @@ def _dedupe(candidates: list[dict]) -> list[dict]:
             result[key] = dict(candidate)
             continue
         previous = result[key]
-        # Bestätigte botanische Treffer niemals durch schwächere Vorschläge ersetzen.
+        # Bestätigte Taxa haben Vorrang; alle Quellen bleiben nachvollziehbar.
         if candidate["bestaetigt"] and not previous["bestaetigt"]:
-            result[key] = dict(candidate)
-        elif not previous["deutsch"] and candidate["deutsch"]:
-            previous["deutsch"] = candidate["deutsch"]
-        previous["quellen"] = sorted(set(
-            previous["quellen"] + candidate["quellen"]
-        ))
+            replacement = dict(candidate)
+            if not replacement["deutsch"]:
+                replacement["deutsch"] = previous["deutsch"]
+            replacement["quellen"] = sorted(set(
+                previous["quellen"] + candidate["quellen"]
+            ))
+            result[key] = replacement
+        else:
+            if not previous["deutsch"] and candidate["deutsch"]:
+                previous["deutsch"] = candidate["deutsch"]
+            previous["quellen"] = sorted(set(
+                previous["quellen"] + candidate["quellen"]
+            ))
     return list(result.values())
 
 
