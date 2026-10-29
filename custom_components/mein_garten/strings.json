@@ -1,0 +1,14 @@
+{
+  "title": "Mein Garten",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Mein Garten einrichten",
+        "description": "Verwaltet die Pflanzen, Gartenbereiche, Pflegeaufgaben und Erledigungshistorie lokal in Home Assistant."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Mein Garten ist bereits eingerichtet."
+    }
+  }
+}
