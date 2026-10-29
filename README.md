@@ -8,7 +8,7 @@ Eigenständige Gartenverwaltung mit dynamischer Pflanzensuche, deutschsprachigen
 
 Das bisherige Home-Assistant-Dashboard **„Zuhause“ wird nicht verändert**. Die Gartenoberfläche behält das bereits freigegebene dunkelgrüne Design mit den vier Seiten **Start · Pflanzen · Kalender · Bereiche**.
 
-Pflanzen sollen ohne Programmänderungen nach deutschem oder wissenschaftlichem Namen gefunden und angelegt werden können. Englische Pflegeinformationen werden mit Quellenangabe und lokalem Cache automatisch ins Deutsche übertragen. Pflegekalender, Pflegehistorie, individuelle Gartenbereiche, Friday-Nachmittags-Zusammenfassung für Angelinas iPhone und wichtige Wetter-/Frosthinweise bleiben Projektbestandteile.
+Pflanzen sollen ohne Programmänderungen nach deutschem oder wissenschaftlichem Namen gefunden und angelegt werden können. Englische Pflegeinformationen werden mit Quellenangabe und lokalem Cache automatisch ins Deutsche übertragen. Pflegekalender, Pflegehistorie, individuelle Gartenbereiche, Freitagnachmittags-Zusammenfassung für Angelinas iPhone und wichtige Wetter-/Frosthinweise bleiben Projektbestandteile.
 
 **Keine monatlichen Pflicht-Abonnements und keine unkontrollierte Abrechnung.**
 
