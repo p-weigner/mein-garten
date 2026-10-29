@@ -74,7 +74,7 @@ async def async_setup(hass, config) -> bool:
         frontend = Path(__file__).parent / "frontend" / "mein-garten-card.js"
         await hass.http.async_register_static_paths([
             StaticPathConfig(
-                "/api/mein_garten/mein-garten-card.js",
+                "/api/mein_garten/mein-garten-v1-card.js",
                 str(frontend),
                 cache_headers=False,
             ),
