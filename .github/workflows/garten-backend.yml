@@ -10,6 +10,7 @@ on:
       - "tests/test_garten_backend_async.py"
       - "tests/test_ha_backend_contract.py"
       - "tests/test_ha_ws_behavior.py"
+      - "tests/test_ha_static_resource.py"
       - "tests/test_garten_suche.py"
       - ".github/workflows/garten-backend.yml"
 
