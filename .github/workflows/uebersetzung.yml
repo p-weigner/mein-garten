@@ -1,0 +1,37 @@
+name: Kostenlose Übersetzung – Liveprüfung
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/uebersetzung.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  uebersetzung:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+      - name: Python 3.12 vorbereiten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Sicherheits- und API-Adaptertests
+        run: python -m unittest discover -s tests -v
+      - name: MyMemory mit eigenen Testsätzen live abfragen
+        run: python -m tools.uebersetzung_live
+      - name: Ergebnisse ohne Geheimnisse und fremde Quelltexte hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mein-garten-uebersetzungstest
+          path: |
+            berichte/uebersetzung_livetest.json
+            berichte/uebersetzung_livetest.md
+          retention-days: 15
+          if-no-files-found: warn
