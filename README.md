@@ -12,7 +12,7 @@ Eigenständiges Gartendashboard für Pflanzen, Gartenbereiche, Pflegeaufgaben un
 - **Gartenbereiche:** Frei anlegen, umbenennen und entfernen; bei Bereichslöschung bleiben Pflanzen erhalten.
 - **Pflegeaufgaben:** Manuell planen, erledigen, wieder öffnen und Verlauf dokumentieren.
 - **Daten:** Lokal auf Home Assistant Green (`.storage/mein_garten_v1.data`); getrennt von früheren Garten-Prototypen.
-- **Gartenkarte:** Bereits im Integrationspaket enthalten, als statische Ressource unter `/api/mein_garten/mein-garten-card.js`.
+- **Gartenkarte:** Bereits im Integrationspaket enthalten, als eigene statische Ressource unter `/api/mein_garten/mein-garten-v1-card.js` und mit eigenem Karten-Typ `custom:mein-garten-v1-card`. Die bisherige Gartenkarte bleibt davon unabhängig.
 
 **Wichtig:** Das Home-Assistant-Dashboard **„Zuhause“ bleibt vollständig unangetastet.** Der alte Garten-Prototyp kann ersetzt werden.
 
@@ -36,6 +36,7 @@ Die Live-Tests belegen nicht die Datenbankabdeckung sämtlicher Pflanzen. Auch m
 
 - **[Automatischer Paket-Build mit allen Tests](.github/workflows/garten-alpha-paket.yml)** – vollständiges Paket als GitHub-Actions-Artefakt.
 - **[Vollständige Installationsanleitung](docs/ALPHA_INSTALLATION.md)** – inklusive HACS und eigener Lovelace-Ressource.
+- **[Fehlerbehebung nach JavaScript-Ressourcenwechsel](docs/KONFIGURATIONSFEHLER_LOVELACE.md)** – alte und neue Gartenkarte können parallel bestehen.
 - **[Vollständige Dashboard-YAML](frontend/dashboard-mein-garten.yaml)** – nur für das neue eigenständige Garten-Dashboard.
 - **[Vollständiger Frontend-JavaScript-Code](frontend/mein-garten-card.js)** – im HACS-Integrationsordner automatisch mitgeliefert.
 - **[Backend-Vorversion und offene Funktionen](docs/HA_BACKEND_BETA.md)**.
