@@ -14,12 +14,21 @@ def fetch(url):
     return json.loads(payload)
 def norm(v): return " ".join(str(v or "").casefold().replace("×"," x ").split())
 def exact(candidate, expected, rank):
-    return norm(candidate)==norm(expected) and str(rank).lower() in ("species","subspecies","variety","form")
+    return norm(candidate)==norm(expected) and str(rank).lower() in ("species","subspecies","variety","form","hybrid")
+def hybrid_variante(candidate, expected):
+    a, b = norm(candidate), norm(expected)
+    return (" x " in a or " x " in b) and a.replace(" x ", " ") == b.replace(" x ", " ")
 def check_gbif(name):
     url="https://api.gbif.org/v1/species/match?"+urllib.parse.urlencode({"name":name,"kingdom":"Plantae","strict":"true"})
     data=fetch(url)
     found=data.get("canonicalName") or ""
-    return {"status":"exakt" if data.get("matchType")=="EXACT" and exact(found,name,data.get("rank")) else "nicht_eindeutig","name":found,"id":data.get("usageKey"),"matchType":data.get("matchType"),"confidence":data.get("confidence"),"url":"https://www.gbif.org/species/"+str(data.get("usageKey")) if data.get("usageKey") else ""}
+    status = "nicht_eindeutig"
+    if data.get("matchType") == "EXACT" and exact(found, name, data.get("rank")):
+        status = "exakt"
+    elif (data.get("matchType") == "EXACT" and str(data.get("rank")).lower() in ("species", "hybrid")
+          and (data.get("confidence") or 0) >= 99 and hybrid_variante(found, name)):
+        status = "hybrid_schreibweise"
+    return {"status":status,"name":found,"id":data.get("usageKey"),"matchType":data.get("matchType"),"confidence":data.get("confidence"),"url":"https://www.gbif.org/species/"+str(data.get("usageKey")) if data.get("usageKey") else ""}
 def check_inat(name):
     url="https://api.inaturalist.org/v1/taxa/autocomplete?"+urllib.parse.urlencode({"q":name,"locale":"de","per_page":15})
     data=fetch(url)
@@ -47,15 +56,15 @@ def run():
                 # Nur öffentliche botanische Kandidatennamen, keine Schlüssel oder privaten Daten.
                 print(f"  {source}: Kandidat={info.get('name', '')!r}, Matchtyp={info.get('matchType', '')!r}, Konfidenz={info.get('confidence', '')!r}", flush=True)
     timestamp=dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
-    summary={s:{state:sum(r[s+"_status"]==state for r in rows) for state in ("exakt","nicht_eindeutig","fehler")} for s in ("gbif","inat")}
+    summary={s:{state:sum(r[s+"_status"]==state for r in rows) for state in ("exakt","hybrid_schreibweise","nicht_eindeutig","fehler")} for s in ("gbif","inat")}
     result={"zeitpunkt_utc":timestamp,"hinweis":"Botanischer Namensabgleich; keine Prüfung von Pflegewissen oder Übersetzung.","gesamt":len(rows),"statistik":summary,"pflanzen":rows}
     (OUT/"datenquellen.json").write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding="utf-8")
     with (OUT/"datenquellen.csv").open("w",newline="",encoding="utf-8-sig") as f:
         columns=["gruppe","name_de","wissenschaftlich","gbif_status","inat_status","gbif_fehler","inat_fehler"]
         writer=csv.DictWriter(f,fieldnames=columns,extrasaction="ignore");writer.writeheader();writer.writerows(rows)
-    text=["# Mein Garten – öffentlicher API-Livetest", "",f"**Zeitpunkt (UTC):** {timestamp}",f"**Pflanzen:** {len(rows)}","","> Nur botanische Namensidentität; KEINE Pflege- oder Übersetzungsprüfung.","","| Quelle | Exakt | Nicht eindeutig | Fehler |","|---|---:|---:|---:|"]
+    text=["# Mein Garten – öffentlicher API-Livetest", "",f"**Zeitpunkt (UTC):** {timestamp}",f"**Pflanzen:** {len(rows)}","","> Nur botanische Namensidentität; KEINE Pflege- oder Übersetzungsprüfung.","","| Quelle | Exakt | Hybrid-Schreibweise | Nicht eindeutig | Fehler |","|---|---:|---:|---:|---:|"]
     for s in ("gbif","inat"):
-        x=summary[s];text.append(f"| {s} | {x['exakt']} | {x['nicht_eindeutig']} | {x['fehler']} |")
+        x=summary[s];text.append(f"| {s} | {x['exakt']} | {x['hybrid_schreibweise']} | {x['nicht_eindeutig']} | {x['fehler']} |")
     text += ["","| Pflanze | GBIF | iNaturalist |","|---|---|---|"]
     for row in rows:text.append(f"| {row['wissenschaftlich']} | {row['gbif_status']} | {row['inat_status']} |")
     text+=["","## Fehler"]
