@@ -41,6 +41,11 @@ def run():
             time.sleep(.22)
         rows.append(row)
         print(f"{i:02d}/{len(PLANTS)} {p['wissenschaftlich']} | GBIF={row['gbif_status']} | iNaturalist={row['inat_status']}",flush=True)
+        for source in ("gbif", "inat"):
+            if row[source+"_status"] == "nicht_eindeutig":
+                info = row[source+"_details"]
+                # Nur öffentliche botanische Kandidatennamen, keine Schlüssel oder privaten Daten.
+                print(f"  {source}: Kandidat={info.get('name', '')!r}, Matchtyp={info.get('matchType', '')!r}, Konfidenz={info.get('confidence', '')!r}", flush=True)
     timestamp=dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
     summary={s:{state:sum(r[s+"_status"]==state for r in rows) for state in ("exakt","nicht_eindeutig","fehler")} for s in ("gbif","inat")}
     result={"zeitpunkt_utc":timestamp,"hinweis":"Botanischer Namensabgleich; keine Prüfung von Pflegewissen oder Übersetzung.","gesamt":len(rows),"statistik":summary,"pflanzen":rows}
