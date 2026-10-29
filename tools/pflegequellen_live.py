@@ -80,6 +80,8 @@ def run():
         "recht": "Permapeople-Daten CC BY-SA 4.0; Originaltexte werden NICHT veröffentlicht.",
         "warnung": "Technischer API-Test, keine Prüfung medizinischer, gärtnerischer oder rechtlicher Zuverlässigkeit.",
     }
+    print("METADATEN-ZUSAMMENFASSUNG (nur Feldnamen und Anzahlen): "
+          + json.dumps(report["permapeople_metadaten"], ensure_ascii=False, sort_keys=True), flush=True)
     (OUT / "pflegequellen.json").write_text(
         json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8"
     )
