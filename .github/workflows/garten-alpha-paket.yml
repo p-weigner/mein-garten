@@ -10,6 +10,7 @@ on:
       - "tests/**"
       - "docs/ALPHA_INSTALLATION.md"
       - "hacs.json"
+      - "qa/probatio_integration_check.py"
       - ".github/workflows/garten-alpha-paket.yml"
 
 permissions:
@@ -30,6 +31,10 @@ jobs:
         run: python -m compileall -q custom_components/mein_garten
       - name: Backend-, Such- und Speicher-Tests
         run: python -m unittest discover -s tests -v
+      - name: Home-Assistant-2026.10-Schema-Bibliothek installieren
+        run: python -m pip install "probatio==0.13.0"
+      - name: Reale Probatio-WebSocket-Schemas prüfen
+        run: python -m qa.probatio_integration_check
       - name: Node.js 22
         uses: actions/setup-node@v4
         with:
