@@ -1,0 +1,107 @@
+[
+  {
+    "gruppe": "Blumen/Stauden",
+    "name_de": "Bauernhortensie",
+    "wissenschaftlich": "Hydrangea macrophylla"
+  },
+  {
+    "gruppe": "Blumen/Stauden",
+    "name_de": "Rispenhortensie",
+    "wissenschaftlich": "Hydrangea paniculata"
+  },
+  {
+    "gruppe": "Blumen/Stauden",
+    "name_de": "Lavendel",
+    "wissenschaftlich": "Lavandula angustifolia"
+  },
+  {
+    "gruppe": "Blumen/Stauden",
+    "name_de": "Sonnenhut",
+    "wissenschaftlich": "Echinacea purpurea"
+  },
+  {
+    "gruppe": "Blumen/Stauden",
+    "name_de": "Hundsrose",
+    "wissenschaftlich": "Rosa canina"
+  },
+  {
+    "gruppe": "Sträucher/Bäume",
+    "name_de": "Buchsbaum",
+    "wissenschaftlich": "Buxus sempervirens"
+  },
+  {
+    "gruppe": "Sträucher/Bäume",
+    "name_de": "Lebensbaum",
+    "wissenschaftlich": "Thuja occidentalis"
+  },
+  {
+    "gruppe": "Sträucher/Bäume",
+    "name_de": "Sommerflieder",
+    "wissenschaftlich": "Buddleja davidii"
+  },
+  {
+    "gruppe": "Obst/Beeren",
+    "name_de": "Apfelbaum",
+    "wissenschaftlich": "Malus domestica"
+  },
+  {
+    "gruppe": "Obst/Beeren",
+    "name_de": "Birne",
+    "wissenschaftlich": "Pyrus communis"
+  },
+  {
+    "gruppe": "Obst/Beeren",
+    "name_de": "Johannisbeere",
+    "wissenschaftlich": "Ribes rubrum"
+  },
+  {
+    "gruppe": "Obst/Beeren",
+    "name_de": "Himbeere",
+    "wissenschaftlich": "Rubus idaeus"
+  },
+  {
+    "gruppe": "Obst/Beeren",
+    "name_de": "Erdbeere",
+    "wissenschaftlich": "Fragaria × ananassa"
+  },
+  {
+    "gruppe": "Gemüse/Kräuter",
+    "name_de": "Tomate",
+    "wissenschaftlich": "Solanum lycopersicum"
+  },
+  {
+    "gruppe": "Gemüse/Kräuter",
+    "name_de": "Gurke",
+    "wissenschaftlich": "Cucumis sativus"
+  },
+  {
+    "gruppe": "Gemüse/Kräuter",
+    "name_de": "Zucchini",
+    "wissenschaftlich": "Cucurbita pepo"
+  },
+  {
+    "gruppe": "Gemüse/Kräuter",
+    "name_de": "Basilikum",
+    "wissenschaftlich": "Ocimum basilicum"
+  },
+  {
+    "gruppe": "Gemüse/Kräuter",
+    "name_de": "Rosmarin",
+    "wissenschaftlich": "Salvia rosmarinus"
+  },
+  {
+    "gruppe": "Kübelpflanzen",
+    "name_de": "Zitrone",
+    "wissenschaftlich": "Citrus × limon"
+  },
+  {
+    "gruppe": "Kübelpflanzen",
+    "name_de": "Oleander",
+    "wissenschaftlich": "Nerium oleander"
+  },
+  {
+    "gruppe": "Kübelpflanzen",
+    "name_de": "Olive",
+    "wissenschaftlich": "Olea europaea"
+  }
+]
