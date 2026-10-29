@@ -4,16 +4,18 @@ Datum: 29. Oktober 2026
 
 ## Phase 1: botanische Namenssuche (LIVE)
 
-GitHub Actions: https://github.com/p-weigner/mein-garten/actions/runs/40864984736
+Ursprünglicher GitHub-Lauf: https://github.com/p-weigner/mein-garten/actions/runs/40864984736
+
+**Korrigierter und erfolgreicher Lauf:** https://github.com/p-weigner/mein-garten/actions/runs/40866511116
 
 - 21 öffentliche Beispielarten in fünf Gartenkategorien
-- GBIF: **19/21** strenge exakte Arttreffer
-- iNaturalist: **19/21** strenge exakte Arttreffer
+- GBIF: **19/21** strenge exakte Namen; **2/21** mit gleichwertiger Hybrid-Schreibweise und exakt bestätigtem GBIF-Abgleich (100 % Konfidenz)
+- iNaturalist: **21/21** exakt; Hybridrang wird ausdrücklich zugelassen
 - Keine Verbindungsfehler.
-- Gartenerdbeere (Fragaria × ananassa) und Zitrone (Citrus × limon) wurden **nicht eindeutig bestätigt**. Sie können unter Synonymen oder alternativen Schreibweisen erfasst sein: Das ist noch nicht untersucht.
-- Fünf Offline-Tests der Namenslogik bestanden.
+- Gartenerdbeere (Fragaria × ananassa) und Zitrone (Citrus × limon) werden nun korrekt zugeordnet. GBIF ließ im kanonischen Namen bei beiden das Hybridzeichen weg, iNaturalist kennzeichnet sie als Hybrid.
+- Zusammen **40 Offline-Tests** bestanden (einschließlich sieben zusätzlicher Tests für Hybridfälle).
 
-Diese Stichprobe ist **kein** repräsentativer Nachweis von 90 % Gesamtartenabdeckung. Sie sagt nichts über das vorhandene Pflegewissen aus.
+Diese Stichprobe ist **kein** repräsentativer Nachweis vollständiger Gesamtartenabdeckung. Sie sagt nichts über das vorhandene Pflegewissen aus.
 
 ## Phase 2: gemeinsame Pflegedatenstruktur (SIMULIERT)
 
