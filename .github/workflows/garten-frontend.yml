@@ -1,0 +1,28 @@
+name: Mein Garten – Frontend-Prüfung
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/garten-frontend.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Repository laden
+        uses: actions/checkout@v4
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: JavaScript-Syntax prüfen
+        run: node --check frontend/mein-garten-card.js
+      - name: Komponenten- und Sicherheitstests
+        run: node --test frontend/tests/card.test.mjs
