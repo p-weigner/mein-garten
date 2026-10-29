@@ -563,13 +563,13 @@
     }
   }
 
-  if (!customElements.get("mein-garten-card")) {
-    customElements.define("mein-garten-card", MeinGartenCard);
+  if (!customElements.get("mein-garten-v1-card")) {
+    customElements.define("mein-garten-v1-card", MeinGartenCard);
   }
   window.customCards = window.customCards || [];
-  if (!window.customCards.some((x) => x.type === "mein-garten-card")) {
+  if (!window.customCards.some((x) => x.type === "mein-garten-v1-card")) {
     window.customCards.push({
-      type: "mein-garten-card",
+      type: "mein-garten-v1-card",
       name: "Mein Garten",
       description: "Eigenständige Gartenverwaltung mit Pflanzen, Bereichen, Aufgaben und Kalender."
     });
