@@ -7,6 +7,7 @@ on:
     paths:
       - "custom_components/mein_garten/**"
       - "tests/test_gartenmodell.py"
+      - "tests/test_garten_backend_async.py"
       - "tests/test_ha_backend_contract.py"
       - ".github/workflows/garten-backend.yml"
 
