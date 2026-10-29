@@ -18,10 +18,11 @@ Ein eigenständiges, dunkelgrünes Gartendashboard mit den Ansichten **Start, Pf
 | Übersetzungs-Cache | Lokal und atomar, offline getestet |
 | Permapeople-Anbindung | **19/21** exakte Arten mit vier Basisfeldern; authentifizierter Live-Test erfolgreich. Keine strukturierten Schnitt-/Düngefelder in der Stichprobe. |
 | Azure Translator | Optionaler Adapter und Zeichenbudget vorhanden; **noch kein Live-Test** |
-| OpenPlantbook-Pflegeantworten | Vollständiges temporäres HA-Testskript erstellt; **echter Lauf auf Home Assistant Green noch ausstehend** |
+| OpenPlantbook-Pflegeantworten | **10/13** exakt passende Profile mit fünf nichtleeren Pflegefeldern – echter Home-Assistant-Test erfolgreich; Qualität und Rechte noch offen |
+| Quellübergreifende deutsche Pflegeanzeige | Modul implementiert, private Hinweise priorisiert, Quellen getrennt, ungeprüfte Aufgaben gesperrt; 12 neue Tests bestanden |
 | Home-Assistant-Anwendung | **Noch nicht neu implementiert** |
 
-**40 Offline-Tests** einschließlich der Hybridprüfung wurden auf GitHub Actions erfolgreich ausgeführt. Alle Aussagen zur erfolgreichen Live-Abfrage beziehen sich ausschließlich auf die botanische Namenssuche.
+**58 Offline-Tests** bestehen in GitHub Actions. Live-Abfragen erfolgten für GBIF, iNaturalist und Permapeople; OpenPlantbook wurde getrennt auf dem Home Assistant Green getestet. Die neue Quellen-Zusammenführung ist vorerst ein Prototyp, noch keine installierbare HA-Integration.
 
 ## Links zum Nachvollziehen
 
@@ -31,6 +32,8 @@ Ein eigenständiges, dunkelgrünes Gartendashboard mit den Ansichten **Start, Pf
 - [Permapeople-Livetest und Entscheidung zur Nutzung als Ergänzungsquelle](docs/PERMAPEOPLE_LIVETEST_2026-10-29.md)
 - [OpenPlantbook: vollständiges HA-Testskript und Ausführung ohne zusätzliche API-Schlüssel](docs/OPENPLANTBOOK_PFLEGEFELDTEST.md)
 - [OpenPlantbook: erfolgreiche YAML- und Jinja-Prüfung (11 Tests)](https://github.com/p-weigner/mein-garten/actions/runs/40870073238)
+- [OpenPlantbook: realer Pflegefeldbericht, Quellenentscheidung](docs/OPENPLANTBOOK_LIVETEST_2026-10-29.md)
+- [Quellen-Zusammenführung: 58 erfolgreiche Tests](https://github.com/p-weigner/mein-garten/actions/runs/40871670623)
 - [Vertiefter Datenquellen-Workflow](https://github.com/p-weigner/mein-garten/actions/runs/40868329416)
 - [Optionale API-Tests ohne eigenen PC](docs/API_TEST_OHNE_PC.md)
 
