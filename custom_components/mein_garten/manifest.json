@@ -1,17 +1,17 @@
 {
   "domain": "mein_garten",
   "name": "Mein Garten",
-  "version": "1.0.0b1",
-  "documentation": "https://github.com/p-weigner/mein-garten",
-  "issue_tracker": "https://github.com/p-weigner/mein-garten/issues",
+  "codeowners": [
+    "@p-weigner"
+  ],
   "config_flow": true,
   "dependencies": [
     "websocket_api",
     "http"
   ],
-  "requirements": [],
+  "documentation": "https://github.com/p-weigner/mein-garten",
   "iot_class": "local_push",
-  "codeowners": [
-    "@p-weigner"
-  ]
+  "issue_tracker": "https://github.com/p-weigner/mein-garten/issues",
+  "requirements": [],
+  "version": "1.0.0b1"
 }
