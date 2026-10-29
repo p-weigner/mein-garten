@@ -1,0 +1,36 @@
+name: Deutsche Pflanzensuche – Liveprüfung
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/deutsche-suche.yml"
+      - "tools/deutsche_namenssuche_live.py"
+
+permissions:
+  contents: read
+
+jobs:
+  deutsche-suche:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Repository laden
+        uses: actions/checkout@v4
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Deutsche Namen bei GBIF und iNaturalist suchen
+        run: python -m tools.deutsche_namenssuche_live
+      - name: Öffentliche Ergebnisse als Bericht bereitstellen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mein-garten-deutsche-pflanzensuche
+          path: |
+            berichte/deutsche_namenssuche.json
+            berichte/deutsche_namenssuche.md
+          retention-days: 15
+          if-no-files-found: warn
