@@ -105,7 +105,7 @@ class TestMyMemory(unittest.TestCase):
                 self.assertTrue(req.full_url.startswith("https://api.mymemory.translated.net/get?"))
                 self.assertIn("langpair=en%7Cde", req.full_url)
                 self.assertNotIn("de=", req.full_url)
-                self.assertEqual(req.method, "GET")
+                self.assertEqual(req.get_method(), "GET")
 
     def test_unerwartete_antwort_abgelehnt(self):
         with tempfile.TemporaryDirectory() as d:
