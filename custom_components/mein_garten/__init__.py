@@ -77,11 +77,15 @@ async def async_setup_entry(hass, entry) -> bool:
         raise ConfigEntryNotReady(
             "Mein Garten: Daten konnten nicht sicher gelesen werden"
         ) from exc
+    from .search import Pflanzensuche
+
     hass.data.setdefault(DOMAIN, {})["backend"] = backend
+    hass.data[DOMAIN]["suche"] = Pflanzensuche(hass)
     return True
 
 
 async def async_unload_entry(hass, entry) -> bool:
     """Entfernt den Backend-Verweis; gespeicherte Daten bleiben erhalten."""
     hass.data.get(DOMAIN, {}).pop("backend", None)
+    hass.data.get(DOMAIN, {}).pop("suche", None)
     return True
