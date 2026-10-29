@@ -41,6 +41,9 @@ def main():
     core.callback = lambda func: func
     ha.core = core
     helpers = types.ModuleType("homeassistant.helpers")
+    config_validation = types.ModuleType("homeassistant.helpers.config_validation")
+    config_validation.config_entry_only_config_schema = lambda domain: lambda value: value
+    helpers.config_validation = config_validation
     dispatcher = types.ModuleType("homeassistant.helpers.dispatcher")
     dispatcher.async_dispatcher_connect = lambda *args: None
     helpers.dispatcher = dispatcher
@@ -52,6 +55,7 @@ def main():
         "homeassistant.components.websocket_api": ws,
         "homeassistant.core": core,
         "homeassistant.helpers": helpers,
+        "homeassistant.helpers.config_validation": config_validation,
         "homeassistant.helpers.dispatcher": dispatcher,
     }):
         sys.modules.pop("custom_components.mein_garten.api", None)
