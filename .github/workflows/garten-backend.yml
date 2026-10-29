@@ -1,0 +1,30 @@
+name: Mein Garten – Backend-Prüfung
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "custom_components/mein_garten/**"
+      - "tests/test_gartenmodell.py"
+      - "tests/test_ha_backend_contract.py"
+      - ".github/workflows/garten-backend.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Repository laden
+        uses: actions/checkout@v4
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python-Module syntaktisch prüfen
+        run: python -m compileall -q custom_components/mein_garten
+      - name: Datenmodell- und Integrations-Vertragstests
+        run: python -m unittest discover -s tests -v
