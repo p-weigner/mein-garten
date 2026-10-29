@@ -7,7 +7,7 @@ Eigenständiges Gartendashboard für Pflanzen, Gartenbereiche, Pflegeaufgaben un
 ## Aktueller Funktionsumfang
 
 - **Vier freigegebene Ansichten:** Start · Pflanzen · Kalender · Bereiche, als eigenständige dunkelgrüne Lovelace-Karte.
-- **Dynamische Namenssuche:** Deutsche und wissenschaftliche Pflanzennamen über iNaturalist + Wikidata. Die Bayern-/Bauernhortensien-Suche wurde live mit `Hydrangea macrophylla` nachgewiesen.
+- **Dynamische Namenssuche:** Deutsche und wissenschaftliche Pflanzennamen über iNaturalist + Wikidata. Die Bauernhortensien-Suche wurde live mit `Hydrangea macrophylla` nachgewiesen.
 - **Pflanzen:** Ohne Änderung am Quellcode hinzufügen, bearbeiten, einer Gruppe/Bereich zuordnen, Notizen erstellen und entfernen.
 - **Gartenbereiche:** Frei anlegen, umbenennen und entfernen; bei Bereichslöschung bleiben Pflanzen erhalten.
 - **Pflegeaufgaben:** Manuell planen, erledigen, wieder öffnen und Verlauf dokumentieren.
