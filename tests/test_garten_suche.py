@@ -70,6 +70,19 @@ class TestTaxonParsing(unittest.TestCase):
         self.assertEqual(result[0]["deutsch"], "Gartenhortensie")
         self.assertEqual(result[0]["quellen"], ["Wikidata", "iNaturalist"])
 
+    def test_quellen_bei_spaeter_bestaetigtem_treffer_erhalten(self):
+        zuerst = {"wissenschaftlich": "Hydrangea macrophylla",
+                  "deutsch": "Gartenhortensie", "bestaetigt": False,
+                  "quellen": ["Wikidata"]}
+        danach = {"wissenschaftlich": "Hydrangea macrophylla",
+                  "deutsch": "", "bestaetigt": True,
+                  "quellen": ["iNaturalist"]}
+        result = _dedupe([zuerst, danach])
+        self.assertEqual(len(result), 1)
+        self.assertTrue(result[0]["bestaetigt"])
+        self.assertEqual(result[0]["deutsch"], "Gartenhortensie")
+        self.assertEqual(result[0]["quellen"], ["Wikidata", "iNaturalist"])
+
     def test_falsche_arten_nicht_vereinen(self):
         result = _dedupe([
             {"wissenschaftlich": "Hydrangea paniculata",
