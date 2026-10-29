@@ -1,0 +1,58 @@
+name: Mein Garten V1 – Alpha-Paket
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "custom_components/mein_garten/**"
+      - "frontend/**"
+      - "tests/**"
+      - "docs/ALPHA_INSTALLATION.md"
+      - "hacs.json"
+      - ".github/workflows/garten-alpha-paket.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  alpha-paket:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Repository laden
+        uses: actions/checkout@v4
+      - name: Python 3.12 für isolierte Backend-Tests
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python-Quelltexte prüfen
+        run: python -m compileall -q custom_components/mein_garten
+      - name: Backend-, Such- und Speicher-Tests
+        run: python -m unittest discover -s tests -v
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Frontend-Syntax und bitgleiche JS-Datei prüfen
+        run: |
+          node --check frontend/mein-garten-card.js
+          cmp frontend/mein-garten-card.js custom_components/mein_garten/frontend/mein-garten-card.js
+      - name: Frontend-Interaktion und Sicherheit testen
+        run: node --test frontend/tests/card.test.mjs
+      - name: Vollständiges Alpha-Testpaket zusammensetzen
+        run: |
+          mkdir -p paket/custom_components
+          cp -R custom_components/mein_garten paket/custom_components/mein_garten
+          find paket -type d -name __pycache__ -prune -exec rm -rf {} +
+          cp frontend/dashboard-mein-garten.yaml paket/Mein_Garten_Dashboard.yaml
+          cp docs/ALPHA_INSTALLATION.md paket/ANLEITUNG.md
+          cp hacs.json paket/hacs.json
+          echo "TECHNISCHER ALPHA-TEST - NICHT DIE FERTIGE V1" > paket/STATUS.txt
+      - name: Alpha-Testpaket bereitstellen
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mein_Garten_V1_Alpha_Testpaket
+          path: paket/
+          retention-days: 30
+          if-no-files-found: error
