@@ -47,7 +47,7 @@ def run():
             "fehlerklasse": fail,
         })
         # Den freien Gemeinschaftsdienst nicht unnötig belasten.
-        print(f"{category}: {state} | {len(german)} deutsche Zeichen", flush=True)
+        print(f"{category}: {state} | {len(german)} Zeichen | SYNTHETISCHE ÜBERSETZUNG: {german}", flush=True)
         time.sleep(1.1)
 
     report = {
