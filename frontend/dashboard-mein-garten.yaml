@@ -1,0 +1,8 @@
+title: Mein Garten
+views:
+  - title: Mein Garten
+    path: garten
+    icon: mdi:flower
+    type: panel
+    cards:
+      - type: custom:mein-garten-card
