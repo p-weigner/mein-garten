@@ -37,7 +37,7 @@ const sandbox = {
 
 const js = readFileSync(new URL("../mein-garten-card.js", import.meta.url), "utf8");
 runInNewContext(js, sandbox, { filename: "mein-garten-card.js" });
-const Card = definitions.get("mein-garten-card");
+const Card = definitions.get("mein-garten-v1-card");
 
 function buildCard() {
   const card = new Card();
@@ -60,7 +60,7 @@ function buildCard() {
 
 test("Karte wird als eigenes Lovelace-Element registriert", () => {
   assert.equal(typeof Card, "function");
-  assert.equal(customCards.find((c) => c.type === "mein-garten-card").name, "Mein Garten");
+  assert.equal(customCards.find((c) => c.type === "mein-garten-v1-card").name, "Mein Garten");
 });
 
 test("Alle vier vereinbarten Ansichten sind vorhanden", () => {
