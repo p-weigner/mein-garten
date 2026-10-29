@@ -6,6 +6,9 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/pflegequellen.yml"
+      - "tools/pflegequellen_live.py"
+      - "tools/pflegeprofil_qualitaet.py"
+      - "tests/test_pflegeprofil_qualitaet.py"
 
 permissions:
   contents: read
