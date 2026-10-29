@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 
 from tools.anbieter import permapeople_suche, AzureUebersetzer, Monatsbudget
 from tools.pflegewissen import normalisiere_permapeople, ArtNichtPassend
+from tools.pflegeprofil_qualitaet import metadaten_profil, zusammenfassen
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / "berichte"
@@ -29,6 +30,7 @@ def run():
     einzel = []
     for plant in pflanzen:
         name = plant["wissenschaftlich"]
+        profil_metrik = None
         if not bereit:
             state = "nicht_getestet"
             fields = []
@@ -41,6 +43,7 @@ def run():
                     fields = []
                 else:
                     records = normalisiere_permapeople(found[0], name)
+                    profil_metrik = metadaten_profil(found[0])
                     fields = sorted({h.feld for h in records})
                     state = "exakt_mit_daten" if fields else "exakt_ohne_pflegedaten"
             except (ValueError, OSError, RuntimeError, TimeoutError, ArtNichtPassend):
@@ -48,7 +51,7 @@ def run():
                 fields = []
             time.sleep(0.3)
         counts[state] += 1
-        einzel.append({"art": name, "status": state, "felder": fields})
+        einzel.append({"art": name, "status": state, "felder": fields, "api_metadaten": profil_metrik})
         print(f"Permapeople {name}: {state}, {len(fields)} zulässige Felder", flush=True)
 
     azure_key = os.environ.get("AZURE_TRANSLATOR_KEY", "").strip()
@@ -71,6 +74,7 @@ def run():
         "permapeople_test_mit_credentials": bereit,
         "permapeople_statistik": dict(counts),
         "permapeople_einzel": einzel,
+        "permapeople_metadaten": zusammenfassen(einzel),
         "azure_uebersetzung": translation,
         "openplantbook": "in_diesem_workflow_nicht_getestet_bestehende_HA_Integration",
         "recht": "Permapeople-Daten CC BY-SA 4.0; Originaltexte werden NICHT veröffentlicht.",
@@ -91,7 +95,33 @@ def run():
     lines += ["", "| Botanische Art | Status | Abrufbare Felder |", "|---|---|---|"]
     for plant in einzel:
         lines.append(f"| {plant['art']} | {plant['status']} | {', '.join(plant['felder']) or '–'} |")
-    lines += ["", "> **Wichtig:** Keine Originaltexte oder Geheimnisse im Bericht. Die API-Prüfung bewertet nur Verfügbarkeit und Feldbelegung; Pflegeempfehlungen bleiben ungeprüft."]
+    m = report["permapeople_metadaten"]
+    lines += [
+        "", "## Gesamter API-Datenbestand je gefundenem Profil (nur Metadaten)", "",
+        f"- Ausgewertete API-Profile: {m['gepruefte_profile']}",
+        f"- Profile mit Beschreibungstext: {m['beschreibung_vorhanden']}",
+        f"- Profile mit Beschreibung länger als 200 Zeichen: {m['beschreibung_mehr_als_200_zeichen']}",
+        f"- Eigene Schnitt-Feldnamen: {m['strukturierte_schnittangaben']}",
+        f"- Eigene Dünge-Feldnamen: {m['strukturierte_duengeangaben']}",
+        f"- Eigene Saison-Feldnamen: {m['strukturierte_saisonangaben']}",
+        "", "| API-Attributname | Anzahl gefundener Profile |", "|---|---:|",
+    ]
+    for key, count in m["api_attributnamen_haeufigkeit"].items():
+        lines.append(f"| {key} | {count} |")
+    lines += ["", "## Inhaltslängen pro Pflanze (ohne Veröffentlichung der Texte)", "",
+              "| Art | Attributanzahl | Beschreibung (Zeichen) |", "|---|---:|---:|"]
+    for plant in einzel:
+        meta = plant.get("api_metadaten")
+        if meta is not None:
+            lines.append(
+                f"| {plant['art']} | {meta['anzahl_attribute_mit_wert']} | {meta['beschreibung_zeichen']} |"
+            )
+    lines += [
+        "", "> **Wichtig:** Die ursprünglichen vier Felder stammen aus unserem "
+        "Adapter, NICHT zwingend aus dem gesamten API-Datenbestand. Auch ein "
+        "längerer Beschreibungstext bedeutet noch keine geprüfte Pflegeanleitung. "
+        "Keine Originaltexte oder Geheimnisse im Bericht; fachliche Qualität noch ungeprüft."
+    ]
     (OUT / "pflegequellen.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     try:
         (OUT / ".privates_testbudget.json").unlink(missing_ok=True)
