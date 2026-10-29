@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Protokolle, lokale Daten und persönliche Geheimnisse
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.sqlite
+*.sqlite3
+*.db
+.storage/
+config/.storage/
+berichte/
+.cache/
+.cache-*/
+*.log
+
+# Persönliche Gartenfotos, sofern sie später lokal entstehen
+private/
+privat/
+daten/persoenlich/
