@@ -1,0 +1,117 @@
+alias: "Mein Garten - OpenPlantbook Pflegeprüfung"
+description: >-
+  Einmaliger, lesender Pflegequellen-Test. Fragt 13 botanische Arten bei der
+  bereits installierten OpenPlantbook-Integration ab, erfasst ausschließlich
+  Treffer und Zeichenlängen der Pflegefelder und zeigt den Bericht als
+  Home-Assistant-Mitteilung an. Es werden keine Fotos, persönlichen Daten,
+  Zugangsschlüssel oder vollständigen Pflegefreitexte exportiert.
+  Gefundene Arten werden in Home Assistant durch OpenPlantbook zwischengespeichert.
+mode: single
+max_exceeded: silent
+sequence:
+  - variables:
+      garten_testarten:
+        - Hydrangea macrophylla
+        - Hydrangea paniculata
+        - Lavandula angustifolia
+        - Rosa canina
+        - Buxus sempervirens
+        - Malus domestica
+        - Ribes rubrum
+        - Fragaria x ananassa
+        - Solanum lycopersicum
+        - Cucumis sativus
+        - Ocimum basilicum
+        - Olea europaea
+        - Monstera deliciosa
+      garten_ergebnisse: []
+  - repeat:
+      for_each: "{{ garten_testarten }}"
+      sequence:
+        - variables:
+            garten_suche: {}
+            garten_details: {}
+            garten_pid: ""
+        - action: openplantbook.search
+          data:
+            alias: "{{ repeat.item }}"
+          response_variable: garten_suche
+          continue_on_error: true
+        - variables:
+            garten_pid: >-
+              {%- set gesucht = repeat.item | lower | replace('×', 'x') | replace(' x ', ' ') | trim -%}
+              {%- set ns = namespace(pid='') -%}
+              {%- for kandidat in (garten_suche if garten_suche is mapping else {}).keys() -%}
+                {%- set normal = kandidat | lower | replace('×', 'x') | replace(' x ', ' ') | trim -%}
+                {%- if normal == gesucht and not ns.pid -%}
+                  {%- set ns.pid = kandidat -%}
+                {%- endif -%}
+              {%- endfor -%}
+              {{ ns.pid }}
+        - choose:
+            - conditions:
+                - condition: template
+                  value_template: "{{ garten_pid | length > 0 }}"
+              sequence:
+                - action: openplantbook.get
+                  data:
+                    species: "{{ garten_pid }}"
+                    include: care
+                  response_variable: garten_details
+                  continue_on_error: true
+        - variables:
+            garten_ergebnis: >-
+              {{ dict(
+                art=repeat.item,
+                pid=garten_pid,
+                suchtreffer=(garten_suche | length if garten_suche is mapping else -1),
+                profil=(garten_pid | length > 0 and garten_details is mapping and
+                        (garten_details.get('pid', '') | lower) == (garten_pid | lower)),
+                wasser=(garten_details.get('watering') | length
+                        if garten_details is mapping and garten_details.get('watering') is string else 0),
+                licht=(garten_details.get('sunlight') | length
+                       if garten_details is mapping and garten_details.get('sunlight') is string else 0),
+                boden=(garten_details.get('soil') | length
+                       if garten_details is mapping and garten_details.get('soil') is string else 0),
+                schnitt=(garten_details.get('pruning') | length
+                         if garten_details is mapping and garten_details.get('pruning') is string else 0),
+                duengung=(garten_details.get('fertilization') | length
+                           if garten_details is mapping and garten_details.get('fertilization') is string else 0)
+              ) }}
+        - variables:
+            garten_ergebnisse: "{{ garten_ergebnisse + [garten_ergebnis] }}"
+        - delay:
+            seconds: 1
+  - variables:
+      garten_bericht: >-
+        {%- set ns = namespace(zeilen=[
+          '### OpenPlantbook - Pflegeprüfung',
+          'Getestet: ' ~ (garten_ergebnisse | length) ~ ' botanische Namen',
+          'Die Zahlen zeigen Zeichenlängen, nicht fachliche Qualität.',
+          '',
+          '| Pflanze | Suche | Exakte Art | Profil | Wasser | Licht | Boden | Schnitt | Düngung |',
+          '|:--|--:|:--:|:--:|--:|--:|--:|--:|--:|'
+        ]) -%}
+        {%- for r in garten_ergebnisse -%}
+          {%- set zeile = '| ' ~ r.art ~ ' | ' ~ r.suchtreffer ~ ' | ' ~
+            ('ja' if r.pid else 'nein') ~ ' | ' ~ ('ja' if r.profil else 'nein') ~
+            ' | ' ~ r.wasser ~ ' | ' ~ r.licht ~
+            ' | ' ~ r.boden ~ ' | ' ~ r.schnitt ~ ' | ' ~ r.duengung ~ ' |' -%}
+          {%- set ns.zeilen = ns.zeilen + [zeile] -%}
+        {%- endfor -%}
+        {%- set ns.zeilen = ns.zeilen + ['',
+          '0 Zeichen bedeutet: kein erfasster Text oder ein Abruffehler.',
+          'Die Suche zeigt nur exakte botanische Namen. Keine Pflegehinweise werden verändert.'
+        ] -%}
+        {{ ns.zeilen | join('\n') }}
+  - action: persistent_notification.create
+    data:
+      notification_id: mein_garten_opb_pflegepruefung
+      title: "Mein Garten: OpenPlantbook-Prüfung"
+      message: "{{ garten_bericht }}"
+  - variables:
+      garten_antwort:
+        hinweis: "Nur Metadaten, keine Pflegefreitexte."
+        ergebnisse: "{{ garten_ergebnisse }}"
+  - stop: "Pflegequellenbericht erstellt"
+    response_variable: garten_antwort
