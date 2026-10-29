@@ -1,0 +1,29 @@
+name: HA 2026.10 – Probatio-WebSocket-Prüfung
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/garten-probatio.yml"
+      - "qa/probatio_integration_check.py"
+      - "custom_components/mein_garten/api.py"
+
+permissions:
+  contents: read
+
+jobs:
+  websocket-2026:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Tatsächliche Home-Assistant-Schema-Bibliothek installieren
+        run: python -m pip install "probatio==0.13.0"
+      - name: Alle Garten-WebSocket-Schemas verifizieren
+        run: python -m qa.probatio_integration_check
