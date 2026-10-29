@@ -64,6 +64,7 @@
       this._error = "";
       this._connection = null;
       this._unsubscribe = null;
+      this._subscribing = false;
       this._connected = false;
       this._onClick = this._onClick.bind(this);
       this._onSubmit = this._onSubmit.bind(this);
@@ -107,10 +108,11 @@
 
     async _connect() {
       const connection = this._hass && this._hass.connection;
-      if (!connection || (this._connection === connection && this._unsubscribe)) return;
+      if (!connection || (this._connection === connection && (this._unsubscribe || this._subscribing))) return;
       if (this._unsubscribe) this._unsubscribe();
       this._unsubscribe = null;
       this._connection = connection;
+      this._subscribing = true;
       try {
         const unsubscribe = await connection.subscribeMessage(
           (event) => {
@@ -131,6 +133,8 @@
       } catch (err) {
         this._error = this._errorText(err, "Backend nicht erreichbar");
         this._render();
+      } finally {
+        this._subscribing = false;
       }
     }
 
