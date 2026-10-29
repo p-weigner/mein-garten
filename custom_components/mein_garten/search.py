@@ -175,7 +175,10 @@ class Pflanzensuche:
             async with limit:
                 try:
                     plants = await self._i_nat(item["wissenschaftlich"])
-                except (OSError, ValueError, TimeoutError, asyncio.TimeoutError):
+                except Exception:
+                    # Drittanbieterfehler (auch HTTP 429/503) dürfen die gesamte
+                    # Pflanzensuche nicht abbrechen. Ein Kandidat bleibt unbestätigt.
+                    _LOGGER.debug("Wikidata-Taxon konnte nicht botanisch bestätigt werden")
                     return item
                 if any(_norm(p["wissenschaftlich"]) ==
                        _norm(item["wissenschaftlich"]) for p in plants):
