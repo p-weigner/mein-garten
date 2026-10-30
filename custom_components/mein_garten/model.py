@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import date, datetime, timezone
+import math
 from uuid import uuid4
 
 from .recurrence import regel_faellig
@@ -317,6 +318,42 @@ class GartenDaten:
             })
             neu += 1
         return neu
+
+    def frostpruefung_anlegen(
+        self, datum: str, temperatur_c: float, schwelle_c: float,
+    ) -> dict | None:
+        """Nur eine unverbindliche Wetterkontrolle, niemals eine Pflegeanweisung.
+
+        Dieser interne Aufruf ist kein generischer WS-Befehl. Externe
+        Pflegefreitexte dürfen darüber keine Aufgabennamen einschleusen.
+        """
+        datum = _datum(datum)
+        if datum is None:
+            raise DatensatzFehler("Frostprüfung braucht ein Datum")
+        for wert in (temperatur_c, schwelle_c):
+            if type(wert) not in (int, float) or not math.isfinite(wert):
+                raise DatensatzFehler("Ungültige Frosttemperatur")
+        if not -60 <= temperatur_c <= 40 or not -5 <= schwelle_c <= 8:
+            raise DatensatzFehler("Unplausible Frosttemperatur")
+        if temperatur_c > schwelle_c:
+            raise DatensatzFehler("Frostschwelle nicht unterschritten")
+        kennung = "frost:" + datum
+        if any(t.get("warnung_id") == kennung for t in self._data["aufgaben"]):
+            return None
+        aufgabe = {
+            "id": _id(),
+            "name": "Mögliche Frostgefahr – empfindliche Pflanzen kontrollieren",
+            "faellig_am": datum,
+            "pflanzen_id": None, "bereich_id": None,
+            "status": "offen", "erledigt_utc": None,
+            "erstellt_utc": _jetzt(),
+            "herkunft": "wetterprognose",
+            "warnung_id": kennung,
+            "quelle": "Home Assistant Wettervorhersage",
+            "hinweis": "Prognose, keine bestätigte Frostwarnung.",
+        }
+        self._data["aufgaben"].append(aufgabe)
+        return deepcopy(aufgabe)
 
     def aufgabe_anlegen(
         self, name: str, faellig_am: str | None = None,
