@@ -1,46 +1,75 @@
-# Mein Garten – CC0-Saisonfenster (Entwicklungsentwurf vom 30. Oktober 2026)
+# Mein Garten – strukturierte CC0-Saisonfenster (Entwurf vom 30. Oktober 2026)
 
-**Nur GitHub-Draft, nicht auf Home Assistant Green installiert.**
+**Status: nur GitHub-Entwicklungsbranch. Keine Installation oder Abnahme auf Home Assistant Green.**
 
-## Datenbasis
+## Was die Funktion kann – und was nicht
+
+Der Kalender zeigt bei **exakt passender botanischer Art** strukturierte Aussaat-, Pflanz- und Vermehrungs-Zeitfenster aus einem fest versionierten, quelloffenen Datensatz. Es werden **keine autonomen Aussaat-, Schnitt-, Dünge- oder Pflanzenschutzarbeiten** erzeugt. Die Zahlen sind zunächst **US-Planungswerte**, keine fachlich für Brandenburg freigegebenen Handlungsanweisungen.
+
+Die Nutzerin trägt für ein Gartenjahr den selbst angenommenen letzten Frühjahrsfrost und/oder ersten Herbstfrost ein. **Erst danach** wird ein Zeitfenster angezeigt. Ein Kontrolltermin wird ausschließlich nach ausdrücklich gewähltem Datum im möglichen Fenster gespeichert. Vergangene Zeitfenster sind nicht erneut buchbar; die Home-Assistant-Zeitzone bestimmt den heutigen Kalendertag.
+
+## Zwei eingefrorene, offline verfügbare CC0-Datenstände
 
 Quelle: [OpenPlantDB](https://github.com/cwfrazier1/openplantdb), Lizenz [CC0 1.0](https://github.com/cwfrazier1/openplantdb/blob/main/LICENSE).
 
-Quellcommit: 99393ea2dbe8da6973434974f92863beff3bbb32 (5. Juli 2026). In dieser festen Version enthielt die Quelldatei data/plants.json genau 294 Datensätze. Der heutige Hauptbranch ist deutlich größer und wird **nicht** automatisch eingebunden.
+| Eingebundener Datensatz | Exakter Upstream-Commit | Ursprüngliche OpenPlantDB-Einträge | Übernommene Arten |
+|---|---|---:|---:|
+| Basisstand vom 5. Juli 2026 | `99393ea2dbe8da6973434974f92863beff3bbb32` | 294 | 152 |
+| Erweiterung vom 30. Oktober 2026 | `c6287784527ebb4162e242394ee08f46d338218b` | 34.841 | 1.140 zusätzliche |
 
-Es wurden ausschließlich strukturierte Rohfelder für 152 botanisch eindeutig zuordenbare Arten übernommen: wissenschaftlicher Name, Quellenkennung, Kategorie, Aussaat-/Pflanzmethode, Frostanker und Wochenintervall. Nicht übernommen wurden Fremdtexte, Fotos, automatische Pflegeanweisungen, unklare Art-/Sortenzuordnungen und duplizierte Binomina.
+**Zusammen 1.292 unterschiedliche Arten** im Offline-Katalog. Die neuere Quelle wurde über den SHA-256-Wert `aa2a9dc02203c6849e24e2f8d47a5339281638d504b1adfc211e771585a8f751` eindeutig identifiziert.
 
-Offline-Datei: custom_components/mein_garten/data/saison_openplantdb_v0_1.json (kein API-Schlüssel, kein Abo und kein Netzwerkaufruf zur Laufzeit).
+### Warum nicht alle 34.841 Datensätze?
 
-## Benutzung
+Viele beziehen sich auf verschiedene Kultivare derselben botanischen Art oder enthalten kein belastbar interpretierbares Frostanker-Intervall. Die Importprüfung fand **1.193 Arten mit untereinander identischen gültigen Frostzeitfenstern** und **200 Arten mit widersprüchlichen gültigen Zeitfenstern** in der neueren Quelle. Einträge mit solchen Widersprüchen werden nicht zu Durchschnittswerten umgerechnet. Schon durch den älteren Basisstand vertretene Arten erhalten **keinen stillen Ersatz**, auch wenn eine spätere Quelle sie anders bewertet.
 
-1. Im Gartenkalender die **Frost-Referenzdaten** für das gewünschte Jahr selbst festlegen: letzter erwarteter Frühjahrsfrost und/oder erster erwarteter Herbstfrost.
-2. Bei botanisch exakt passenden Pflanzen erscheinen unverbindliche Saisonfenster mit Quelle und Hinweis auf die fehlende regionale Prüfung.
-3. Über **Kontrolle planen** einen Termin innerhalb des Fensters selbst auswählen und ausdrücklich bestätigen.
-4. Erst dann wird eine einzelne Kontrollaufgabe im Gartenkalender angelegt. Ihre Metadaten enthalten Quelle, CC0-Lizenz, Quellcommit, Datumsspanne, Jahr und Freigabeart.
-5. Ein zweiter Termin derselben Saisonvorlage für dieselbe Pflanze und dasselbe Jahr ist nicht möglich. Löschen ermöglicht eine spätere Neuanlage; erledigte Termine bleiben im Kalender.
+Die ergänzte Importdatei enthält genau **1.140 zusätzliche Arten**. Bei bereits vorhandenen Arten gilt weiterhin der ursprüngliche Basisstand, einschließlich seines eigenen Quellcommits.
 
-**Beispiel, keine regionale Empfehlung:** Für Solanum lycopersicum enthält die Quelle ein Vorzuchtfenster 6–8 Wochen vor dem erwarteten letzten Frühjahrsfrost. Bei einem nur beispielhaft gewählten 15. Mai 2027 ergibt sich der 20. März bis 3. April 2027. Das ersetzt weder regionale Erfahrung noch die Prüfung von Saatgut, Sorte und Wetter.
+Der Import nutzt ausschließlich strukturierte Felder: wissenschaftlicher Name, Quellkennung, Kategorie, Art der Aussaat/Pflanzung/Vermehrung, Frostanker und Wochenintervall. **Keine Pflegefreitexte, Fotos oder unbewiesenen Schnitt- und Düngetermine** wurden übernommen.
 
-## Schutzmaßnahmen
+Speicherdateien der Integration:
 
-- Kein automatisch erfundenes Frost-Referenzdatum aus US-Klimazonen.
-- Kein Termin bei fehlendem Frostanker oder unsicherem botanischem Namen.
-- Nur vom Backend aus dem lokalen Katalog erzeugte Aufgabennamen und Quellen.
-- Manipulierte Termindaten außerhalb des vorgesehenen Fensters werden zurückgewiesen.
-- Keine autonomen Schnitt-, Dünge-, Pflanzenschutz- oder Aussaatmaßnahmen.
-- Das angezeigte Zeitfenster ist eine **US-Planungshilfe**, keine fachlich für Brandenburg überprüfte Empfehlung.
-- Das nächste Kalenderjahr erfordert bewusst neu gesetzte Frost-Referenzdaten.
-- Gartendaten und Saison-Referenzdaten liegen getrennt lokal in Home Assistant.
+- `custom_components/mein_garten/data/saison_openplantdb_v0_1.json` (152 Basisregeln)
+- `custom_components/mein_garten/data/saison_openplantdb_v0_2.json` (1.140 neue Regeln)
 
-## Speicherorte und offene Abnahme
+Die beiden JSON-Dateien zusammen sind deutlich kleiner als die über 70 MB große Upstream-Gesamtdatei. Home Assistant lädt **nur** die kompakte lokale Auswahl und benötigt zur Laufzeit keinerlei OpenPlantDB-Zugang, API-Schlüssel oder Abonnement.
 
-Gartendaten: .storage/mein_garten_v1.data
+## Reale Abdeckung bei 50 typischen deutschen Gartenpflanzen
 
-Saisonreferenzdaten: .storage/mein_garten_saison_v1.data
+Von unserer repräsentativen Suchtestliste mit 50 Pflanzen besitzen **15** mindestens eine passende strukturierte Saisonvorlage. Der ältere Katalog deckte **10** ab.
 
-Katalog: custom_components/mein_garten/data/saison_openplantdb_v0_1.json
+| Gruppe | Saisonvorlage vorhanden | Testpflanzen |
+|---|---:|---:|
+| Blumen, Stauden und Rosen | 3 | 10 |
+| Sträucher, Hecken und Bäume | 1 | 10 |
+| Gemüse und Kräuter | 6 | 10 |
+| Obst und Beeren | 1 | 10 |
+| Kübel- und Topfpflanzen | 4 | 10 |
+| **Gesamt** | **15** | **50** |
 
-Vor Installationsfreigabe: echte Tests auf Home Assistant Green (iPhone-Dashboard, Datumsfelder, HA-Store, Neustart, Dashboard-Updates, lokale Zeitzone, Datumsänderungen, Backup/Rollback). Fachlich geprüfte artspezifische Schnitt- und Düngepläne sind weiterhin **nicht** implementiert. OpenPlantbook-Nutzungsrechte für eigene Pflegefreitext-Caches sind separat zu klären.
+Die große Datenbank ist **kein Ersatz für deutsche Fachquellen**, insbesondere für Gehölze, Rosen, Sträucher und Stauden. Pflanzen ohne Quelle lassen sich trotzdem hinzufügen, pflegen und mit eigenen wiederkehrenden Aufgaben verwalten. Der Kalender zeigt bei den tatsächlich erfassten eigenen Pflanzen die **Abdeckung und fehlende Saisoninformationen** an.
 
-**Das eigenständige Dashboard Zuhause wird nicht verändert.**
+## Beispiel ohne regionale Handlungsempfehlung
+
+Für `Solanum lycopersicum` steht in der alten CC0-Version „6–8 Wochen vor dem letzten Frühjahrsfrost vorziehen“. Bei einem rein hypothetisch gewählten Referenzdatum **15. Mai 2027** errechnet das System den Zeitraum **20. März bis 3. April 2027**. Erst wenn die Nutzerin selbst einen Tag innerhalb des Zeitraums bestätigt, entsteht die Kontrollaufgabe „Vorziehen prüfen“. Weder eine Aussaat noch ein Pflegeeingriff wird automatisch ausgeführt.
+
+## Technische und fachliche Sicherheitsgrenzen
+
+- Botanischer Name muss exakt passen. Unklare Sorten- und Synonymzuordnungen erhalten keine erfundene Regel.
+- Saisonquellen behalten dauerhaft **ihre eigene Git-Version**, die CC0-Lizenz und die damals gewählte botanische Art – auch bei nachträglicher Pflanzenbearbeitung.
+- Eine zwischen dem Auswählen und Speichern geänderte Pflanzenart stoppt die Terminbuchung.
+- Pro Pflanze, Saisonvorlage und Referenzjahr entsteht höchstens ein Termin, auch nach einem Neustart. Erledigte Termine dürfen nicht überschrieben werden.
+- Die Frost-Referenzdaten sind **persönliche Annahmen**. Weder USDA-Klimazonen noch momentane Wetterprognosen werden automatisch als „letzter Frostag“ ausgegeben.
+- Datum außerhalb des Quellenfensters oder in der Vergangenheit, unvollständige Katalogdateien und widersprüchliche Artidentitäten werden abgelehnt.
+- Für Deutschland belastbare artspezifische Schnitt-, Dünge-, Krankheits- und Frosthärtedaten fehlen weiterhin. Solche konkreten Maßnahmen werden nicht autonom erzeugt.
+- [DWD-Phänologie](https://wetterdienst.readthedocs.io/en/latest/data/provider/dwd/phenology/index.html) kann perspektivisch lokale Entwicklungsstadien unterstützen, ist aber **keine** geprüfte Quelle für Pflegehandlungen und bisher nicht integriert.
+
+## Persistenz, Abnahme und Betrieb
+
+Private Gartenangaben: `.storage/mein_garten_v1.data`
+
+Persönliche Frost-Referenzdaten: `.storage/mein_garten_saison_v1.data`
+
+Offline-Quellen: die beiden JSON-Dateien in `custom_components/mein_garten/data/`
+
+Die gesamte Entwicklung läuft auf dem Draft-Branch [Pull-Request #1](https://github.com/p-weigner/mein-garten/pull/1). Vor Freigabe bleiben echte Tests auf Home Assistant Green mit Neustart, UI auf iPhone/Tablet, Wetter-/Notify-Diensten, Dokumentationsstand, Backup und Rollback erforderlich. Das eigenständige Dashboard **„Zuhause“ bleibt unangetastet**.
