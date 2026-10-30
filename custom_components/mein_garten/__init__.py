@@ -220,6 +220,22 @@ async def async_setup_entry(hass, entry) -> bool:
         )
         hass.data[DOMAIN].pop("standort", None)
 
+    # EIVE-Europa ergänzt ausschließlich wissenschaftliche Standortindikatoren.
+    # Der kleine, prüfsummengesicherte CC-BY-Katalog ist optional und lokal.
+    # Fehlt er, laufen Gartenverwaltung, Standortgrunddaten und Aufgaben weiter.
+    from .eive import EiveEuropaService
+
+    eive = EiveEuropaService(hass)
+    try:
+        await eive.async_laden()
+        hass.data[DOMAIN]["eive_europa"] = eive
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception(
+            "Mein Garten: optionales EIVE-Europawissen nicht verfügbar"
+        )
+        hass.data[DOMAIN].pop("eive_europa", None)
+
     from homeassistant.helpers.event import async_track_time_change
     from homeassistant.core import callback
 
@@ -279,4 +295,5 @@ async def async_unload_entry(hass, entry) -> bool:
     hass.data.get(DOMAIN, {}).pop("saison", None)
     hass.data.get(DOMAIN, {}).pop("dwd_phaenologie", None)
     hass.data.get(DOMAIN, {}).pop("standort", None)
+    hass.data.get(DOMAIN, {}).pop("eive_europa", None)
     return True
