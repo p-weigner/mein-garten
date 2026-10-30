@@ -822,12 +822,27 @@
       const hits = saison.vorschlaege || [];
       const active = hits.filter((r) => r.fenster_von);
       const noDates = hits.filter((r) => !r.fenster_von);
+      const plants = this._data?.pflanzen || [];
+      const supported = new Set(hits.map((r) => r.pflanzen_id));
+      const notCovered = plants.filter((p) => !supported.has(p.id));
+      const coverage = plants.length
+        ? '<p class="small">Für ' + hits.length + ' von ' + plants.length +
+          ' erfassten Pflanzen (' + escapeHtml(saison.katalog_arten || 0) +
+          ' botanische Arten im Offline-Katalog) liegen strukturierte Saisonangaben vor.</p>'
+        : '';
+      const gaps = notCovered.length
+        ? '<div class="small">Ohne eindeutiges Saisonfenster: ' +
+          notCovered.slice(0, 8).map((p) => escapeHtml(p.name)).join(' · ') +
+          (notCovered.length > 8 ? ' · und ' + (notCovered.length - 8) + ' weitere' : '') +
+          '. Du kannst diese Pflanzen weiterhin mit eigenen Aufgaben und Pflegewissen verwalten.</div>'
+        : '';
       return '<section class="card" style="margin:0 0 14px"><div class="heading">' +
         '<h3>🌾 Saisonfenster (' + active.length + ')</h3>' +
         '<button type="button" class="btn tiny" data-action="saisonanker-open">⚙ Frost-Referenzdaten</button>' +
         '</div><p class="small">OpenPlantDB · CC0 1.0 · aus botanisch exakt zugeordneten Pflanzen. ' +
         'Die US-Ausgangsdaten sind für deinen Garten nicht regional geprüft. ' +
         'Keine Tätigkeit wird ohne Bestätigung angelegt.</p>' +
+        coverage + gaps +
         (hits.length === 0 ?
           '<div class="small">Für die erfassten Pflanzen liegen noch keine eindeutig passenden, strukturierten Saisonfenster vor. ' +
           'Alle Pflanzen bleiben manuell verwaltbar.</div>' : "") +
