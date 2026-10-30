@@ -228,6 +228,9 @@
 
     _onInput(ev) {
       const target = ev.target;
+      // Ein Suchfeld meldet beim Verlassen zusätzlich "change". Das darf
+      // nicht erneut denselben externen Pflanzensuchlauf auslösen.
+      if (ev.type === "change" && target?.dataset?.role === "plant-search") return;
       if (target?.dataset && ["pflegekontext-pflanze", "pflegekontext-typ"].includes(target.dataset.role)) {
         const form = target.closest?.('form[data-form="aufgabe"], form[data-form="regel"]');
         if (form) this._pflegekontextAktualisieren(form);
