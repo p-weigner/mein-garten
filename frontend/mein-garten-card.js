@@ -288,6 +288,7 @@
             bereich_id: plant.bereich_id,
             rhythmus: "jaehrlich",
             pflegefeld: key,
+            aufgabentyp: key === "watering" ? "giesskontrolle" : "einfach",
           },
           careInfo: "Dieser Termin wird von dir festgelegt. Die Quelle " +
             "OpenPlantbook und ihre Übersetzung sind nicht fachlich geprüft.",
@@ -320,6 +321,17 @@
       } else if (action === "task-new") {
         this._modal = { type: "aufgabe" };
         this._render();
+      } else if (action === "task-result") {
+        const task = (this._data.aufgaben || []).find((t) => t.id === id);
+        if (!task || task.status !== "offen" || task.aufgabentyp !== "giesskontrolle") return;
+        this._modal = { type: "giessen", existing: task };
+        this._render();
+      } else if (action === "task-water-choice") {
+        const task = this._modal && this._modal.type === "giessen" && this._modal.existing;
+        if (!task || task.id !== id || task.status !== "offen") return;
+        const ergebnis = btn.dataset.result;
+        if (!["gegossen", "kontrolliert_kein_wasser"].includes(ergebnis)) return;
+        this._mutate("aufgabe_erledigen", { aufgaben_id: id, ergebnis });
       } else if (action === "suggestion") {
         const candidate = this._suggestions[Number(btn.dataset.index)];
         if (!candidate) return;
@@ -449,6 +461,7 @@
           pflanzen_id: val("pflanzen_id") || null,
           bereich_id: val("bereich_id") || null,
           pflegefeld: this._modal?.prefill?.pflegefeld || null,
+          aufgabentyp: val("aufgabentyp") || "einfach",
         });
       } else if (form.dataset.form === "aufgabe") {
         this._mutate("aufgabe_anlegen", {
@@ -456,6 +469,7 @@
           faellig_am: val("faellig_am") || null,
           pflanzen_id: val("pflanzen_id") || null,
           bereich_id: val("bereich_id") || null,
+          aufgabentyp: val("aufgabentyp") || "einfach",
         });
       }
     }
@@ -564,7 +578,14 @@
         '<div class="field"><label>Pflanze</label><select name="pflanzen_id">' +
         this._options(plants, prefill.pflanzen_id || null, true) + '</select></div>' +
         '<div class="field full"><label>Gartenbereich</label><select name="bereich_id">' +
-        this._options(areas, prefill.bereich_id || null, true) + '</select></div></div>' +
+        this._options(areas, prefill.bereich_id || null, true) + '</select></div>' +
+        (prefill.pflegefeld ?
+          '<input type="hidden" name="aufgabentyp" value="' +
+          escapeHtml(prefill.aufgabentyp || "einfach") + '">' :
+          '<div class="field full"><label>Wie soll die Aufgabe erledigt werden?</label>' +
+          '<select name="aufgabentyp"><option value="einfach">Ein Klick – erledigt</option>' +
+          '<option value="giesskontrolle">Gießkontrolle – gegossen / kein Wasser nötig</option>' +
+          '</select></div>') + '</div>' +
         '<div class="notice">' + escapeHtml(this._modal?.careInfo ||
           "Diese Wiederholung wird von dir angelegt. Es werden keine ungeprüften Empfehlungen übernommen.") +
         '</div>' +
@@ -586,10 +607,25 @@
         '<div class="field"><label>Pflanze</label><select name="pflanzen_id">' +
         this._options(plants, null, true) + '</select></div>' +
         '<div class="field full"><label>Gartenbereich</label><select name="bereich_id">' +
-        this._options(areas, null, true) + '</select></div></div>' +
+        this._options(areas, null, true) + '</select></div>' +
+        '<div class="field full"><label>Wie soll die Aufgabe erledigt werden?</label>' +
+        '<select name="aufgabentyp"><option value="einfach">Ein Klick – erledigt</option>' +
+        '<option value="giesskontrolle">Gießkontrolle – gegossen / kein Wasser nötig</option>' +
+        '</select></div></div>' +
         '<div class="notice">Diese Aufgabe wird manuell angelegt. Automatische artspezifische Pflegepläne folgen nach der Fachprüfung.</div>' +
         '<div class="dialog-foot"><button class="btn ghost" type="button" data-action="close">Abbrechen</button>' +
         '<button type="submit" class="btn primary">Aufgabe speichern</button></div></form>';
+    }
+
+    _waterForm() {
+      const task = this._modal.existing;
+      return '<div class="notice">Wie wurde die Gießkontrolle abgeschlossen? Das Ergebnis wird mit Datum in der Pflegehistorie gespeichert.</div>' +
+        '<p class="task-name">' + escapeHtml(task.name) + '</p>' +
+        '<div class="dialog-foot"><button type="button" class="btn ghost" data-action="close">Abbrechen</button>' +
+        '<button type="button" class="btn" data-action="task-water-choice" data-result="kontrolliert_kein_wasser" data-id="' +
+        escapeHtml(task.id) + '">Kontrolliert – kein Wasser nötig</button>' +
+        '<button type="button" class="btn primary" data-action="task-water-choice" data-result="gegossen" data-id="' +
+        escapeHtml(task.id) + '">Gegossen</button></div>';
     }
 
     _modalHTML() {
@@ -597,13 +633,14 @@
       const type = this._modal.type;
       const title = type === "pflege" ? "Pflegewissen: " + (this._modal.existing?.name || "") : type === "pflanze"
         ? (this._modal.existing ? "Pflanze bearbeiten" : "Neue Pflanze")
-        : type === "automatik" ? "Automatische Benachrichtigungen" : type === "regel" ? "Neue Wiederholung" : type === "aufgabe" ? "Neue Pflegeaufgabe" : "Neuer Gartenbereich";
+        : type === "automatik" ? "Automatische Benachrichtigungen" : type === "giessen" ? "Gießkontrolle abschließen" : type === "regel" ? "Neue Wiederholung" : type === "aufgabe" ? "Neue Pflegeaufgabe" : "Neuer Gartenbereich";
       let body = "";
       if (type === "pflege") body = this._careHTML();
       else if (type === "pflanze") body = this._plantForm();
       else if (type === "automatik") body = this._automatikForm();
       else if (type === "regel") body = this._ruleForm();
       else if (type === "aufgabe") body = this._taskForm();
+      else if (type === "giessen") body = this._waterForm();
       else body = '<form data-form="bereich"><div class="field"><label>Bereichsname *</label>' +
         '<input name="name" required maxlength="120" placeholder="z. B. Hochbeet, Terrasse, Vorgarten"></div>' +
         '<div class="dialog-foot"><button type="button" data-action="close" class="btn ghost">Abbrechen</button>' +
@@ -626,10 +663,16 @@
         (task.herkunft === "wetterprognose" ?
           ' <span class="tag">Wetterprognose, keine bestätigte Frostwarnung</span>' : "") +
         (overdue ? ' <span class="tag">Überfällig</span>' : "") +
+        (isDone && task.ergebnis === "gegossen" ? ' <span class="chip">Gegossen</span>' : "") +
+        (isDone && task.ergebnis === "kontrolliert_kein_wasser" ?
+          ' <span class="chip">Kontrolliert – kein Wasser nötig</span>' : "") +
         '</div></div><div class="buttons">' +
         '<button class="btn tiny" type="button" data-action="' +
-        (isDone ? "task-reopen" : "task-done") + '" data-id="' + escapeHtml(task.id) + '">' +
-        (isDone ? "Wieder öffnen" : "Erledigt") + "</button>" +
+        (isDone ? "task-reopen" :
+          task.aufgabentyp === "giesskontrolle" ? "task-result" : "task-done") +
+        '" data-id="' + escapeHtml(task.id) + '">' +
+        (isDone ? "Wieder öffnen" : task.aufgabentyp === "giesskontrolle" ? "Kontrollieren" : "Erledigt") +
+        "</button>" +
         '<button class="btn ghost tiny danger" type="button" aria-label="Aufgabe entfernen" data-action="task-remove" data-id="' +
         escapeHtml(task.id) + '">✕</button></div></div>';
     }
