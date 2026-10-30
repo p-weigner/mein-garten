@@ -18,6 +18,10 @@ from typing import Any
 
 STORAGE_KEY = "mein_garten_saison_v1.data"
 CATALOG_FILE = Path(__file__).parent / "data" / "saison_openplantdb_v0_1.json"
+CATALOG_FILES = (
+    CATALOG_FILE,
+    Path(__file__).parent / "data" / "saison_openplantdb_v0_2.json",
+)
 SOURCE = "OpenPlantDB"
 LICENSE = "CC0 1.0"
 SOURCE_URL = "https://github.com/cwfrazier1/openplantdb"
@@ -74,8 +78,14 @@ def pruefe_katalog(raw: Any) -> dict:
             or not isinstance(raw.get("ausgangs_commit"), str)
             or not _COMMIT.fullmatch(raw["ausgangs_commit"])
             or not isinstance(raw.get("regeln"), list)
-            or not 1 <= len(raw["regeln"]) <= 1000):
+            or not 1 <= len(raw["regeln"]) <= 3000):
         raise SaisonFehler("Ungültiger oder unbekannter Saisonkatalog")
+    upstream_hash = raw.get("quelle_sha256")
+    if upstream_hash is not None and (
+        not isinstance(upstream_hash, str)
+        or not re.fullmatch(r"[a-f0-9]{64}", upstream_hash)
+    ):
+        raise SaisonFehler("Ungültiger Quellen-Fingerabdruck")
     by_species = {}
     slugs = set()
     for r in raw["regeln"]:
@@ -95,7 +105,9 @@ def pruefe_katalog(raw: Any) -> dict:
         key = " ".join(r["wissenschaftlich"].split()).casefold()
         if key in by_species or r["id"] in slugs:
             raise SaisonFehler("Nicht eindeutiger botanischer Saison-Datensatz")
-        by_species[key] = deepcopy(r)
+        record = deepcopy(r)
+        record["_quell_commit"] = raw["ausgangs_commit"]
+        by_species[key] = record
         slugs.add(r["id"])
     return by_species
 
@@ -144,6 +156,7 @@ def vorschlaege_fuer(
             "fehlender_anker": None if period else rule["anker"],
             "vorgemerkt": planned,
             "quelle": SOURCE, "lizenz": LICENSE,
+            "quell_commit": rule["_quell_commit"],
             "pruefstatus": "unverbindliche_Planungshilfe",
             "anker_jahr": anchor.year if anchor else None,
         })
@@ -163,16 +176,32 @@ class SaisonService:
         self._anker = dict(_DEFAULT)
         self._katalog = {}
         self._ausgangs_commit = ""
+        self._quellversionen = []
 
     async def async_laden(self) -> None:
-        def load_catalog() -> tuple[dict, str]:
-            if not CATALOG_FILE.is_file() or CATALOG_FILE.stat().st_size > 250_000:
-                raise SaisonFehler("Saisonkatalog fehlt oder überschreitet die Größenbegrenzung")
-            with CATALOG_FILE.open("r", encoding="utf-8") as stream:
-                raw = json.load(stream)
-            return pruefe_katalog(raw), raw["ausgangs_commit"]
+        def load_catalog() -> tuple[dict, list[dict]]:
+            total = {}
+            sources = []
+            for file in CATALOG_FILES:
+                # Nur lokal mitgelieferte Quellen, keine Downloads im HA-Green.
+                if not file.is_file() or not 0 < file.stat().st_size <= 650_000:
+                    raise SaisonFehler("Saisonkatalog fehlt oder ist zu groß")
+                with file.open("r", encoding="utf-8") as stream:
+                    raw = json.load(stream)
+                subset = pruefe_katalog(raw)
+                if set(total).intersection(subset):
+                    raise SaisonFehler("Saisonkatalog enthält doppelte Arten aus mehreren Quellen")
+                total.update(subset)
+                sources.append({
+                    "quelle": SOURCE, "lizenz": LICENSE,
+                    "commit": raw["ausgangs_commit"],
+                    "arten": len(subset),
+                })
+            if len(total) > 3000:
+                raise SaisonFehler("Zu viele Saisonarten")
+            return total, sources
 
-        catalog, pinned_commit = await self.hass.async_add_executor_job(load_catalog)
+        catalog, sources = await self.hass.async_add_executor_job(load_catalog)
         saved = await self._store.async_load()
         if saved is not None:
             if (not isinstance(saved, dict) or saved.get("version") != 1
@@ -180,7 +209,8 @@ class SaisonService:
                 raise SaisonFehler("Unbekanntes Saison-Speicherformat; Daten nicht überschreiben")
             self._anker = pruefe_anker(saved["anker"])
         self._katalog = catalog
-        self._ausgangs_commit = pinned_commit
+        self._quellversionen = sources
+        self._ausgangs_commit = sources[0]["commit"]
 
     def stand(self) -> dict:
         data = self.backend.snapshot()
@@ -194,6 +224,7 @@ class SaisonService:
             "quell_url": SOURCE_URL,
             "katalog_arten": len(self._katalog),
             "quell_commit": self._ausgangs_commit,
+            "quellversionen": deepcopy(self._quellversionen),
             "hinweis": (
                 "US-Planungswerte, keine regional geprüften Gartenempfehlungen. "
                 "Nur bei bewusst gesetztem Frostdatum; eine Tätigkeit wird "
@@ -237,5 +268,5 @@ class SaisonService:
                 faellig_am=when.isoformat(),
                 fenster_von=period[0].isoformat(),
                 fenster_bis=period[1].isoformat(),
-                quell_commit=self._ausgangs_commit,
+                quell_commit=r["_quell_commit"],
             )
