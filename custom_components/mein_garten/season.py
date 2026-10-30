@@ -162,15 +162,17 @@ class SaisonService:
         self._lock = asyncio.Lock()
         self._anker = dict(_DEFAULT)
         self._katalog = {}
+        self._ausgangs_commit = ""
 
     async def async_laden(self) -> None:
-        def load_catalog() -> dict:
+        def load_catalog() -> tuple[dict, str]:
             if not CATALOG_FILE.is_file() or CATALOG_FILE.stat().st_size > 250_000:
                 raise SaisonFehler("Saisonkatalog fehlt oder überschreitet die Größenbegrenzung")
             with CATALOG_FILE.open("r", encoding="utf-8") as stream:
-                return pruefe_katalog(json.load(stream))
+                raw = json.load(stream)
+            return pruefe_katalog(raw), raw["ausgangs_commit"]
 
-        catalog = await self.hass.async_add_executor_job(load_catalog)
+        catalog, pinned_commit = await self.hass.async_add_executor_job(load_catalog)
         saved = await self._store.async_load()
         if saved is not None:
             if (not isinstance(saved, dict) or saved.get("version") != 1
@@ -178,6 +180,7 @@ class SaisonService:
                 raise SaisonFehler("Unbekanntes Saison-Speicherformat; Daten nicht überschreiben")
             self._anker = pruefe_anker(saved["anker"])
         self._katalog = catalog
+        self._ausgangs_commit = pinned_commit
 
     def stand(self) -> dict:
         data = self.backend.snapshot()
@@ -190,6 +193,7 @@ class SaisonService:
             "lizenz": LICENSE,
             "quell_url": SOURCE_URL,
             "katalog_arten": len(self._katalog),
+            "quell_commit": self._ausgangs_commit,
             "hinweis": (
                 "US-Planungswerte, keine regional geprüften Gartenempfehlungen. "
                 "Nur bei bewusst gesetztem Frostdatum; eine Tätigkeit wird "
@@ -233,4 +237,5 @@ class SaisonService:
                 faellig_am=when.isoformat(),
                 fenster_von=period[0].isoformat(),
                 fenster_bis=period[1].isoformat(),
+                quell_commit=self._ausgangs_commit,
             )
