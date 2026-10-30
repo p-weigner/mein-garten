@@ -102,6 +102,33 @@ async def ws_pflanzen_suchen(hass, connection, msg):
     connection.send_result(msg["id"], result)
 
 
+
+@websocket_api.websocket_command({
+    probatio.Required("type"): "mein_garten/pflegeprofil",
+    probatio.Required("pflanzen_id"): str,
+})
+@websocket_api.async_response
+async def ws_pflegeprofil(hass, connection, msg):
+    """Nur eine tatsächlich gespeicherte Pflanze abfragen."""
+    backend = _backend(hass)
+    pflege = hass.data.get(DOMAIN, {}).get("pflege")
+    if backend is None or pflege is None:
+        connection.send_error(msg["id"], "nicht_eingerichtet", "Mein Garten ist nicht eingerichtet")
+        return
+    plant = next((p for p in backend.snapshot()["pflanzen"]
+                  if p["id"] == msg["pflanzen_id"]), None)
+    if plant is None:
+        connection.send_error(msg["id"], "pflanze_nicht_gefunden", "Pflanze nicht gefunden")
+        return
+    try:
+        result = await pflege.async_profil(plant)
+    except Exception:
+        _LOGGER.exception("Mein Garten: Pflegeprofil konnte nicht geladen werden")
+        connection.send_error(msg["id"], "pflegefehler", "Pflegeprofil derzeit nicht verfügbar")
+        return
+    connection.send_result(msg["id"], result)
+
+
 @websocket_api.websocket_command({
     probatio.Required("type"): "mein_garten/bereich_anlegen",
     probatio.Required("name"): str,
@@ -238,7 +265,7 @@ async def ws_aufgabe_entfernen(hass, connection, msg):
 def registriere_ws_befehle(hass) -> None:
     """Registriert nur lokale Befehle für authentifizierte HA-Nutzer."""
     for handler in (
-        ws_get, ws_subscribe, ws_pflanzen_suchen,
+        ws_get, ws_subscribe, ws_pflanzen_suchen, ws_pflegeprofil,
         ws_bereich_anlegen, ws_bereich_umbenennen, ws_bereich_entfernen,
         ws_pflanze_anlegen, ws_pflanze_bearbeiten, ws_pflanze_entfernen,
         ws_aufgabe_anlegen, ws_aufgabe_erledigen,
