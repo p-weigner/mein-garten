@@ -71,6 +71,10 @@
       this._groups = [];
       this._automatik = null;
       this._saison = null;
+      this._dwd = null;
+      // Die regionale Auswahl ist ein sichtbarer Vergleichsausschnitt,
+      // keine erkannte Hausadresse und keine Standortfreigabe.
+      this._dwdRegion = "nordost";
       this._modal = null;
       this._query = "";
       this._suggestions = [];
@@ -140,6 +144,7 @@
               this._groups = event.gruppen || [];
               this._automatik = event.automatik || null;
               this._saison = event.saison || null;
+              this._dwd = event.dwd_phaenologie || null;
               this._error = "";
               this._render();
             }
@@ -181,6 +186,7 @@
           this._groups = result.gruppen || [];
           this._automatik = result.automatik || null;
           this._saison = result.saison || null;
+          this._dwd = result.dwd_phaenologie || null;
         }
         this._modal = null;
         this._render();
@@ -337,6 +343,10 @@
         this._loadCare(id);
       } else if (action === "area-new") {
         this._modal = { type: "bereich" };
+        this._render();
+      } else if (action === "dwd-region") {
+        if (!["nordost", "deutschland"].includes(btn.dataset.region)) return;
+        this._dwdRegion = btn.dataset.region;
         this._render();
       } else if (action === "saisonanker-open") {
         this._modal = { type: "saisonanker" };
@@ -983,6 +993,57 @@
         }).join('') + '</section>';
     }
 
+    _dwdHTML() {
+      const dataset = this._dwd;
+      if (!dataset || !Array.isArray(dataset.werte) || !dataset.werte.length) return "";
+      const region = this._dwdRegion === "deutschland" ? "deutschland" : "nordost";
+      const records = dataset.werte.filter((r) => r.region === region);
+      const keys = ["hasel_bluete", "forsythie_bluete", "rotbuche_blatt"];
+      const items = keys.map((key) => {
+        const values = records.filter((r) => r.indikator === key)
+          .sort((a, b) => b.jahr - a.jahr);
+        if (!values.length) return "";
+        return '<div class="task"><div><div class="task-name">' +
+          escapeHtml(values[0].pflanze) + ' · ' + escapeHtml(values[0].phase) +
+          '</div>' + values.map((r) =>
+            '<div class="task-meta" style="margin-top:6px">' +
+            escapeHtml(r.jahr) + ': ' +
+            '<strong>Median ' + escapeHtml(dateLabel(r.median)) + '</strong>' +
+            ' · mittlere 50 %: ' + escapeHtml(dateLabel(r.quartil_von)) +
+            ' – ' + escapeHtml(dateLabel(r.quartil_bis)) +
+            ' · ' + escapeHtml(r.stationen) + ' Stationen</div>'
+          ).join("") + '</div></div>';
+      }).filter(Boolean).join("");
+      return '<section class="card" style="margin:14px 0">' +
+        '<div class="heading"><h3>🌱 DWD: Jahreszeiten im Vergleich</h3>' +
+        '<div class="buttons">' +
+        '<button type="button" class="btn tiny' +
+        (region === "nordost" ? ' primary' : '') +
+        '" data-action="dwd-region" data-region="nordost" ' +
+        'aria-pressed="' + (region === "nordost" ? 'true' : 'false') +
+        '">Nordost</button>' +
+        '<button type="button" class="btn tiny' +
+        (region === "deutschland" ? ' primary' : '') +
+        '" data-action="dwd-region" data-region="deutschland" ' +
+        'aria-pressed="' + (region === "deutschland" ? 'true' : 'false') +
+        '">Deutschland</button></div></div>' +
+        '<p class="small">' +
+        escapeHtml(dataset.regionen?.[region]?.label || region) +
+        '. Das ist ein großräumiger Vergleich, keine Messung in deinem Garten.</p>' +
+        '<p class="small">DWD Sofortmelder · tatsächliche Stationsmeldungen · ' +
+        'Median und mittlere 50 % der gemeldeten Termine. ' +
+        'Die jüngsten Meldungen sind teilweise nur formal geprüft. ' +
+        'Keine Vorhersage und keine automatische Pflegeempfehlung.</p>' +
+        (items || '<p class="small">Für diese Region liegen derzeit nicht genügend ' +
+          'gültige Stationsmeldungen vor.</p>') +
+        '<p class="small" style="margin-top:12px">Datenstand: ' +
+        escapeHtml(dateLabel(dataset.abgerufen_am)) +
+        ' · Quelle: Deutscher Wetterdienst (DWD), Climate Data Center · CC BY 4.0 · ' +
+        '<a href="https://opendata.dwd.de/climate_environment/CDC/observations_germany/phenology/immediate_reporters/wild/recent/" ' +
+        'target="_blank" rel="noopener noreferrer" style="color:var(--garten-accent)">' +
+        'Originaldaten</a></p></section>';
+    }
+
     _calendarHTML() {
       const tasks = [...(this._data.aufgaben || [])].sort(byDate);
       const pending = tasks.filter((t) => t.status !== "erledigt");
@@ -995,6 +1056,7 @@
         'Artspezifische Schnitt- und Düngeaufgaben bleiben bis zur Fachprüfung gesperrt.</div>' +
         this._saisonHTML() +
         this._beobachtungenKalenderHTML() +
+        this._dwdHTML() +
         '<div class="grid"><section class="card"><h3>Offene Aufgaben (' + pending.length + ')</h3>' +
         (pending.length ? pending.map((t) => this._taskHTML(t)).join("")
           : '<p>Keine offenen Aufgaben.</p>') + '</section>' +
