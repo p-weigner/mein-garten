@@ -64,6 +64,8 @@ jobs:
           cp docs/ALPHA_INSTALLATION.md paket/ANLEITUNG.md
           cp hacs.json paket/hacs.json
           echo "TECHNISCHER ALPHA-TEST - NICHT DIE FERTIGE V1" > paket/STATUS.txt
+      - name: Alpha-Paketintegrität und Schutz des Zuhause-Dashboards prüfen
+        run: python -m qa.validate_alpha_package
       - name: Alpha-Testpaket bereitstellen
         uses: actions/upload-artifact@v4
         with:
