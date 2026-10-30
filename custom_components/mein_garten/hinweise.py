@@ -37,8 +37,10 @@ def pruefe_einstellungen(raw: Any) -> dict:
     notify = raw["notify_target"]
     if not isinstance(weather, str) or (weather and not _WEATHER.fullmatch(weather)):
         raise ValueError("Ungültige Wetterentität")
-    if not isinstance(notify, str) or (notify and not _TARGET.fullmatch(notify)):
-        raise ValueError("Ungültiger Benachrichtigungsempfänger")
+    if (not isinstance(notify, str)
+            or (notify and not _TARGET.fullmatch(notify))
+            or notify in {"notify.notify", "notify.send_message"}):
+        raise ValueError("Bitte einen konkreten iPhone-Benachrichtigungsempfänger wählen")
     if type(raw["freitag_aktiv"]) is not bool or type(raw["frost_aktiv"]) is not bool:
         raise ValueError("Ungültiger Benachrichtigungsstatus")
     limit = raw["frost_grenze_c"]
