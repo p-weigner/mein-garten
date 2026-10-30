@@ -57,6 +57,7 @@
       this._data = null;
       this._groups = [];
       this._automatik = null;
+      this._saison = null;
       this._modal = null;
       this._query = "";
       this._suggestions = [];
@@ -125,6 +126,7 @@
               this._data = event.daten;
               this._groups = event.gruppen || [];
               this._automatik = event.automatik || null;
+              this._saison = event.saison || null;
               this._error = "";
               this._render();
             }
@@ -165,6 +167,7 @@
           this._data = result.daten;
           this._groups = result.gruppen || [];
           this._automatik = result.automatik || null;
+          this._saison = result.saison || null;
         }
         this._modal = null;
         this._render();
@@ -312,6 +315,15 @@
       } else if (action === "area-new") {
         this._modal = { type: "bereich" };
         this._render();
+      } else if (action === "saisonanker-open") {
+        this._modal = { type: "saisonanker" };
+        this._render();
+      } else if (action === "saison-plan") {
+        const hit = (this._saison?.vorschlaege || []).find((r) =>
+          r.pflanzen_id === id && r.katalog_id === btn.dataset.katalog);
+        if (!hit || hit.vorgemerkt || !hit.fenster_von || !hit.fenster_bis) return;
+        this._modal = { type: "saison", eintrag: hit };
+        this._render();
       } else if (action === "automatik-open") {
         this._modal = { type: "automatik" };
         this._render();
@@ -458,6 +470,19 @@
         }
       } else if (form.dataset.form === "bereich") {
         this._mutate("bereich_anlegen", { name: val("name") });
+      } else if (form.dataset.form === "saisonanker") {
+        this._mutate("saisonanker_speichern", {
+          last_frost: val("last_frost"),
+          first_frost: val("first_frost"),
+        });
+      } else if (form.dataset.form === "saison") {
+        const item = this._modal?.eintrag;
+        if (!item || this._modal.type !== "saison") return;
+        this._mutate("saison_vormerken", {
+          pflanzen_id: item.pflanzen_id,
+          katalog_id: item.katalog_id,
+          datum: val("datum"),
+        });
       } else if (form.dataset.form === "automatik") {
         const isChecked = (key) => form.elements.namedItem(key).checked;
         this._mutate("automatik_speichern", {
@@ -527,6 +552,45 @@
         '<button type="submit" class="btn primary">' +
         (p.id ? "Änderungen speichern" : "Pflanze hinzufügen") +
         "</button></div></form>";
+    }
+
+    _saisonankerForm() {
+      const a = this._saison?.anker || { last_frost: "", first_frost: "" };
+      return '<form data-form="saisonanker"><div class="notice">' +
+        'Die Vorhersage für einzelne Nächte ist kein zuverlässiger letzter Frostag. ' +
+        'Trage für die gewünschte Gartensaison selbst geschätzte Referenztage ein. ' +
+        'Eine US-Klimazone wird nicht auf deinen Garten übertragen.</div>' +
+        '<div class="field"><label>Letzter erwarteter Frühjahrsfrost (optional)</label>' +
+        '<input type="date" name="last_frost" min="2020-01-01" max="2100-12-31" value="' +
+        escapeHtml(a.last_frost || "") + '"></div>' +
+        '<div class="field"><label>Erster erwarteter Herbstfrost (optional)</label>' +
+        '<input type="date" name="first_frost" min="2020-01-01" max="2100-12-31" value="' +
+        escapeHtml(a.first_frost || "") + '"></div>' +
+        '<div class="small">Nur Planungshilfen aus OpenPlantDB (CC0); ' +
+        'es werden weder Aussaat noch Schnitt oder Düngung automatisch angeordnet. ' +
+        'Für das nächste Gartenjahr müssen die Referenztage neu festgelegt werden.</div>' +
+        '<div class="dialog-foot"><button type="button" class="btn ghost" data-action="close">Abbrechen</button>' +
+        '<button type="submit" class="btn primary">Frost-Referenzdaten speichern</button></div></form>';
+    }
+
+    _saisonForm() {
+      const r = this._modal.eintrag;
+      return '<form data-form="saison"><div class="notice">' +
+        'Unverbindlicher Aussaat-/Pflanzzeitraum aus US-Planungsdaten. ' +
+        'Prüfe Art, Sorte, Standort und örtliche Witterung selbst. ' +
+        'Es wird nur eine Erinnerungsaufgabe erzeugt, keine Aussaat ausgelöst.</div>' +
+        '<p><strong>' + escapeHtml(r.pflanze) + '</strong> · <em>' +
+        escapeHtml(r.wissenschaftlich) + '</em></p>' +
+        '<p>' + escapeHtml(r.titel) + ' · ' +
+        escapeHtml(dateLabel(r.fenster_von)) + ' – ' +
+        escapeHtml(dateLabel(r.fenster_bis)) + '</p>' +
+        '<div class="field"><label>Datum für deine Kontrollaufgabe *</label>' +
+        '<input type="date" name="datum" required min="' +
+        escapeHtml(r.fenster_von) + '" max="' + escapeHtml(r.fenster_bis) +
+        '" value="' + escapeHtml(r.fenster_von) + '"></div>' +
+        '<p class="small">Quelle: OpenPlantDB · CC0 1.0 · nicht regional fachlich geprüft</p>' +
+        '<div class="dialog-foot"><button class="btn ghost" type="button" data-action="close">Abbrechen</button>' +
+        '<button class="btn primary" type="submit">Als Kontrolle vormerken</button></div></form>';
     }
 
     _automatikForm() {
@@ -646,11 +710,13 @@
       const type = this._modal.type;
       const title = type === "pflege" ? "Pflegewissen: " + (this._modal.existing?.name || "") : type === "pflanze"
         ? (this._modal.existing ? "Pflanze bearbeiten" : "Neue Pflanze")
-        : type === "automatik" ? "Automatische Benachrichtigungen" : type === "giessen" ? "Gießkontrolle abschließen" : type === "regel" ? "Neue Wiederholung" : type === "aufgabe" ? "Neue Pflegeaufgabe" : "Neuer Gartenbereich";
+        : type === "saisonanker" ? "Frost-Referenzdaten" : type === "saison" ? "Saisonfenster vormerken" : type === "automatik" ? "Automatische Benachrichtigungen" : type === "giessen" ? "Gießkontrolle abschließen" : type === "regel" ? "Neue Wiederholung" : type === "aufgabe" ? "Neue Pflegeaufgabe" : "Neuer Gartenbereich";
       let body = "";
       if (type === "pflege") body = this._careHTML();
       else if (type === "pflanze") body = this._plantForm();
       else if (type === "automatik") body = this._automatikForm();
+      else if (type === "saisonanker") body = this._saisonankerForm();
+      else if (type === "saison") body = this._saisonForm();
       else if (type === "regel") body = this._ruleForm();
       else if (type === "aufgabe") body = this._taskForm();
       else if (type === "giessen") body = this._waterForm();
@@ -679,6 +745,10 @@
           ' <span class="tag">Quellenhinweis: ' +
           escapeHtml(task.pflegebezug.quelle || "unbekannt") +
           ' · nicht fachlich geprüft</span>' : "") +
+        (task.saisonbezug ?
+          ' <span class="tag">Saisonkontrolle · ' +
+          escapeHtml(task.saisonbezug.quelle || "unbekannt") +
+          ' · unverbindlicher Planungstermin</span>' : "") +
         (overdue ? ' <span class="tag">Überfällig</span>' : "") +
         (isDone && task.ergebnis === "gegossen" ? ' <span class="chip">Gegossen</span>' : "") +
         (isDone && task.ergebnis === "kontrolliert_kein_wasser" ?
@@ -746,6 +816,41 @@
       return html;
     }
 
+    _saisonHTML() {
+      const saison = this._saison;
+      if (!saison) return "";
+      const hits = saison.vorschlaege || [];
+      const active = hits.filter((r) => r.fenster_von);
+      const noDates = hits.filter((r) => !r.fenster_von);
+      return '<section class="card" style="margin:0 0 14px"><div class="heading">' +
+        '<h3>🌾 Saisonfenster (' + active.length + ')</h3>' +
+        '<button type="button" class="btn tiny" data-action="saisonanker-open">⚙ Frost-Referenzdaten</button>' +
+        '</div><p class="small">OpenPlantDB · CC0 1.0 · aus botanisch exakt zugeordneten Pflanzen. ' +
+        'Die US-Ausgangsdaten sind für deinen Garten nicht regional geprüft. ' +
+        'Keine Tätigkeit wird ohne Bestätigung angelegt.</p>' +
+        (hits.length === 0 ?
+          '<div class="small">Für die erfassten Pflanzen liegen noch keine eindeutig passenden, strukturierten Saisonfenster vor. ' +
+          'Alle Pflanzen bleiben manuell verwaltbar.</div>' : "") +
+        (noDates.length ?
+          '<div class="notice">Für ' + noDates.length +
+          ' Pflanze(n) fehlt das passende Frost-Referenzdatum. ' +
+          'Bitte die Referenztage für das gewünschte Jahr selbst festlegen.</div>' : "") +
+        (active.length ? active.slice(0, 40).map((r) =>
+          '<div class="task"><div><div class="task-name">' +
+          escapeHtml(r.titel) + ' – ' + escapeHtml(r.pflanze) + '</div>' +
+          '<div class="task-meta"><em>' + escapeHtml(r.wissenschaftlich) + '</em> · ' +
+          escapeHtml(dateLabel(r.fenster_von)) + ' – ' +
+          escapeHtml(dateLabel(r.fenster_bis)) +
+          ' · Quelle: OpenPlantDB (CC0), nicht regional geprüft</div></div>' +
+          '<button class="btn tiny" type="button" data-action="saison-plan" data-id="' +
+          escapeHtml(r.pflanzen_id) + '" data-katalog="' +
+          escapeHtml(r.katalog_id) + '"' +
+          (r.vorgemerkt ? ' disabled' : '') + '>' +
+          (r.vorgemerkt ? 'Vorgemerkt' : 'Kontrolle planen') +
+          '</button></div>'
+        ).join("") : "") + '</section>';
+    }
+
     _calendarHTML() {
       const tasks = [...(this._data.aufgaben || [])].sort(byDate);
       const pending = tasks.filter((t) => t.status !== "erledigt");
@@ -756,6 +861,7 @@
         '<div class="notice">Manuelle Aufgaben und deine Wiederholungen werden angezeigt. ' +
         'Frostprognosen und Freitagsberichte lassen sich über Benachrichtigungen einschalten. ' +
         'Artspezifische Schnitt- und Düngeaufgaben bleiben bis zur Fachprüfung gesperrt.</div>' +
+        this._saisonHTML() +
         '<div class="grid"><section class="card"><h3>Offene Aufgaben (' + pending.length + ')</h3>' +
         (pending.length ? pending.map((t) => this._taskHTML(t)).join("")
           : '<p>Keine offenen Aufgaben.</p>') + '</section>' +
