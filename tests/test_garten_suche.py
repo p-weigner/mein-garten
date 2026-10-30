@@ -210,6 +210,15 @@ class TestDynamischeSuche(unittest.IsolatedAsyncioTestCase):
         self.service._wikidata = AsyncMock(side_effect=RuntimeError("offline"))
         result = await self.service.async_suchen("Bauernhortensie")
         self.assertEqual(result["pflanzen"], [])
+        self.assertEqual(len(result["quellenstatus"]), 2)
+
+    async def test_alle_vier_suchquellen_im_ausfall(self):
+        self.service._i_nat = AsyncMock(side_effect=OSError("offline"))
+        self.service._wikidata = AsyncMock(side_effect=OSError("offline"))
+        self.service._gbif = AsyncMock(side_effect=OSError("offline"))
+        self.service._gbif_vernacular = AsyncMock(side_effect=OSError("offline"))
+        result = await self.service.async_suchen("Rispenhortensie")
+        self.assertEqual(result["pflanzen"], [])
         self.assertEqual(len(result["quellenstatus"]), 4)
 
     async def test_cache_verhindert_unnoetige_requests(self):
