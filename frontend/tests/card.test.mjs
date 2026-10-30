@@ -1253,3 +1253,67 @@ test("Unerwartete Feldinhalte werden nicht als HTML in historischem Datum interp
   assert.ok(!html.includes("<img src=x onerror=alert(1)>"));
   assert.ok(!html.includes("Text zuletzt aus der Quelle abgerufen am "));
 });
+
+
+test("EIVE-Europa zeigt fünf Indikatoren mit Quellbelegen ohne neue Pflegeanweisungen", () => {
+  const card = buildCard();
+  const plant = {
+    id: "p1", name: "Hasel", wissenschaftlich: "Corylus avellana", notizen: "Privat",
+  };
+  card._data.pflanzen = [plant];
+  card._modal = {type: "pflege", existing: plant};
+  card._carePlant = "p1";
+  card._eive = {
+    quelle: "EIVE 1.0", lizenz: "CC BY 4.0",
+    profile: {p1: {wissenschaftlich: "Corylus avellana", indikatoren: {
+      L: {wert: 6.12, quellsysteme: 20},
+      M: {wert: 4.45, quellsysteme: 24},
+      N: {wert: 5.2, quellsysteme: 18},
+      R: {wert: 6.2, quellsysteme: 21},
+      T: {wert: 4.3, quellsysteme: 1},
+    }}},
+  };
+  card._care = {status: "quelle_nicht_erreichbar", felder: {}};
+  const html = card._careHTML();
+  for (const expected of [
+    "Europäische Standortindikatoren", "Bodenfeuchtigkeit",
+    "Nährstoffverfügbarkeit", "Bodenreaktion", "Temperatur",
+    "6,1 / 10", "4,5 / 10", "24 Quellsysteme",
+    "Nur 1 Quellsystem", "CC BY 4.0", "10.5281/zenodo.7534792",
+    "keine Dünge-", "Keine weiteren deutschen Pflegehinweise",
+  ]) assert.ok(html.includes(expected), expected);
+  assert.ok(!card._eiveHTML().includes('data-action="care-plan"'));
+});
+
+test("EIVE-Quelle bleibt optional und überträgt nicht verwandte Pflanzenarten", () => {
+  const card = buildCard();
+  card._carePlant = "p1";
+  card._data.pflanzen = [{
+    id: "p1", name: "Hasel", wissenschaftlich: "Corylus avellana",
+  }];
+  assert.equal(card._eiveHTML(), "");
+  card._eive = {profile: {
+    p1: {wissenschaftlich: "Corylus maxima", indikatoren: {
+      L: {wert: 4.1, quellsysteme: 5},
+    }},
+  }};
+  assert.equal(card._eiveHTML(), "");
+  card._eive.profile.p1.wissenschaftlich = "Corylus avellana";
+  card._eive.profile.p1.indikatoren.L.wert = -1;
+  assert.equal(card._eiveHTML(), "");
+});
+
+test("EIVE-Daten werden HTML-sicher gerendert", () => {
+  const card = buildCard();
+  const species = 'Corylus <img src=x onerror=alert(1)>';
+  card._carePlant = "p1";
+  card._data.pflanzen = [{id: "p1", name: "Testpflanze", wissenschaftlich: species}];
+  card._eive = {profile: {p1: {
+    wissenschaftlich: species,
+    indikatoren: {L: {wert: 8.4, quellsysteme: 2}},
+  }}};
+  const html = card._eiveHTML();
+  assert.ok(html.includes("&lt;img"));
+  assert.ok(!html.includes('<img src=x onerror'));
+  assert.ok(html.includes('CC BY 4.0'));
+});
