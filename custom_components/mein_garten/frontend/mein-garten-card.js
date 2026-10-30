@@ -344,6 +344,12 @@
         this._careLoading = true;
         this._render();
         this._loadCare(id);
+      } else if (action === "care-refresh") {
+        if (this._careLoading || this._modal?.type !== "pflege"
+            || this._carePlant !== id || !this._getPlant(id)) return;
+        this._careLoading = true;
+        this._render();
+        this._loadCare(id, true);
       } else if (action === "area-new") {
         this._modal = { type: "bereich" };
         this._render();
@@ -431,14 +437,19 @@
       }
     }
 
-    async _loadCare(id) {
+    async _loadCare(id, aktualisieren = false) {
       try {
-        const result = await this._call("pflegeprofil", { pflanzen_id: id });
+        const result = await this._call("pflegeprofil", aktualisieren
+          ? { pflanzen_id: id, aktualisieren: true }
+          : { pflanzen_id: id });
         if (this._carePlant !== id || !this._modal || this._modal.type !== "pflege") return;
         this._care = result;
       } catch (err) {
         if (this._carePlant !== id || !this._modal || this._modal.type !== "pflege") return;
-        this._care = { status: "fehler", meldung: this._errorText(err, "Pflegeprofil nicht verfügbar") };
+        const hatHinweise = Object.values(this._care?.felder || {}).some((f) =>
+          f && typeof f.text === "string" && f.text.trim());
+        this._care = hatHinweise ? { ...this._care, aktualisierung: "fehler" } :
+          { status: "fehler", meldung: this._errorText(err, "Pflegeprofil nicht verfügbar") };
       } finally {
         if (this._carePlant === id && this._modal && this._modal.type === "pflege") {
           this._careLoading = false;
@@ -523,7 +534,7 @@
 
     _careHTML() {
       const grundlagen = this._standortHTML() + this._eigenePflegeNotizenHTML();
-      if (this._careLoading)
+      if (this._careLoading && !this._care)
         return grundlagen + '<p class="small">Deutsche Pflegeinformationen werden geladen …</p>';
       const profile = this._care;
       if (!profile)
@@ -537,7 +548,8 @@
         kein_deutscher_text: "OpenPlantbook hat aktuell keinen verwendbaren deutschen Pflegehinweis geliefert.",
         teilweise: "Einige Pflegefelder sind noch nicht übersetzt und werden bei einem späteren Abruf erneut geprüft.",
         quellenantwort_ungueltig: "Unerwartete Antwort der Pflegequelle.",
-        fehler: "Pflegeprofil konnte nicht geladen werden."
+        fehler: "Pflegeprofil konnte nicht geladen werden.",
+        aktualisierung_zu_frueh: "Die letzte Quellenprüfung liegt noch keine fünf Minuten zurück."
       };
       const fields = Object.entries(profile.felder || {});
       const vorhanden = fields.filter(([, f]) =>
@@ -582,7 +594,35 @@
         (plant ? '<button type="button" class="btn tiny" data-action="plant-edit" data-id="' +
           escapeHtml(plant.id) + '">Pflanzennotizen bearbeiten</button>' : '') +
         '</section>' : "";
-      return grundlagen + status + heading + body + luecken + ohneFreitext;
+      const hinweiseZumStand = {
+        quelle_nicht_erreichbar: "OpenPlantbook ist momentan nicht erreichbar.",
+        quelle_nicht_eingerichtet: "OpenPlantbook ist derzeit nicht eingerichtet.",
+        quellenantwort_ungueltig: "Die Quelle hat unerwartete Daten geliefert.",
+        art_nicht_gefunden: "Die botanische Art wurde beim erneuten Prüfen nicht gefunden.",
+        art_nicht_bestaetigt: "Die botanische Art konnte beim erneuten Prüfen nicht bestätigt werden.",
+        kein_deutscher_text: "Beim erneuten Prüfen waren keine deutschen Pflegehinweise verfügbar.",
+        wartezeit: "Ein erneuter Abruf ist erst nach fünf Minuten möglich.",
+        fehler: "Der erneute Abruf ist fehlgeschlagen."
+      };
+      const meldung = profile.aktualisierung ? (
+        hinweiseZumStand[profile.aktualisierung] || "Pflegequelle konnte nicht aktualisiert werden."
+      ) : "";
+      const cacheHinweis = meldung ?
+        '<div class="notice">' + escapeHtml(meldung) +
+        ' Vorhandene Pflegehinweise stammen aus dem letzten gespeicherten Abruf' +
+        (typeof profile.abgerufen_utc === "string" && /^\d{4}-\d{2}-\d{2}/.test(profile.abgerufen_utc)
+          ? ' vom ' + escapeHtml(dateLabel(profile.abgerufen_utc.slice(0, 10)))
+          : '') + ' und wurden nicht neu bestätigt.</div>' : "";
+      const refresh = this._carePlant && plant ?
+        '<div class="buttons" style="margin-top:12px"><button type="button" ' +
+        'class="btn tiny" data-action="care-refresh" data-id="' +
+        escapeHtml(plant.id) + '"' + (this._careLoading ? ' disabled' : '') +
+        '>Pflegequelle erneut prüfen</button><span class="small">' +
+        (this._careLoading ? 'Aktualisierung läuft …' :
+          'Bei Datenlücken oder Quellenausfällen. Höchstens alle fünf Minuten.') +
+        '</span></div>' : "";
+      return grundlagen + status + cacheHinweis + heading + body + luecken +
+        ohneFreitext + refresh;
     }
 
     _getPlant(id) {
