@@ -1235,6 +1235,8 @@
             const current = neuesteBeobachtungen(
               (this._data.beobachtungen || []).filter((r) => r.pflanzen_id === p.id)
             )[0];
+            const vergangen = this._pflegeverlaufDaten(p.id);
+            const letzteKontrolle = vergangen.letzteKontrolle;
             return '<section class="card"><h3>🌿 ' + escapeHtml(p.name) + '</h3>' +
               (p.wissenschaftlich ? '<p><em>' + escapeHtml(p.wissenschaftlich) + '</em></p>' : "") +
               '<span class="chip">' + escapeHtml(area ? area.name : "Nicht zugeordnet") + '</span>' +
@@ -1242,6 +1244,11 @@
               (current ? '<p class="small" style="margin-top:11px">Zuletzt beobachtet: ' +
                 escapeHtml(phaseLabel(current.phase)) + ' · ' +
                 escapeHtml(dateLabel(current.beobachtet_am)) + '</p>' : "") +
+              (letzteKontrolle ? '<p class="small" style="margin-top:8px">Letzte Gießkontrolle: ' +
+                escapeHtml(zeitpunktLabel(letzteKontrolle.erledigt_utc)) +
+                ' · ' + (letzteKontrolle.ergebnis === "gegossen" ? "Gegossen" :
+                  letzteKontrolle.ergebnis === "kontrolliert_kein_wasser" ?
+                  "Kein Wasser nötig" : "Ergebnis nicht dokumentiert") + '</p>' : "") +
               '<div class="footer"><button class="btn tiny" data-action="care-open" data-id="' +
               escapeHtml(p.id) + '">Pflegewissen</button><button class="btn tiny" data-action="pflegeverlauf-open" data-id="' +
               escapeHtml(p.id) + '">Verlauf</button><button class="btn tiny" data-action="entwicklung-open" data-id="' +
