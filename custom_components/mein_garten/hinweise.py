@@ -183,8 +183,8 @@ class GartenHinweise:
                     return False
                 await self.hass.services.async_call(
                     "notify", "send_message",
-                    {"entity_id": empfaenger, "title": titel, "message": nachricht},
-                    blocking=True,
+                    {"title": titel, "message": nachricht},
+                    target={"entity_id": empfaenger}, blocking=True,
                 )
             else:
                 if not self.hass.services.has_service("notify", service):
@@ -231,7 +231,7 @@ class GartenHinweise:
             try:
                 ergebnis = await self.hass.services.async_call(
                     "weather", "get_forecasts",
-                    {"type": typ, "entity_id": wetter_id},
+                    {"type": typ}, target={"entity_id": wetter_id},
                     blocking=True, return_response=True,
                 )
             except Exception:
