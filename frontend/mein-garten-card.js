@@ -623,6 +623,8 @@
         '<div class="task-name">' + escapeHtml(task.name) + "</div>" +
         '<div class="task-meta">' + escapeHtml(dateLabel(due)) +
         (linked ? " · " + escapeHtml(linked.name) : "") +
+        (task.herkunft === "wetterprognose" ?
+          ' <span class="tag">Wetterprognose, keine bestätigte Frostwarnung</span>' : "") +
         (overdue ? ' <span class="tag">Überfällig</span>' : "") +
         '</div></div><div class="buttons">' +
         '<button class="btn tiny" type="button" data-action="' +
