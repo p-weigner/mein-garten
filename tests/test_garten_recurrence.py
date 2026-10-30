@@ -1,8 +1,8 @@
 """Regressionsprüfungen für manuell konfigurierte Garten-Wiederholungen."""
 import unittest
-from datetime import date
+from datetime import date, datetime, timezone
 from custom_components.mein_garten.model import GartenDaten, DatensatzFehler
-from custom_components.mein_garten.recurrence import regel_faellig
+from custom_components.mein_garten.recurrence import regel_faellig, lokaler_kalendertag
 
 
 class TestWiederholungen(unittest.TestCase):
@@ -111,6 +111,20 @@ class TestWiederholungen(unittest.TestCase):
         with self.assertRaises(DatensatzFehler):
             self.model.frostpruefung_anlegen("2026-11-03", 8, 2)
         self.assertEqual(self.model.snapshot()["aufgaben"], [])
+
+
+    def test_ortstag_bei_utc_mitternacht_im_winter(self):
+        utc = datetime(2026, 10, 30, 23, 15, tzinfo=timezone.utc)
+        self.assertEqual(lokaler_kalendertag(utc, "Europe/Berlin"), date(2026, 10, 31))
+        self.assertEqual(lokaler_kalendertag(utc, "UTC"), date(2026, 10, 30))
+
+    def test_ortstag_bei_sommerzeit(self):
+        utc = datetime(2026, 6, 15, 22, 30, tzinfo=timezone.utc)
+        self.assertEqual(lokaler_kalendertag(utc, "Europe/Berlin"), date(2026, 6, 16))
+
+    def test_ohne_zeitzone_keine_stille_verschiebung(self):
+        with self.assertRaises(ValueError):
+            lokaler_kalendertag(datetime(2026, 10, 30, 22, 30), "Europe/Berlin")
 
 
 if __name__ == "__main__":
