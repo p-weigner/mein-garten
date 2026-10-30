@@ -100,8 +100,13 @@ def main():
     encoded, info = serialize_catalog(catalog)
     DEST.parent.mkdir(parents=True, exist_ok=True)
     DEST.write_bytes(encoded)
+    bekannte_arten = {row[0].casefold() for row in catalog["arten"]}
+    treffende_beispiele = sum(
+        plant["wissenschaftlich"].casefold() in bekannte_arten for plant in benchmark
+    )
     print("EIVE_EXPORT", json.dumps({
         **info, "benchmark50_exakt_vor_taxonpruefung": measured["benchmark50_exakt"],
+        "benchmark50_exakt_nach_taxonpruefung": treffende_beispiele,
         "ausgeschlossene_quellen": catalog["ausgeschlossene_arten_nach_taxonquelle"],
         "lizenz": LICENSE, "doi": DOI, "automatische_pflegeaufgaben": 0,
     }, ensure_ascii=False), flush=True)
