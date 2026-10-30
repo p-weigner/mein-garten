@@ -269,4 +269,5 @@ class SaisonService:
                 fenster_von=period[0].isoformat(),
                 fenster_bis=period[1].isoformat(),
                 quell_commit=r["_quell_commit"],
+                wissenschaftlich=r["wissenschaftlich"],
             )
