@@ -62,6 +62,8 @@ class TestGartenWebsocket(unittest.IsolatedAsyncioTestCase):
             self.dispatch.append((signal, callback))
             return lambda: self.dispatch.remove((signal, callback))
         dispatcher.async_dispatcher_connect = connect
+        self.sent_signals = []
+        dispatcher.async_dispatcher_send = lambda hass, signal: self.sent_signals.append(signal)
         helpers = types.ModuleType("homeassistant.helpers")
         helpers.dispatcher = dispatcher
         homeassistant = types.ModuleType("homeassistant")
@@ -191,6 +193,44 @@ class TestGartenWebsocket(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.connection.events[-1][1]["daten"]["bereiche"]), 1)
         self.connection.subscriptions[9]()
         self.assertEqual(self.dispatch, [])
+
+
+    async def test_automatik_optionen_ueber_ws_speichern_ohne_push(self):
+        options = {
+            "weather_entity": "", "notify_target": "",
+            "freitag_aktiv": False, "frost_aktiv": False, "frost_grenze_c": 2.0,
+        }
+        async def speichern(neu):
+            options.update(neu)
+            return dict(options)
+        service = types.SimpleNamespace(
+            einstellungen=lambda: dict(options),
+            async_einstellungen_speichern=speichern,
+        )
+        self.hass.data["mein_garten"]["hinweise"] = service
+        await self.api.ws_automatik_speichern(self.hass, self.connection, {
+            "id": 15, "weather_entity": "weather.home",
+            "notify_target": "notify.mobile_app_angelina",
+            "freitag_aktiv": True, "frost_aktiv": True, "frost_grenze_c": 2.0,
+        })
+        self.assertEqual(self.connection.errors, [])
+        self.assertTrue(self.connection.results[0][1]["automatik"]["frost_aktiv"])
+        self.assertEqual(self.sent_signals, ["mein_garten_updated"])
+
+    async def test_automatik_fehlermeldung_enthaelt_keine_geheimnisse(self):
+        async def speichern(_neu):
+            raise ValueError("Ungültige Wetterentität")
+        self.hass.data["mein_garten"]["hinweise"] = types.SimpleNamespace(
+            einstellungen=lambda: {},
+            async_einstellungen_speichern=speichern,
+        )
+        await self.api.ws_automatik_speichern(self.hass, self.connection, {
+            "id": 16, "weather_entity": "script.schlafenszeit",
+            "notify_target": "notify.mobile_app_angelina",
+            "freitag_aktiv": True, "frost_aktiv": True, "frost_grenze_c": 2.0,
+        })
+        self.assertEqual(self.connection.errors[0][1], "ungueltige_eingabe")
+        self.assertFalse(self.connection.results)
 
 
 if __name__ == "__main__":
