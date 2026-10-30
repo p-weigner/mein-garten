@@ -176,13 +176,14 @@ async def ws_automatik_speichern(hass, connection, msg):
     probatio.Optional("pflanzen_id"): probatio.Any(None, str),
     probatio.Optional("bereich_id"): probatio.Any(None, str),
     probatio.Optional("pflegefeld"): probatio.Any(None, str),
+    probatio.Optional("aufgabentyp"): str,
 })
 @websocket_api.async_response
 async def ws_regel_anlegen(hass, connection, msg):
     await _aendern(hass, connection, msg, "regel_anlegen", {
         key: msg[key] for key in (
             "name", "startdatum", "rhythmus", "intervall_tage",
-            "pflanzen_id", "bereich_id", "pflegefeld"
+            "pflanzen_id", "bereich_id", "pflegefeld", "aufgabentyp"
         ) if key in msg
     })
 
@@ -315,12 +316,13 @@ async def ws_pflanze_entfernen(hass, connection, msg):
     probatio.Optional("faellig_am"): probatio.Any(None, str),
     probatio.Optional("pflanzen_id"): probatio.Any(None, str),
     probatio.Optional("bereich_id"): probatio.Any(None, str),
+    probatio.Optional("aufgabentyp"): str,
 })
 @websocket_api.async_response
 async def ws_aufgabe_anlegen(hass, connection, msg):
     await _aendern(hass, connection, msg, "aufgabe_anlegen", {
         key: msg[key] for key in (
-            "name", "faellig_am", "pflanzen_id", "bereich_id"
+            "name", "faellig_am", "pflanzen_id", "bereich_id", "aufgabentyp"
         ) if key in msg
     })
 
@@ -328,12 +330,14 @@ async def ws_aufgabe_anlegen(hass, connection, msg):
 @websocket_api.websocket_command({
     probatio.Required("type"): "mein_garten/aufgabe_erledigen",
     probatio.Required("aufgaben_id"): str,
+    probatio.Optional("ergebnis"): str,
 })
 @websocket_api.async_response
 async def ws_aufgabe_erledigen(hass, connection, msg):
     await _aendern(hass, connection, msg, "aufgabe_erledigen", {
         "aufgaben_id": msg["aufgaben_id"],
         "person": connection.user.name or connection.user.id,
+        **({"ergebnis": msg["ergebnis"]} if "ergebnis" in msg else {}),
     })
 
 
