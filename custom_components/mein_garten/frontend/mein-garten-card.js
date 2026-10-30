@@ -110,6 +110,8 @@
       this.shadowRoot.addEventListener("click", this._onClick);
       this.shadowRoot.addEventListener("submit", this._onSubmit);
       this.shadowRoot.addEventListener("input", this._onInput);
+      // Insbesondere iOS-Safari feuert bei Auswahllisten zuverlässig "change".
+      this.shadowRoot.addEventListener("change", this._onInput);
       this.shadowRoot.addEventListener("keydown", this._onKeydown);
     }
 
@@ -226,6 +228,11 @@
 
     _onInput(ev) {
       const target = ev.target;
+      if (target?.dataset && ["pflegekontext-pflanze", "pflegekontext-typ"].includes(target.dataset.role)) {
+        const form = target.closest?.('form[data-form="aufgabe"], form[data-form="regel"]');
+        if (form) this._pflegekontextAktualisieren(form);
+        return;
+      }
       if (target && target.dataset && target.dataset.role === "plant-search") {
         this._query = target.value;
         this._searchGeneration++;
@@ -341,6 +348,20 @@
           },
           careInfo: "Dieser Termin wird von dir festgelegt. Die Quelle " +
             "OpenPlantbook und ihre Übersetzung sind nicht fachlich geprüft.",
+        };
+        this._render();
+      } else if (action === "giesskontrolle-neu") {
+        const plant = this._getPlant(id);
+        if (!plant) return;
+        // Nur vorausgefülltes Formular: keine Aufgabe und kein Datum ohne Bestätigung.
+        this._modal = {
+          type: "aufgabe",
+          prefill: {
+            name: "Gießbedarf prüfen – " + plant.name,
+            pflanzen_id: plant.id,
+            bereich_id: plant.bereich_id || null,
+            aufgabentyp: "giesskontrolle",
+          },
         };
         this._render();
       } else if (action === "pflegeverlauf-open") {
@@ -926,6 +947,56 @@
         '<button class="btn primary" type="submit">Einstellungen speichern</button></div></form>';
     }
 
+    _giessKontextHTML(pflanzenId, aufgabentyp, aufgabeId = null) {
+      if (aufgabentyp !== "giesskontrolle") return "";
+      if (!pflanzenId) return '<div class="notice">Wähle eine Pflanze, um ihre ' +
+        'letzten dokumentierten Gießentscheidungen zu sehen. Der Termin wird ' +
+        'nicht automatisch vorgeschlagen.</div>';
+      const plant = this._getPlant(pflanzenId);
+      if (!plant) return '<div class="notice">Für diese Pflanze liegen keine ' +
+        'zugeordneten Pflegeinformationen vor.</div>';
+      const info = this._pflegeverlaufDaten(plant.id);
+      const letzte = info.letzteKontrolle;
+      const gegossen = info.zuletztGegossen;
+      const letzteInfo = letzte ?
+        'Letzte Kontrolle: ' + escapeHtml(zeitpunktLabel(letzte.erledigt_utc)) +
+        ' · ' + (letzte.ergebnis === "gegossen" ? "Gegossen" :
+          letzte.ergebnis === "kontrolliert_kein_wasser" ?
+          "Kontrolliert – kein Wasser nötig" : "Ergebnis nicht dokumentiert") :
+        'Noch keine Gießkontrolle dokumentiert.';
+      const gegossenInfo = gegossen ?
+        'Zuletzt tatsächlich gegossen: ' +
+        escapeHtml(zeitpunktLabel(gegossen.erledigt_utc)) :
+        'Noch kein tatsächliches Gießen dokumentiert.';
+      const offen = (this._data?.aufgaben || []).filter((item) =>
+        item?.pflanzen_id === plant.id && item.status === "offen" &&
+        item.id !== aufgabeId && (item.aufgabentyp === "giesskontrolle" ||
+          ["gegossen", "kontrolliert_kein_wasser"].includes(item.ergebnis)));
+      const offeneInfo = offen.length ?
+        '<p class="small"><span class="chip warning">' +
+        (offen.length === 1 ? "1 Gießkontrolle ist bereits offen" :
+          offen.length + " Gießkontrollen sind bereits offen") +
+        '</span> Prüfe vorhandene Aufgaben, bevor du eine weitere anlegst.</p>' : "";
+      return '<section class="card" style="margin:12px 0;padding:13px">' +
+        '<h3>Dein bisheriger Gießverlauf · ' + escapeHtml(plant.name) + '</h3>' +
+        '<p class="small">' + letzteInfo + '</p>' +
+        '<p class="small">' + gegossenInfo + '</p>' + offeneInfo +
+        '<p class="small">Nur eigene Erledigungen aus diesem Garten. ' +
+        'Keine Aussage darüber, ob jetzt Wasser nötig ist. ' +
+        'Du legst einen Termin ausschließlich selbst fest.</p></section>';
+    }
+
+    _pflegekontextAktualisieren(form) {
+      if (!form || !["aufgabe", "regel"].includes(form.dataset?.form)) return;
+      const panel = form.querySelector?.('[data-role="pflegekontext"]');
+      if (!panel) return;
+      const plant = form.elements?.namedItem("pflanzen_id")?.value || "";
+      const typ = form.elements?.namedItem("aufgabentyp")?.value || "einfach";
+      // Nur die Lesehilfe ändern; Datum, Name und andere Formulareingaben
+      // werden weder zurückgesetzt noch automatisch befüllt.
+      panel.innerHTML = this._giessKontextHTML(plant, typ);
+    }
+
     _ruleForm() {
       const plants = (this._data.pflanzen || []).map((p) => ({ value: p.id, label: p.name }));
       const areas = (this._data.bereiche || []).map((a) => ({ value: a.id, label: a.name }));
@@ -940,7 +1011,7 @@
         '>Alle X Tage</option><option value="jaehrlich"' + (selectedRhythm === "jaehrlich" ? ' selected' : '') +
         '>Jedes Jahr</option></select></div>' +
         '<div class="field"><label>Intervall in Tagen</label><input name="intervall_tage" type="number" min="1" max="365" value="14"></div>' +
-        '<div class="field"><label>Pflanze</label><select name="pflanzen_id">' +
+        '<div class="field"><label>Pflanze</label><select name="pflanzen_id" data-role="pflegekontext-pflanze">' +
         this._options(plants, prefill.pflanzen_id || null, true) + '</select></div>' +
         '<div class="field full"><label>Gartenbereich</label><select name="bereich_id">' +
         this._options(areas, prefill.bereich_id || null, true) + '</select></div>' +
@@ -948,9 +1019,13 @@
           '<input type="hidden" name="aufgabentyp" value="' +
           escapeHtml(prefill.aufgabentyp || "einfach") + '">' :
           '<div class="field full"><label>Wie soll die Aufgabe erledigt werden?</label>' +
-          '<select name="aufgabentyp"><option value="einfach">Ein Klick – erledigt</option>' +
+          '<select name="aufgabentyp" data-role="pflegekontext-typ">' +
+          '<option value="einfach">Ein Klick – erledigt</option>' +
           '<option value="giesskontrolle">Gießkontrolle – gegossen / kein Wasser nötig</option>' +
           '</select></div>') + '</div>' +
+        '<div data-role="pflegekontext" aria-live="polite">' +
+        this._giessKontextHTML(prefill.pflanzen_id || "", prefill.aufgabentyp || "einfach") +
+        '</div>' +
         '<div class="notice">' + escapeHtml(this._modal?.careInfo ||
           "Diese Wiederholung wird von dir angelegt. Es werden keine ungeprüften Empfehlungen übernommen.") +
         '</div>' +
@@ -959,6 +1034,7 @@
     }
 
     _taskForm() {
+      const prefill = this._modal?.prefill || {};
       const plants = (this._data.pflanzen || []).map((p) => ({
         value: p.id, label: p.name
       }));
@@ -967,17 +1043,25 @@
       }));
       return '<form data-form="aufgabe"><div class="form-grid">' +
         '<div class="field full"><label>Was muss erledigt werden? *</label>' +
-        '<input name="name" required maxlength="200" placeholder="z. B. Kübelpflanzen gießen"></div>' +
+        '<input name="name" required maxlength="200" value="' +
+        escapeHtml(prefill.name || "") + '" placeholder="z. B. Kübelpflanzen gießen"></div>' +
         '<div class="field"><label>Fällig am (optional)</label><input type="date" name="faellig_am"></div>' +
-        '<div class="field"><label>Pflanze</label><select name="pflanzen_id">' +
-        this._options(plants, null, true) + '</select></div>' +
+        '<div class="field"><label>Pflanze</label><select name="pflanzen_id" data-role="pflegekontext-pflanze">' +
+        this._options(plants, prefill.pflanzen_id || null, true) + '</select></div>' +
         '<div class="field full"><label>Gartenbereich</label><select name="bereich_id">' +
-        this._options(areas, null, true) + '</select></div>' +
+        this._options(areas, prefill.bereich_id || null, true) + '</select></div>' +
         '<div class="field full"><label>Wie soll die Aufgabe erledigt werden?</label>' +
-        '<select name="aufgabentyp"><option value="einfach">Ein Klick – erledigt</option>' +
-        '<option value="giesskontrolle">Gießkontrolle – gegossen / kein Wasser nötig</option>' +
+        '<select name="aufgabentyp" data-role="pflegekontext-typ">' +
+        '<option value="einfach"' + (prefill.aufgabentyp === "giesskontrolle" ? '' : ' selected') +
+        '>Ein Klick – erledigt</option>' +
+        '<option value="giesskontrolle"' + (prefill.aufgabentyp === "giesskontrolle" ? ' selected' : '') +
+        '>Gießkontrolle – gegossen / kein Wasser nötig</option>' +
         '</select></div></div>' +
-        '<div class="notice">Diese Aufgabe wird manuell angelegt. Automatische artspezifische Pflegepläne folgen nach der Fachprüfung.</div>' +
+        '<div data-role="pflegekontext" aria-live="polite">' +
+        this._giessKontextHTML(prefill.pflanzen_id || "", prefill.aufgabentyp || "einfach") +
+        '</div>' +
+        '<div class="notice">Diese Aufgabe wird nur nach deiner Bestätigung angelegt. Der Verlauf ' +
+        'liefert keine automatischen Gießintervalle oder konkreten Wasserempfehlungen.</div>' +
         '<div class="dialog-foot"><button class="btn ghost" type="button" data-action="close">Abbrechen</button>' +
         '<button type="submit" class="btn primary">Aufgabe speichern</button></div></form>';
     }
@@ -986,6 +1070,7 @@
       const task = this._modal.existing;
       return '<div class="notice">Wie wurde die Gießkontrolle abgeschlossen? Das Ergebnis wird mit Datum in der Pflegehistorie gespeichert.</div>' +
         '<p class="task-name">' + escapeHtml(task.name) + '</p>' +
+        this._giessKontextHTML(task.pflanzen_id || "", "giesskontrolle", task.id) +
         '<div class="dialog-foot"><button type="button" class="btn ghost" data-action="close">Abbrechen</button>' +
         '<button type="button" class="btn" data-action="task-water-choice" data-result="kontrolliert_kein_wasser" data-id="' +
         escapeHtml(task.id) + '">Kontrolliert – kein Wasser nötig</button>' +
@@ -1126,6 +1211,9 @@
         'erstellt keine neuen Termine oder Pflegeempfehlungen.</div>' +
         stats + '<div style="margin-top:14px">' + letzteKontrolle +
         letztesGiessen + '</div>' +
+        '<div class="buttons" style="margin:14px 0">' +
+        '<button class="btn primary tiny" type="button" data-action="giesskontrolle-neu" ' +
+        'data-id="' + escapeHtml(plant.id) + '">＋ Gießkontrolle anlegen</button></div>' +
         '<h3 style="margin-top:18px">Erledigte Arbeiten (' + total + ')</h3>' +
         (zeilen || '<p class="small">Für diese Pflanze wurden noch keine ' +
           'Pflegearbeiten als erledigt gespeichert.</p>') + more;
