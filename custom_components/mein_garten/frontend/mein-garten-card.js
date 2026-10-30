@@ -72,6 +72,7 @@
       this._automatik = null;
       this._saison = null;
       this._dwd = null;
+      this._standort = null;
       // Die regionale Auswahl ist ein sichtbarer Vergleichsausschnitt,
       // keine erkannte Hausadresse und keine Standortfreigabe.
       this._dwdRegion = "nordost";
@@ -145,6 +146,7 @@
               this._automatik = event.automatik || null;
               this._saison = event.saison || null;
               this._dwd = event.dwd_phaenologie || null;
+              this._standort = event.standort || null;
               this._error = "";
               this._render();
             }
@@ -187,6 +189,7 @@
           this._automatik = result.automatik || null;
           this._saison = result.saison || null;
           this._dwd = result.dwd_phaenologie || null;
+          this._standort = result.standort || null;
         }
         this._modal = null;
         this._render();
@@ -444,10 +447,74 @@
       }
     }
 
+    _standortHTML() {
+      const base = this._standort;
+      if (!base || !this._carePlant) return "";
+      const row = base.profile?.[this._carePlant];
+      const existing = this._getPlant(this._carePlant);
+      if (!row || !existing ||
+          row.wissenschaftlich !== existing.wissenschaftlich) {
+        return '<section class="card" style="margin:9px 0;padding:13px">' +
+          '<h3>Standort-Steckbrief</h3><p class="small">' +
+          'Für diese botanische Art gibt es in der lokalen CC0-Datenquelle ' +
+          'noch keine eindeutig verwendbaren Standortmerkmale.</p></section>';
+      }
+      const labels = {
+        sun: {
+          title: "Lichtbedarf laut Quelle",
+          values: { full: "Sonnig", partial: "Halbschattig", shade: "Schattig" }
+        },
+        water: {
+          title: "Wasserbedarf laut Quelle",
+          values: { low: "Eher gering", moderate: "Mittel", high: "Hoch" }
+        },
+        frost_tolerance: {
+          title: "Frostkategorie der Quelle",
+          values: {
+            hardy: "Allgemein als frosttolerant eingeordnet",
+            "half-hardy": "Eingeschränkt frosttolerant",
+            tender: "Als frostempfindlich eingeordnet",
+          }
+        },
+        season: {
+          title: "Wachstumsgruppe der Quelle",
+          values: {
+            cool: "Kühle Wachstumszeit", warm: "Warme Wachstumszeit",
+            perennial: "Mehrjährig",
+          }
+        },
+      };
+      const items = Object.entries(labels).map(([field, config]) => {
+        const value = row.merkmale?.[field];
+        if (!value || !config.values[value]) return "";
+        return '<div class="task"><div><div class="task-name">' +
+          escapeHtml(config.title) + '</div>' +
+          '<div class="task-meta">' + escapeHtml(config.values[value]) +
+          '</div></div></div>';
+      }).filter(Boolean).join("");
+      return '<section class="card" style="margin:9px 0;padding:13px">' +
+        '<h3>Standort-Steckbrief</h3>' +
+        '<p class="small">Strukturierte Basisangaben für <em>' +
+        escapeHtml(row.wissenschaftlich) + '</em>.</p>' +
+        items +
+        '<div class="notice">Allgemeine, nicht für Brandenburg geprüfte ' +
+        'CC0-Quellkategorien. Der Wasserbedarf ist kein Gießintervall; ' +
+        'die Frostkategorie ist keine sichere Winterhärte. ' +
+        'Daraus werden keine automatischen Pflegeaufgaben erzeugt.</div>' +
+        '<p class="small">Quelle: <a href="https://github.com/cwfrazier1/openplantdb" ' +
+        'target="_blank" rel="noopener noreferrer">OpenPlantDB</a> · CC0 1.0 · ' +
+        'Artzuordnung ohne Sortenübertragung · ' +
+        escapeHtml(base.quell_commit?.slice(0, 10) || "Version unbekannt") +
+        '</p></section>';
+    }
+
     _careHTML() {
-      if (this._careLoading) return '<p class="small">Deutsche Pflegeinformationen werden geladen …</p>';
+      const grundlagen = this._standortHTML();
+      if (this._careLoading)
+        return grundlagen + '<p class="small">Deutsche Pflegeinformationen werden geladen …</p>';
       const profile = this._care;
-      if (!profile) return '<p class="small">Kein Pflegeprofil verfügbar.</p>';
+      if (!profile)
+        return grundlagen + '<p class="small">Kein zusätzliches Pflegeprofil verfügbar.</p>';
       const labels = {
         quelle_nicht_eingerichtet: "OpenPlantbook ist nicht eingerichtet.",
         quelle_nicht_erreichbar: "OpenPlantbook ist momentan nicht erreichbar.",
@@ -470,7 +537,7 @@
           escapeHtml(this._carePlant) + '" data-field="' + escapeHtml(key) +
           '">Jährliche Kontrolle dazu planen</button>' : '') +
         '</section>').join("");
-      return (profile.status !== "ok" ? '<p class="small">' +
+      return grundlagen + (profile.status !== "ok" ? '<p class="small">' +
         escapeHtml(profile.meldung || labels[profile.status] || "Keine Angaben verfügbar.") +
         '</p>' : "") + heading + body;
     }
