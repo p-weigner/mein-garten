@@ -15,6 +15,7 @@ from typing import Any
 _LOGGER = logging.getLogger(__name__)
 _INAT = "https://api.inaturalist.org/v1/taxa/autocomplete"
 _WIKIDATA = "https://www.wikidata.org/w/api.php"
+_GBIF = "https://api.gbif.org/v1/species/suggest"
 _TTL = 900.0
 _MAX_CACHE = 100
 _PLANT_TAXON = 47126
@@ -116,6 +117,31 @@ def _wikidata_taxa(search: Any, entities: Any, query: str) -> list[dict]:
     return candidates
 
 
+def _gbif_results(payload: Any) -> list[dict]:
+    """Nur echte botanische Artvorschläge, niemals beliebige GBIF-Freitexttreffer."""
+    if not isinstance(payload, list):
+        raise ValueError("Unerwartete GBIF-Antwort")
+    plants = []
+    for taxon in payload[:25]:
+        if not isinstance(taxon, dict):
+            continue
+        rank = str(taxon.get("rank", "")).upper()
+        kingdom = str(taxon.get("kingdom", "")).casefold()
+        latin = taxon.get("scientificName", "")
+        canonical = taxon.get("canonicalName")
+        if rank not in {"SPECIES", "SUBSPECIES", "VARIETY"} or kingdom != "plantae":
+            continue
+        if isinstance(canonical, str) and _plant_name(canonical):
+            plants.append({
+                "wissenschaftlich": canonical[:160],
+                "deutsch": "",
+                "bestaetigt": True,
+                "quellen": ["GBIF"],
+                "id_gbif": taxon.get("key"),
+            })
+    return plants
+
+
 class Pflanzensuche:
     """Kurzzeit-Cache verhindert unnötige API-Last beim Tippen."""
 
@@ -149,6 +175,9 @@ class Pflanzensuche:
             _INAT, q=query, locale="de", per_page=18, taxon_id=_PLANT_TAXON
         )
         return _inat_results(data)
+
+    async def _gbif(self, query: str) -> list[dict]:
+        return _gbif_results(await self._json(_GBIF, q=query, limit=25))
 
     async def _wikidata(self, query: str) -> list[dict]:
         search = await self._json(
@@ -205,22 +234,24 @@ class Pflanzensuche:
                 return dict(cached[1])
 
             results = await asyncio.gather(
-                self._i_nat(query), self._wikidata(query),
+                self._i_nat(query), self._wikidata(query), self._gbif(query),
                 return_exceptions=True
             )
             notes = []
-            inat, wikidata = [], []
-            for label, data in zip(("iNaturalist", "Wikidata"), results):
+            inat, wikidata, gbif = [], [], []
+            for label, data in zip(("iNaturalist", "Wikidata", "GBIF"), results):
                 if isinstance(data, BaseException):
                     _LOGGER.debug("Gartenpflanzensuche: Quelle %s nicht erreichbar", label)
                     notes.append(label + " vorübergehend nicht verfügbar")
                 elif label == "iNaturalist":
                     inat = data
-                else:
+                elif label == "Wikidata":
                     wikidata = data
+                else:
+                    gbif = data
             if wikidata:
                 wikidata = await self._verify_wikidata(wikidata)
-            all_items = _dedupe(inat + wikidata)
+            all_items = _dedupe(inat + wikidata + gbif)
             # Botanisch validierte Kandidaten und treffende deutsche Namen zuerst.
             all_items.sort(key=lambda x: (
                 not x["bestaetigt"],
