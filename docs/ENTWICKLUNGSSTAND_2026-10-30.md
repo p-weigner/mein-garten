@@ -30,7 +30,7 @@
 
 ## Persistenz
 
-- Gartendaten und Nutzerregeln: `.storage/mein_garten_v1.data`
+- Gartendaten, Nutzerregeln und eigene Pflanzenentwicklungsbeobachtungen: `.storage/mein_garten_v1.data`
 - Deutsche Pflegeprofile und Übersetzungsbudget: `.storage/mein_garten_pflege_v1.data`
 - Benachrichtigungseinstellungen und Anti-Duplikat-Markierungen: `.storage/mein_garten_hinweise_v1.data`
 - Lokal erfasste positive Pflanzennamen: `.storage/mein_garten_namen_v1.data`
@@ -48,6 +48,15 @@ Keine Codeänderung für neu angelegte Pflanzen. Die persönlichen Gartennotizen
 - Bei Sammelnamen (z. B. „Felsenbirne“) liefert der Trivialnamensindex mehrere botanisch akzeptierte Arten. Eine akzeptierte Art ist kein Beweis, dass der deutsche Sammelname eindeutig wäre; die Nutzerin wählt die tatsächliche Art.
 - Das Wikimedia-/Wikidata-Fallback wurde in einer separaten Live-Diagnose untersucht, lieferte in der GitHub-Runner-Umgebung nur HTTP-Fehler und wird deshalb **nicht** als zusätzliche Abhängigkeit in die Suchlogik integriert.
 - [50 Testarten](../daten/pflanzensuche_50_de.json), [reproduzierbarer Live-Test](../tools/pflanzensuche_50_live.py) und [Quellen-/Lizenzprüfung](FACHQUELLEN_FREIGABE_2026-10-30.md).
+
+## Eigene phänologische Gartenbeobachtungen
+
+- Neu: **Pflanzen → Entwicklung** für jede gespeicherte Pflanze, auch ohne botanischen Datenbanktreffer. Sieben kontrollierte Beobachtungsphasen, tatsächliches Datum und optionale private Notiz. Die beobachtete botanische Art bleibt als Historienreferenz bestehen.
+- Neue Liste `beobachtungen` im vorhandenen lokalen Garten-Store. Alte V1-Speicher werden ohne Datenverlust erweitert. Einträge sind auf der Home-Assistant-Ortszeit geprüft; zukünftige Beobachtungen, ungültige Phasen und doppelte Eingaben werden abgelehnt. Löschungen entfernen auch ihre Aktivitätsbezüge.
+- Im Pflanzenbereich erscheint die jüngste Beobachtung. In einem eigenen Dialog stehen der Verlauf und ein Vergleich des frühesten **dokumentierten** Blütebeginns mehrerer Jahre. **Kein** automatisches Erkennen biologischer Phasen und keine Prognose zukünftiger Termine.
+- Unter **Kalender** stehen die letzten tatsächlichen Pflanzenbeobachtungen getrennt von offenen Aufgaben. Die schon vorhandene freitägliche iPhone-Übersicht kann sie bei aktivierter Einstellung als kurze Zusammenfassung aufführen; **Notizen, Beobachternamen und genaue Standortdaten werden nicht per Push übermittelt**.
+- Keine DWD-Daten abgerufen, keine neuen Internetabfragen oder zusätzlichen kostenpflichtigen Dienste. Für eine spätere regionale Analyse kann [DWD-Phänologie](https://opendata.dwd.de/climate_environment/CDC/observations_germany/phenology/) eine getrennte, mit Herkunft und räumlicher Unsicherheit ausgewiesene Kontextquelle sein, ist aber keine verlässliche Quelle für konkrete Schnitt- oder Düngeanweisungen.
+- [Dokumentation der Pflanzenentwicklung](PHAENOLOGIE_EIGENE_BEOBACHTUNGEN_2026-10-30.md).
 
 ## Strukturierter Saisonkalender als Planungshilfe
 
