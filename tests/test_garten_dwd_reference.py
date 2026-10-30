@@ -56,7 +56,6 @@ class TestDwdReferenz(unittest.TestCase):
             self.assertLessEqual(item["quartil_von"], item["median"])
             self.assertLessEqual(item["median"], item["quartil_bis"])
         self.assertIn("Keine Prognose", p["hinweis"])
-        self.assertIn("Qualitaet", "Qualitaet")  # keine implizite Pflegeaussage
 
     def test_abgefaelschte_lizenz_oder_region_abgewiesen(self):
         for key, value in (
