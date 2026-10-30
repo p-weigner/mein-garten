@@ -1055,3 +1055,111 @@ test("Während des Übersetzens bleiben lokale Pflanzennotizen sichtbar", () => 
   assert.ok(html.includes("Standort am Zaun"));
   assert.ok(html.includes("Deutsche Pflegeinformationen werden geladen"));
 });
+
+
+test("Pflegewissen erlaubt gezielten erneuten Abruf mit eindeutigem Flag", async () => {
+  const card = buildCard();
+  const plant = { id: "p1", name: "Hundsrose", wissenschaftlich: "Rosa canina", notizen: "" };
+  card._data.pflanzen = [plant];
+  card._modal = { type: "pflege", existing: plant };
+  card._carePlant = "p1";
+  card._careLoading = false;
+  card._care = { status: "teilweise", felder: {
+    watering: { titel: "Gießen", text: "Bisheriger Hinweis" },
+  }};
+  let request;
+  card._call = async (type, args) => {
+    request = { type, args };
+    return { status: "ok", felder: {
+      watering: { titel: "Gießen", text: "Neuer Hinweis", status: "maschinenuebersetzt" },
+    }};
+  };
+  assert.ok(card._careHTML().includes('data-action="care-refresh"'));
+  const clicked = { disabled: false, dataset: { action: "care-refresh", id: "p1" } };
+  card._onClick({ target: { closest: () => clicked } });
+  assert.equal(request.type, "pflegeprofil");
+  assert.equal(request.args.pflanzen_id, "p1");
+  assert.equal(request.args.aktualisieren, true);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(card._careLoading, false);
+  assert.ok(card._careHTML().includes("Neuer Hinweis"));
+  assert.ok(!card._careHTML().includes("Bisheriger Hinweis"));
+});
+
+test("Während einer erneuten Quellenprüfung bleiben die bisherigen Hinweise sichtbar", async () => {
+  const card = buildCard();
+  const plant = { id: "p1", name: "Hundsrose", wissenschaftlich: "Rosa canina" };
+  card._data.pflanzen = [plant];
+  card._modal = { type: "pflege", existing: plant };
+  card._carePlant = "p1";
+  card._care = { status: "ok", felder: {
+    watering: { titel: "Gießen", text: "Vorheriger deutscher Hinweis" },
+  }};
+  let release;
+  card._call = () => new Promise((resolve) => { release = resolve; });
+  const clicked = { disabled: false, dataset: { action: "care-refresh", id: "p1" } };
+  card._onClick({ target: { closest: () => clicked } });
+  assert.equal(card._careLoading, true);
+  const inProgress = card._careHTML();
+  assert.ok(inProgress.includes("Vorheriger deutscher Hinweis"));
+  assert.ok(inProgress.includes("Aktualisierung läuft"));
+  assert.ok(inProgress.includes('data-action="care-refresh" data-id="p1" disabled'));
+  release({ status: "ok", felder: {
+    watering: { titel: "Gießen", text: "Aktualisiert" },
+  }});
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(card._careLoading, false);
+  assert.ok(card._careHTML().includes("Aktualisiert"));
+});
+
+test("Quellenfehler verrät keine technischen Details und bewahrt bestehendes Pflegewissen", async () => {
+  const card = buildCard();
+  const plant = { id: "p1", name: "Hundsrose", wissenschaftlich: "Rosa canina" };
+  card._data.pflanzen = [plant];
+  card._modal = { type: "pflege", existing: plant };
+  card._carePlant = "p1";
+  card._care = { status: "ok", felder: {
+    pruning: { titel: "Schnitt", text: "Nicht bestätigte deutsche Notiz" },
+  }};
+  card._call = async () => { throw new Error("Authorization: secret-token"); };
+  const clicked = { disabled: false, dataset: { action: "care-refresh", id: "p1" } };
+  card._onClick({ target: { closest: () => clicked } });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const html = card._careHTML();
+  assert.ok(html.includes("Nicht bestätigte deutsche Notiz"));
+  assert.ok(html.includes("erneute Abruf ist fehlgeschlagen"));
+  assert.ok(!html.includes("secret-token"));
+});
+
+test("Alter Pflegecache ist bei Quellenfehler transparent als nicht bestätigt markiert", () => {
+  const card = buildCard();
+  const plant = { id: "p1", name: "Hundsrose", wissenschaftlich: "Rosa canina" };
+  card._data.pflanzen = [plant];
+  card._modal = { type: "pflege", existing: plant };
+  card._carePlant = "p1";
+  card._care = {
+    status: "ok", abgerufen_utc: "2026-10-10T12:00:00+00:00",
+    aktualisierung: "quelle_nicht_erreichbar",
+    felder: { watering: { titel: "Gießen", text: "Altbestand" }},
+  };
+  const html = card._careHTML();
+  assert.ok(html.includes("OpenPlantbook ist momentan nicht erreichbar"));
+  assert.ok(html.includes("Altbestand"));
+  assert.ok(html.includes("10.10.2026"));
+  assert.ok(html.includes("nicht neu bestätigt"));
+});
+
+test("Nur der aktuelle geöffnete Pflanzendialog darf Pflegequellen erneut prüfen", () => {
+  const card = buildCard();
+  const plant = { id: "p1", name: "Hundsrose", wissenschaftlich: "Rosa canina" };
+  card._data.pflanzen = [plant];
+  card._modal = { type: "pflege", existing: plant };
+  card._carePlant = "p1";
+  card._careLoading = false;
+  let calls = 0;
+  card._call = () => { calls++; return Promise.resolve({}); };
+  const clicked = { disabled: false, dataset: { action: "care-refresh", id: "p2" } };
+  card._onClick({ target: { closest: () => clicked } });
+  assert.equal(calls, 0);
+  assert.equal(card._careLoading, false);
+});
