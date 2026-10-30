@@ -37,6 +37,19 @@ def _norm(name: str) -> str:
     return _WS.sub(" ", name.replace("×", " x ").casefold()).strip()
 
 
+def _relevanter_deutscher_name(query: str, name: str) -> bool:
+    """Z. B. 'Frauenmantel' in 'Weicher Frauenmantel' als echtes Namenssignal.
+
+    Keine künstliche botanische Zuordnung: Es wird nur der bereits vom
+    Anbieter gelieferte deutsche Name zum ursprünglichen Suchwort verglichen.
+    """
+    if not isinstance(name, str) or not name:
+        return False
+    term = _norm(query).replace("-", " ")
+    label = _norm(name).replace("-", " ")
+    return len(term) >= 4 and term in label
+
+
 def _plant_name(name: str) -> bool:
     return isinstance(name, str) and bool(_NAME.fullmatch(name.strip()))
 
@@ -399,6 +412,7 @@ class Pflanzensuche:
                 not x["bestaetigt"],
                 _norm(x["deutsch"]) != key,
                 _norm(x["wissenschaftlich"]) != key,
+                not _relevanter_deutscher_name(query, x["deutsch"]),
                 "GBIF-Trivialnamen" not in x["quellen"],
             ))
             result = {
