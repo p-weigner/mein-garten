@@ -9,6 +9,7 @@ on:
       - ".github/workflows/gbif-trivialnamen-probe.yml"
       - "tools/gbif_trivialnamen_probe.py"
       - "tools/gbif_quellenrang_probe.py"
+      - "tools/deutsche_schreibweisen_probe.py"
 
 permissions:
   contents: read
@@ -26,3 +27,5 @@ jobs:
         run: python -m tools.gbif_trivialnamen_probe
       - name: Ursprüngliche und zusätzliche Quellenränge prüfen
         run: python -m tools.gbif_quellenrang_probe
+      - name: Zusammengesetzte deutsche Schreibweisen über Wikimedia prüfen
+        run: python -m tools.deutsche_schreibweisen_probe
