@@ -55,6 +55,7 @@
       this._tab = "start";
       this._data = null;
       this._groups = [];
+      this._automatik = null;
       this._modal = null;
       this._query = "";
       this._suggestions = [];
@@ -122,6 +123,7 @@
             if (this._connected && this._connection === connection) {
               this._data = event.daten;
               this._groups = event.gruppen || [];
+              this._automatik = event.automatik || null;
               this._error = "";
               this._render();
             }
@@ -161,6 +163,7 @@
         if (result && result.daten) {
           this._data = result.daten;
           this._groups = result.gruppen || [];
+          this._automatik = result.automatik || null;
         }
         this._modal = null;
         this._render();
@@ -274,6 +277,9 @@
         this._loadCare(id);
       } else if (action === "area-new") {
         this._modal = { type: "bereich" };
+        this._render();
+      } else if (action === "automatik-open") {
+        this._modal = { type: "automatik" };
         this._render();
       } else if (action === "rule-new") {
         this._modal = { type: "regel" };
@@ -396,6 +402,15 @@
         }
       } else if (form.dataset.form === "bereich") {
         this._mutate("bereich_anlegen", { name: val("name") });
+      } else if (form.dataset.form === "automatik") {
+        const isChecked = (key) => form.elements.namedItem(key).checked;
+        this._mutate("automatik_speichern", {
+          weather_entity: val("weather_entity"),
+          notify_target: val("notify_target"),
+          freitag_aktiv: isChecked("freitag_aktiv"),
+          frost_aktiv: isChecked("frost_aktiv"),
+          frost_grenze_c: Number(val("frost_grenze_c")),
+        });
       } else if (form.dataset.form === "regel") {
         this._mutate("regel_anlegen", {
           name: val("name"), startdatum: val("startdatum"), rhythmus: val("rhythmus"),
@@ -455,6 +470,51 @@
         "</button></div></form>";
     }
 
+    _automatikForm() {
+      const a = this._automatik || {
+        weather_entity: "", notify_target: "", freitag_aktiv: false,
+        frost_aktiv: false, frost_grenze_c: 2,
+      };
+      const weatherOptions = Object.keys(this._hass?.states || {})
+        .filter((id) => /^weather\.[a-z0-9_]+$/.test(id)).sort();
+      const notifyEntities = Object.keys(this._hass?.states || {})
+        .filter((id) => /^notify\.[a-z0-9_]+$/.test(id));
+      const notifyServices = Object.keys(this._hass?.services?.notify || {})
+        .filter((id) => /^[a-z0-9_]+$/.test(id) && id !== "send_message")
+        .map((id) => "notify." + id);
+      const options = (items) => [...new Set(items)].sort().map((id) =>
+        '<option value="' + escapeHtml(id) + '"></option>').join("");
+      return '<form data-form="automatik"><div class="notice">' +
+        'Beide Benachrichtigungen sind freiwillig und zunächst ausgeschaltet. ' +
+        'Es wird ausschließlich die vorhandene Home-Assistant-Wettervorhersage genutzt; ' +
+        'keine eigenen Pflanzennotizen werden versendet.</div>' +
+        '<div class="field"><label>iPhone-Empfänger *</label>' +
+        '<input name="notify_target" list="garten-notify-liste" maxlength="97" value="' +
+        escapeHtml(a.notify_target) + '" placeholder="notify.angelinas_iphone_15_pro">' +
+        '<datalist id="garten-notify-liste">' +
+        options([...notifyEntities, ...notifyServices]) + '</datalist>' +
+        '<div class="small">Eine vorhandene Notify-Entität oder ein Notify-Dienst. ' +
+        'Der tatsächliche Name muss in Home Assistant existieren.</div></div>' +
+        '<div class="field"><label>Wetterentität für die Frostprognose *</label>' +
+        '<input name="weather_entity" list="garten-weather-liste" maxlength="98" value="' +
+        escapeHtml(a.weather_entity) + '" placeholder="weather.home">' +
+        '<datalist id="garten-weather-liste">' +
+        options(weatherOptions) + '</datalist></div>' +
+        '<div class="field"><label><input type="checkbox" name="freitag_aktiv"' +
+        (a.freitag_aktiv ? ' checked' : '') +
+        '> Freitags 16:00 Uhr eine Pflegeübersicht schicken</label></div>' +
+        '<div class="field"><label><input type="checkbox" name="frost_aktiv"' +
+        (a.frost_aktiv ? ' checked' : '') +
+        '> Bei möglicher Frostgefahr eine Warnung schicken</label></div>' +
+        '<div class="field"><label>Warnschwelle (°C, -5 bis +8)</label>' +
+        '<input type="number" name="frost_grenze_c" min="-5" max="8" step="0.5" required value="' +
+        escapeHtml(a.frost_grenze_c) + '"></div>' +
+        '<div class="small">Frostprüfung täglich um 06:15 und 18:15 Uhr. ' +
+        'Jede Vorhersage ist unsicher; es werden keine Schnitt- oder Düngeaufträge automatisch erzeugt.</div>' +
+        '<div class="dialog-foot"><button class="btn ghost" type="button" data-action="close">Abbrechen</button>' +
+        '<button class="btn primary" type="submit">Einstellungen speichern</button></div></form>';
+    }
+
     _ruleForm() {
       const plants = (this._data.pflanzen || []).map((p) => ({ value: p.id, label: p.name }));
       const areas = (this._data.bereiche || []).map((a) => ({ value: a.id, label: a.name }));
@@ -498,10 +558,11 @@
       const type = this._modal.type;
       const title = type === "pflege" ? "Pflegewissen: " + (this._modal.existing?.name || "") : type === "pflanze"
         ? (this._modal.existing ? "Pflanze bearbeiten" : "Neue Pflanze")
-        : type === "regel" ? "Neue Wiederholung" : type === "aufgabe" ? "Neue Pflegeaufgabe" : "Neuer Gartenbereich";
+        : type === "automatik" ? "Automatische Benachrichtigungen" : type === "regel" ? "Neue Wiederholung" : type === "aufgabe" ? "Neue Pflegeaufgabe" : "Neuer Gartenbereich";
       let body = "";
       if (type === "pflege") body = this._careHTML();
       else if (type === "pflanze") body = this._plantForm();
+      else if (type === "automatik") body = this._automatikForm();
       else if (type === "regel") body = this._ruleForm();
       else if (type === "aufgabe") body = this._taskForm();
       else body = '<form data-form="bereich"><div class="field"><label>Bereichsname *</label>' +
@@ -553,7 +614,8 @@
         '<section class="card"><h3>🍃 Zuletzt erledigt</h3>' +
         (done.length ? done.map((t) => this._taskHTML(t)).join("")
           : '<p>Deine erledigten Gartenaufgaben werden hier angezeigt.</p>') +
-        '<hr class="line"><h3>Pflegewissen</h3><p>Deutsche Pflanzeninformationen mit Quellenangabe werden in der nächsten Ausbaustufe eingebunden.</p>' +
+        '<hr class="line"><h3>Pflegewissen</h3><p>Deutsche Pflegeinformationen kannst du bei jeder erfassten Pflanze öffnen. ' +
+        'Soweit verfügbar stammen sie aus OpenPlantbook und sind als nicht fachlich geprüft gekennzeichnet.</p>' +
         '<span class="chip muted">Fachprüfung noch offen</span></section></div>';
     }
 
@@ -589,8 +651,10 @@
       const done = tasks.filter((t) => t.status === "erledigt");
       const rules = this._data.regeln || [];
       return '<div class="heading"><h2>Pflegekalender</h2>' +
-        '<div class="buttons"><button class="btn" data-action="rule-new">＋ Wiederholung anlegen</button><button class="btn primary" data-action="task-new">＋ Aufgabe anlegen</button></div></div>' +
-        '<div class="notice">Manuelle Aufgaben und deine Wiederholungen werden angezeigt. Fachlich geprüfte Saison- und Wetteraufgaben sind noch nicht verfügbar.</div>' +
+        '<div class="buttons"><button class="btn ghost" data-action="automatik-open">⚙ Benachrichtigungen</button><button class="btn" data-action="rule-new">＋ Wiederholung anlegen</button><button class="btn primary" data-action="task-new">＋ Aufgabe anlegen</button></div></div>' +
+        '<div class="notice">Manuelle Aufgaben und deine Wiederholungen werden angezeigt. ' +
+        'Frostprognosen und Freitagsberichte lassen sich über Benachrichtigungen einschalten. ' +
+        'Artspezifische Schnitt- und Düngeaufgaben bleiben bis zur Fachprüfung gesperrt.</div>' +
         '<div class="grid"><section class="card"><h3>Offene Aufgaben (' + pending.length + ')</h3>' +
         (pending.length ? pending.map((t) => this._taskHTML(t)).join("")
           : '<p>Keine offenen Aufgaben.</p>') + '</section>' +
