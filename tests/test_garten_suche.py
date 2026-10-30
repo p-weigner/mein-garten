@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 from custom_components.mein_garten.search import (
     Pflanzensuche, _dedupe, _inat_results, _norm, _plant_name,
     _wikidata_taxa, _gbif_results, _gbif_vernacular_results, _GBIF_BACKBONE,
+    _relevanter_deutscher_name,
 )
 
 
@@ -68,6 +69,12 @@ class TestTaxonParsing(unittest.TestCase):
         self.assertEqual([v["wissenschaftlich"] for v in results], ["Prunus avium"])
         self.assertEqual(results[0]["quellen"], ["GBIF-Trivialnamen"])
         self.assertEqual(results[0]["deutsch"], "")
+
+    def test_deutscher_name_auch_mit_adjektiv_erkennbar(self):
+        self.assertTrue(_relevanter_deutscher_name("Fetthenne", "Prächtige Fetthenne"))
+        self.assertTrue(_relevanter_deutscher_name("Frauenmantel", "Weicher Frauenmantel"))
+        self.assertFalse(_relevanter_deutscher_name("Apfelbaum", "Südlicher Wildapfel"))
+        self.assertFalse(_relevanter_deutscher_name("Tomate", "Toma..."))
 
     def test_gbif_trivialnamen_api_fehlformat_abgelehnt(self):
         for broken in (None, [], {}, {"results": {}}):
@@ -151,6 +158,25 @@ class TestDynamischeSuche(unittest.IsolatedAsyncioTestCase):
         self.service._gbif = AsyncMock(return_value=[])
         result = await self.service.async_suchen("Apfelbaum")
         self.assertEqual(result["pflanzen"][0]["wissenschaftlich"], "Malus domestica")
+
+    async def test_deutscher_originaltreffer_wird_nicht_durch_gbif_verdraengt(self):
+        self.service._i_nat = AsyncMock(return_value=[
+            {"wissenschaftlich": "Alchemilla mollis",
+             "deutsch": "Weicher Frauenmantel",
+             "bestaetigt": True, "quellen": ["iNaturalist"]},
+            {"wissenschaftlich": "Alchemilla vulgaris",
+             "deutsch": "Gewöhnlicher Frauenmantel",
+             "bestaetigt": True, "quellen": ["iNaturalist"]},
+        ])
+        self.service._wikidata = AsyncMock(return_value=[])
+        self.service._gbif_vernacular = AsyncMock(return_value=[
+            {"wissenschaftlich": "Alchemilla longituba", "deutsch": "",
+             "bestaetigt": True, "quellen": ["GBIF-Trivialnamen"]},
+        ])
+        result = await self.service.async_suchen("Frauenmantel")
+        self.assertEqual(result["pflanzen"][0]["wissenschaftlich"], "Alchemilla mollis")
+        self.assertIn("Alchemilla longituba",
+                      [p["wissenschaftlich"] for p in result["pflanzen"]])
 
     async def test_deutscher_gbif_trivialname_ergaenzt_falsches_autocomplete(self):
         self.service._i_nat = AsyncMock(return_value=[
