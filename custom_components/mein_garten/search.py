@@ -18,6 +18,8 @@ _LOGGER = logging.getLogger(__name__)
 _INAT = "https://api.inaturalist.org/v1/taxa/autocomplete"
 _WIKIDATA = "https://www.wikidata.org/w/api.php"
 _GBIF = "https://api.gbif.org/v1/species/suggest"
+_GBIF_VERNACULAR = "https://api.gbif.org/v1/species/search"
+_GBIF_BACKBONE = "d7dddbf4-2cf0-4f39-9b2a-bb099caae36c"
 _TTL = 900.0
 _MAX_CACHE = 100
 _DISK_CACHE = 300
@@ -147,6 +149,41 @@ def _gbif_results(payload: Any) -> list[dict]:
     return plants
 
 
+def _gbif_vernacular_results(payload: Any) -> list[dict]:
+    """Gebräuchliche Namen nur im akzeptierten botanischen GBIF-Backbone.
+
+    Der deutsche Name ist dadurch ein *Suchhinweis*, keine eindeutige
+    Zuordnung: z. B. 'Apfelbaum' kann Wild- und Kulturapfel bezeichnen.
+    Es werden keine automatisch erfundenen deutschen Labels ausgegeben.
+    """
+    if not isinstance(payload, dict) or not isinstance(payload.get("results"), list):
+        raise ValueError("Unerwartete Antwort der GBIF-Trivialnamenssuche")
+    out = []
+    for taxon in payload["results"][:20]:
+        if not isinstance(taxon, dict):
+            continue
+        key = taxon.get("key")
+        name = taxon.get("canonicalName")
+        if not (
+            isinstance(key, int) and not isinstance(key, bool) and key > 0
+            and taxon.get("datasetKey") == _GBIF_BACKBONE
+            and taxon.get("nubKey") == key
+            and str(taxon.get("kingdom", "")).casefold() == "plantae"
+            and str(taxon.get("rank", "")).upper() == "SPECIES"
+            and str(taxon.get("taxonomicStatus", "")).upper() == "ACCEPTED"
+            and _plant_name(name)
+        ):
+            continue
+        out.append({
+            "wissenschaftlich": name[:160],
+            "deutsch": "",
+            "bestaetigt": True,
+            "quellen": ["GBIF-Trivialnamen"],
+            "id_gbif": key,
+        })
+    return out
+
+
 class Pflanzensuche:
     """15-Minuten-RAM-Cache und persistente, nur positive deutsche Namenstreffer."""
 
@@ -262,6 +299,13 @@ class Pflanzensuche:
     async def _gbif(self, query: str) -> list[dict]:
         return _gbif_results(await self._json(_GBIF, q=query, limit=25))
 
+    async def _gbif_vernacular(self, query: str) -> list[dict]:
+        return _gbif_vernacular_results(await self._json(
+            _GBIF_VERNACULAR, q=query, qField="VERNACULAR",
+            rank="SPECIES", status="ACCEPTED",
+            datasetKey=_GBIF_BACKBONE, limit=20,
+        ))
+
     async def _wikidata(self, query: str) -> list[dict]:
         search = await self._json(
             _WIKIDATA, action="wbsearchentities", search=query,
@@ -317,12 +361,16 @@ class Pflanzensuche:
                 return dict(cached[1])
 
             results = await asyncio.gather(
-                self._i_nat(query), self._wikidata(query), self._gbif(query),
+                self._i_nat(query), self._wikidata(query),
+                self._gbif_vernacular(query), self._gbif(query),
                 return_exceptions=True
             )
             notes = []
-            inat, wikidata, gbif = [], [], []
-            for label, data in zip(("iNaturalist", "Wikidata", "GBIF"), results):
+            inat, wikidata, vernacular, gbif = [], [], [], []
+            for label, data in zip(
+                ("iNaturalist", "Wikidata", "GBIF-Trivialnamen", "GBIF"),
+                results,
+            ):
                 if isinstance(data, BaseException):
                     _LOGGER.debug("Gartenpflanzensuche: Quelle %s nicht erreichbar", label)
                     notes.append(label + " vorübergehend nicht verfügbar")
@@ -330,32 +378,37 @@ class Pflanzensuche:
                     inat = data
                 elif label == "Wikidata":
                     wikidata = data
+                elif label == "GBIF-Trivialnamen":
+                    vernacular = data
                 else:
                     gbif = data
             if wikidata:
                 wikidata = await self._verify_wikidata(wikidata)
-            netz_treffer = _dedupe(inat + wikidata + gbif)
+            netz_treffer = _dedupe(inat + wikidata + vernacular + gbif)
             offline_treffer = self._lokale_treffer(query)
             all_items = _dedupe(netz_treffer + offline_treffer)
             if offline_treffer and notes:
                 notes.append("Vorhandene Pflanzennamen aus lokalem Cache ergänzt")
             # Botanisch validierte Kandidaten und treffende deutsche Namen zuerst.
-            # Bei gleichem Bestätigungs- und Namensstatus ist die
-            # Originalreihenfolge des Anbieters sinnvoller als Alphabet:
-            # sonst wird bspw. eine seltene Art mit A vor eine bekannte Art
-            # mit M sortiert, obwohl die API die letztere als relevanter ansieht.
-            # Python sort() ist stabil; die Reihenfolge aus der ursprünglichen
-            # dynamischen Anbieterabfrage bleibt bei Gleichstand erhalten.
+            # Botanisch verifizierte gebräuchliche Namen vor Treffern aus
+            # bloßem wissenschaftlichem String-Autocomplete zeigen. Exakte
+            # deutsche/botanische Namen bleiben dennoch an erster Stelle.
+            # Ein Trivialname kann zu mehreren *korrekten* Arten führen;
+            # die Nutzerin wählt ausdrücklich die passende Art.
             all_items.sort(key=lambda x: (
                 not x["bestaetigt"],
                 _norm(x["deutsch"]) != key,
                 _norm(x["wissenschaftlich"]) != key,
+                "GBIF-Trivialnamen" not in x["quellen"],
             ))
             result = {
                 "suchbegriff": query,
                 "pflanzen": all_items[:15],
                 "quellenstatus": notes,
-                "hinweis": "Die Art vor dem Übernehmen prüfen; ähnliche Arten können andere Pflege benötigen.",
+                "hinweis": (
+                    "Die botanische Art vor dem Übernehmen prüfen. "
+                    "Deutsche Sammelnamen können mehrere unterschiedliche Arten bezeichnen."
+                ),
             }
             if all_items or not notes:
                 self._cache[key] = (monotonic(), result)
