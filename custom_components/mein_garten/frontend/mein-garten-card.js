@@ -236,8 +236,10 @@
           "</div>";
       }
       return this._suggestions.map((plant, index) => {
-        const mehrdeutigerName = !plant.deutsch &&
-          (plant.quellen || []).includes("GBIF-Trivialnamen");
+        const alternativeSchreibweise =
+          (plant.quellen || []).includes("Schreibvariante");
+        const mehrdeutigerName = alternativeSchreibweise ||
+          (!plant.deutsch && (plant.quellen || []).includes("GBIF-Trivialnamen"));
         return '<button type="button" class="suggestion" data-action="suggestion" data-index="' +
           index + '"><span><strong>' +
           escapeHtml(plant.deutsch || plant.wissenschaftlich) +
@@ -245,7 +247,8 @@
           escapeHtml(plant.wissenschaftlich) +
           '</span></span><span class="chip ' +
           (plant.bestaetigt && !mehrdeutigerName ? '' : 'warning') + '">' +
-          (mehrdeutigerName ? "Trivialname – Art prüfen" :
+          (alternativeSchreibweise ? "Namensvariante – Art prüfen" :
+            mehrdeutigerName ? "Trivialname – Art prüfen" :
             plant.bestaetigt ? "Art bestätigt" : "Bitte Art prüfen") +
           "</span></button>";
       }).join("");
@@ -345,9 +348,11 @@
         if (!name.value.trim()) name.value = candidate.deutsch || candidate.wissenschaftlich;
         const note = this.shadowRoot.querySelector("#garten-artenhinweis");
         const quellen = candidate.quellen || [];
-        const aliasMehrdeutig = !candidate.deutsch && quellen.includes("GBIF-Trivialnamen");
+        const istVariante = quellen.includes("Schreibvariante");
+        const aliasMehrdeutig = istVariante ||
+          (!candidate.deutsch && quellen.includes("GBIF-Trivialnamen"));
         if (note) note.textContent = aliasMehrdeutig
-          ? "Botanisches Taxon bestätigt. Dieser deutsche Sammelname kann mehrere Arten bezeichnen: bitte genau prüfen, bevor du diese Pflanze übernimmst."
+          ? "Botanisches Taxon bestätigt. Die Zuordnung einer alternativen Schreibweise oder eines deutschen Sammelnamens ist nicht eindeutig: bitte die tatsächliche Art prüfen."
           : candidate.bestaetigt
             ? "Botanische Art bestätigt: " + candidate.wissenschaftlich
             : "Die Zuordnung ist noch nicht bestätigt. Für diese Pflanze werden keine artspezifischen Pflegemaßnahmen abgeleitet.";
