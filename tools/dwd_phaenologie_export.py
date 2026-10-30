@@ -121,7 +121,14 @@ def select_observations(raw: bytes, stations: dict, object_id: int,
                 rejected["year_mismatch"] += 1
                 continue
             doy = (when - date(year, 1, 1)).days + 1
-            if doy != int(row["Jultag"]):
+            # DWD-Phänologie zählt in den gelieferten Jultag-Spalten
+            # ab März eines Schaltjahres ohne Schalttag (365-Tage-Skala).
+            # Die tatsächliche Beobachtung bleibt das ISO-Datum.
+            julday = doy - (1 if (
+                year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+                and when.month >= 3
+            ) else 0)
+            if julday != int(row["Jultag"]):
                 rejected["jultag_mismatch"] += 1
                 continue
             id_ = str(int(row["Stations_id"])).zfill(5)
