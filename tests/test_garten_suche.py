@@ -178,6 +178,42 @@ class TestDynamischeSuche(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Alchemilla longituba",
                       [p["wissenschaftlich"] for p in result["pflanzen"]])
 
+    async def test_zusaetzliche_arten_trotz_zwoelf_alter_i_nat_treffer(self):
+        # Unter "Felsenbirne" können verschiedenste *korrekte* Arten
+        # auftauchen. Eine weitere bestätigte Art aus GBIF muss innerhalb
+        # der ersten 15 Vorschläge bleiben, ohne die 12 iNat-Ränge zu löschen.
+        original = [{
+            "wissenschaftlich": f"Amelanchier art{i}",
+            "deutsch": f"Art {i} Felsenbirne",
+            "bestaetigt": True,
+            "quellen": ["iNaturalist"],
+        } for i in range(12)]
+        extra = [
+            {"wissenschaftlich": "Amelanchier embergeri",
+             "deutsch": "", "bestaetigt": True,
+             "quellen": ["GBIF-Trivialnamen"]},
+            {"wissenschaftlich": original[0]["wissenschaftlich"],
+             "deutsch": "", "bestaetigt": True,
+             "quellen": ["GBIF-Trivialnamen"]},
+            {"wissenschaftlich": "Amelanchier sinica",
+             "deutsch": "", "bestaetigt": True,
+             "quellen": ["GBIF-Trivialnamen"]},
+            {"wissenschaftlich": original[1]["wissenschaftlich"],
+             "deutsch": "", "bestaetigt": True,
+             "quellen": ["GBIF-Trivialnamen"]},
+            {"wissenschaftlich": "Amelanchier lamarckii",
+             "deutsch": "", "bestaetigt": True,
+             "quellen": ["GBIF-Trivialnamen"]},
+        ]
+        self.service._i_nat = AsyncMock(return_value=original)
+        self.service._wikidata = AsyncMock(return_value=[])
+        self.service._gbif_vernacular = AsyncMock(return_value=extra)
+        result = await self.service.async_suchen("Felsenbirne")
+        names = [v["wissenschaftlich"] for v in result["pflanzen"]]
+        self.assertEqual(len(names), 15)
+        self.assertEqual(names[0], original[0]["wissenschaftlich"])
+        self.assertIn("Amelanchier lamarckii", names)
+
     async def test_deutscher_gbif_trivialname_ergaenzt_falsches_autocomplete(self):
         self.service._i_nat = AsyncMock(return_value=[
             {"wissenschaftlich": "Malus angustifolia", "deutsch": "",
