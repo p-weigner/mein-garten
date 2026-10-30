@@ -233,5 +233,28 @@ class TestGartenWebsocket(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(self.connection.results)
 
 
+    async def test_giessentscheidung_ueber_websocket_als_historie(self):
+        task = self.backend.model.aufgabe_anlegen(
+            "Tomate kontrollieren", aufgabentyp="giesskontrolle"
+        )
+        await self.api.ws_aufgabe_erledigen(self.hass, self.connection, {
+            "id": 20, "aufgaben_id": task["id"], "ergebnis": "kontrolliert_kein_wasser",
+        })
+        self.assertEqual(self.connection.errors, [])
+        self.assertEqual(self.connection.results[0][1]["objekt"]["ergebnis"],
+                         "kontrolliert_kein_wasser")
+        self.assertEqual(self.backend.model.snapshot()["historie"][-1]["person"], "Angelina")
+
+    async def test_giesskontrolle_braucht_auswahl_auch_bei_ws(self):
+        task = self.backend.model.aufgabe_anlegen(
+            "Tomate kontrollieren", aufgabentyp="giesskontrolle"
+        )
+        await self.api.ws_aufgabe_erledigen(self.hass, self.connection, {
+            "id": 21, "aufgaben_id": task["id"],
+        })
+        self.assertEqual(self.connection.errors[0][1], "ungueltige_eingabe")
+        self.assertEqual(self.backend.model.snapshot()["aufgaben"][0]["status"], "offen")
+
+
 if __name__ == "__main__":
     unittest.main()
