@@ -1,0 +1,29 @@
+name: Mein Garten – CC0 Saisonkatalog-Export
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/garten-pflegewissen-und-suche-20261030
+    paths:
+      - ".github/workflows/garten-saison-import.yml"
+      - "tools/openplantdb_katalog_export.py"
+permissions:
+  contents: read
+jobs:
+  build-import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Quellenhash prüfen und widerspruchsfreie Offline-Daten erzeugen
+        run: python -m tools.openplantdb_katalog_export
+      - name: Importdatei ausschließlich als nicht freigegebenes Audit-Artefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: Garten_CC0_Import_Entwurf
+          path: custom_components/mein_garten/data/saison_openplantdb_v0_2.json
+          retention-days: 7
+          if-no-files-found: error
