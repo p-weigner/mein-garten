@@ -1,0 +1,25 @@
+name: Mein Garten – GBIF Trivialnamen-Diagnose
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/garten-pflegewissen-und-suche-20261030
+    paths:
+      - ".github/workflows/gbif-trivialnamen-probe.yml"
+      - "tools/gbif_trivialnamen_probe.py"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Nur öffentliche GBIF-Trivialnamen testen
+        run: python -m tools.gbif_trivialnamen_probe
