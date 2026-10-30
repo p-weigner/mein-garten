@@ -89,7 +89,7 @@ class TestEigenePflanzenentwicklung(unittest.TestCase):
             ("schneiden", "2026-05-01", "", DatensatzFehler),
             ("bluete_beginn", "2026-02-31", "", DatensatzFehler),
             ("bluete_beginn", "1899-05-01", "", DatensatzFehler),
-            ("bluete_beginn", "2026-05-01", "\\x00", DatensatzFehler),
+            ("bluete_beginn", "2026-05-01", chr(0), DatensatzFehler),
             ("bluete_beginn", "2026-05-01", "a" * 501, DatensatzFehler),
         ]
         for phase, when, note, exc in tests:
