@@ -1,5 +1,7 @@
 # 🌿 Mein Garten – Home Assistant Green
 
+> **Entwicklungsbranch – keine Installationsfreigabe:** Die neue Version mit dauerhaftem Pflanzennamenscache, deutschen Pflegeprofilen, jährlichen Pflegekontrollen, optionalen Frost-Wetteraufgaben sowie Freitags-Push wird in [Draft-PR #1](https://github.com/p-weigner/mein-garten/pull/1) geprüft. [Funktionsstand, Einstellungen, Sicherheit und offene Abnahmeprüfungen](docs/ENTWICKLUNGSSTAND_2026-10-30.md). Diese Änderungen wurden **nicht auf dem Home Assistant Green installiert**. Das Dashboard „Zuhause“ bleibt unberührt.
+
 Eigenständiges Gartendashboard für Pflanzen, Gartenbereiche, Pflegeaufgaben und später automatisch übersetzte artspezifische Pflegeinformationen.
 
 **Status: V1 Alpha – erste zusammenhängende Oberfläche und lokales Backend entwickelt.** Die Benutzerinstallation auf einem echten Home Assistant Green ist noch nicht durchgeführt. Automatische Pflegepläne und deutsche API-Pflegeprofile sind noch nicht freigegeben.
