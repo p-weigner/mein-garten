@@ -340,11 +340,16 @@ class Pflanzensuche:
             if offline_treffer and notes:
                 notes.append("Vorhandene Pflanzennamen aus lokalem Cache ergänzt")
             # Botanisch validierte Kandidaten und treffende deutsche Namen zuerst.
+            # Bei gleichem Bestätigungs- und Namensstatus ist die
+            # Originalreihenfolge des Anbieters sinnvoller als Alphabet:
+            # sonst wird bspw. eine seltene Art mit A vor eine bekannte Art
+            # mit M sortiert, obwohl die API die letztere als relevanter ansieht.
+            # Python sort() ist stabil; die Reihenfolge aus der ursprünglichen
+            # dynamischen Anbieterabfrage bleibt bei Gleichstand erhalten.
             all_items.sort(key=lambda x: (
                 not x["bestaetigt"],
-                x["deutsch"].casefold() != key,
-                x["wissenschaftlich"].casefold() != key,
-                x["wissenschaftlich"].casefold(),
+                _norm(x["deutsch"]) != key,
+                _norm(x["wissenschaftlich"]) != key,
             ))
             result = {
                 "suchbegriff": query,
