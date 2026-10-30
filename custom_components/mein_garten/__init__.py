@@ -38,6 +38,20 @@ class GartenBackend:
     def snapshot(self) -> dict:
         return self._modell.snapshot()
 
+    async def async_pflegeplan_aktualisieren(self) -> int:
+        """Transaktionales, idempotentes Erzeugen benutzerdefinierter Termine."""
+        from homeassistant.helpers.dispatcher import async_dispatcher_send
+
+        async with self._lock:
+            neu = GartenDaten(self._modell.snapshot())
+            anzahl = neu.pflegeplan_aktualisieren()
+            if anzahl:
+                await self._store.async_save(neu.snapshot())
+                self._modell = neu
+        if anzahl:
+            async_dispatcher_send(self.hass, SIGNAL_UPDATED)
+        return anzahl
+
     async def async_aendern(self, methode: str, **parameter) -> dict:
         """Nur vollständig validierten Zustand schreiben, danach publizieren."""
         from homeassistant.helpers.dispatcher import async_dispatcher_send
@@ -47,6 +61,7 @@ class GartenBackend:
             "pflanze_anlegen", "pflanze_bearbeiten", "pflanze_entfernen",
             "aufgabe_anlegen", "aufgabe_erledigen", "aufgabe_wieder_oeffnen",
             "aufgabe_entfernen",
+            "regel_anlegen", "regel_aktiv_setzen", "regel_entfernen",
         }
         if methode not in erlaubte:
             raise ValueError("Nicht erlaubte Datenoperation")
