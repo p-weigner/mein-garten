@@ -175,13 +175,14 @@ async def ws_automatik_speichern(hass, connection, msg):
     probatio.Optional("intervall_tage"): probatio.Any(None, int),
     probatio.Optional("pflanzen_id"): probatio.Any(None, str),
     probatio.Optional("bereich_id"): probatio.Any(None, str),
+    probatio.Optional("pflegefeld"): probatio.Any(None, str),
 })
 @websocket_api.async_response
 async def ws_regel_anlegen(hass, connection, msg):
     await _aendern(hass, connection, msg, "regel_anlegen", {
         key: msg[key] for key in (
             "name", "startdatum", "rhythmus", "intervall_tage",
-            "pflanzen_id", "bereich_id"
+            "pflanzen_id", "bereich_id", "pflegefeld"
         ) if key in msg
     })
 
