@@ -71,6 +71,8 @@ class GartenBackend:
             await self._store.async_save(neuer_stand.snapshot())
             self._modell = neuer_stand
         async_dispatcher_send(self.hass, SIGNAL_UPDATED)
+        if methode == "regel_anlegen" or (methode == "regel_aktiv_setzen" and parameter.get("aktiv")):
+            await self.async_pflegeplan_aktualisieren()
         return objekt
 
 
@@ -122,6 +124,24 @@ async def async_setup_entry(hass, entry) -> bool:
     hass.data.setdefault(DOMAIN, {})["backend"] = backend
     hass.data[DOMAIN]["suche"] = Pflanzensuche(hass)
     hass.data[DOMAIN]["pflege"] = pflege
+
+    from homeassistant.helpers.event import async_track_time_change
+    from homeassistant.core import callback
+
+    async def _plan_pruefen():
+        try:
+            await backend.async_pflegeplan_aktualisieren()
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("Mein Garten: Pflegeplanprüfung fehlgeschlagen")
+
+    @callback
+    def _tageswechsel(_now):
+        hass.async_create_task(_plan_pruefen())
+
+    cancel = async_track_time_change(hass, _tageswechsel, hour=0, minute=5, second=0)
+    entry.async_on_unload(cancel)
+    hass.async_create_task(_plan_pruefen())
     return True
 
 
