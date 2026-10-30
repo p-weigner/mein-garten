@@ -8,6 +8,7 @@ Eigenständiges Gartendashboard für Pflanzen, Gartenbereiche, Pflegeaufgaben un
 
 ## Zusätzliche Funktionen nur im Entwicklungsbranch
 
+- **Pflegewissen übersichtlicher:** Nur tatsächlich vorhandene deutsche Pflegehinweise erscheinen als Karten; leere oder nicht übersetzte Felder werden verständlich ausgewiesen. Persönliche Pflanzennotizen sind separat und auch bei einem OpenPlantbook-Ausfall sichtbar. Keine neuen automatischen Pflegeanweisungen.
 - [50 deutsche Pflanzennamen erfolgreich im Live-Test gesucht](https://github.com/p-weigner/mein-garten/actions/runs/41047293989), weitere Abdeckung nicht garantiert.
 - **Saisonfenster für 1.292 botanische Arten** aus zwei fest versionierten OpenPlantDB-Datensätzen (CC0); bei unserer 50-Pflanzen-Testliste sind 15 Arten vertreten. Benutzer wählen ihre Frühjahrs-/Herbstfrost-Referenzdaten selbst, bestätigen jede neue Erinnerungsaufgabe einzeln. Keine automatische Schnitt-/Düngearbeit.
 - **Standort-Steckbriefe für 10.642 botanische Arten** aus einem separat versionierten, ca. 645 KB kleinen OpenPlantDB-Offline-Katalog (CC0). In der deutschen 50er-Testliste erhalten **46 Arten mindestens ein grundlegendes Merkmal**, 37 Licht und Wasser zusammen. Licht, Wasser, Frosttoleranz und Wachstumsgruppe sind **unverbindliche Quellkategorien**, keine regional geprüften Pflegeanweisungen. Sie erscheinen sofort im vorhandenen Pflegewissen-Dialog, auch bei ausgefallenem OpenPlantbook. Widersprüchliche Sortenangaben bleiben leer.
