@@ -145,6 +145,12 @@ def validiere_paket(package: Path, repo: Path) -> dict:
     if "NICHT DIE FERTIGE V1" not in status:
         raise PaketFehler("Alpha-Warnung fehlt")
 
+    source_commit = os.environ.get("GARTEN_SOURCE_COMMIT") or os.environ.get("GITHUB_SHA", "")
+    if source_commit and not re.fullmatch(r"[0-9a-f]{40}", source_commit):
+        raise PaketFehler("Quell-Commit ist kein vollständiger Git-SHA")
+    if os.environ.get("GITHUB_ACTIONS") == "true" and not source_commit:
+        raise PaketFehler("GitHub-Lauf ohne eindeutigen Quell-Commit")
+
     return {
         "art": "Mein Garten – Integritätsprüfung Alpha-Testpaket",
         "status": "ci_validiert_live_abnahme_ausstehend",
@@ -160,7 +166,11 @@ def validiere_paket(package: Path, repo: Path) -> dict:
         "dashboard_sha256": digest(target_dashboard.read_bytes()),
         "manifest_sha256": digest((integration / "manifest.json").read_bytes()),
         "anleitung_sha256": digest((package / "ANLEITUNG.md").read_bytes()),
-        "ci_commit": os.environ.get("GITHUB_SHA", ""),
+        # Auf pull_request ist GITHUB_SHA der temporäre Merge-Commit.
+        # Die auszuliefernden Quellen müssen eindeutig auf die PR-HEAD-SHA
+        # zurückführbar sein – niemals den Merge-SHA als PR-HEAD ausgeben.
+        "ci_commit": source_commit,
+        "ci_event_sha": os.environ.get("GITHUB_SHA", ""),
         "pruefhinweis": "Paketintegrität ist keine Home-Assistant-Laufzeitprüfung.",
     }
 
