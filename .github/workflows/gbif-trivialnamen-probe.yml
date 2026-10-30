@@ -8,6 +8,7 @@ on:
     paths:
       - ".github/workflows/gbif-trivialnamen-probe.yml"
       - "tools/gbif_trivialnamen_probe.py"
+      - "tools/gbif_quellenrang_probe.py"
 
 permissions:
   contents: read
@@ -23,3 +24,5 @@ jobs:
           python-version: "3.12"
       - name: Nur öffentliche GBIF-Trivialnamen testen
         run: python -m tools.gbif_trivialnamen_probe
+      - name: Ursprüngliche und zusätzliche Quellenränge prüfen
+        run: python -m tools.gbif_quellenrang_probe
