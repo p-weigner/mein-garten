@@ -99,8 +99,19 @@ def prognose_minimum(
     return min(gefundene, key=lambda x: (x[1], x[0])) if gefundene else None
 
 
+_BEOBACHTUNGSTEXTE = {
+    "austrieb": "Austrieb",
+    "knospenbildung": "Knospenbildung",
+    "bluete_beginn": "Blütebeginn",
+    "fruchtansatz": "Fruchtansatz",
+    "fruchtreife": "Fruchtreife",
+    "laubfaerbung": "Laubfärbung",
+    "blattfall": "Blattfall",
+}
+
+
 def wochen_text(daten: dict, heute) -> str:
-    """Kompakter Bericht ohne private Standortdaten oder Quellfreitexte."""
+    """Kompakter Bericht ohne private Standortdaten, Notizen oder Quellfreitexte."""
     aufgaben = daten.get("aufgaben", [])
     pflanzen = {p["id"]: p["name"] for p in daten.get("pflanzen", [])}
     ende = (heute + timedelta(days=7)).isoformat()
@@ -129,6 +140,30 @@ def wochen_text(daten: dict, heute) -> str:
         meldung.append(f"… und {len(offen) - 6} weitere Aufgaben.")
     if not offen:
         meldung.append("Für die nächsten sieben Tage ist nichts eingetragen.")
+    # Nur wenn die Nutzerin von sich aus Entwicklungsphasen erfasst hat.
+    # Es werden keine externen DWD-Phänodaten und keine privaten Freitextnotizen
+    # an den iPhone-Empfänger verschickt.
+    beginn = (heute - timedelta(days=6)).isoformat()
+    beobachtet = sorted(
+        (o for o in daten.get("beobachtungen", [])
+         if isinstance(o, dict)
+         and o.get("quelle") == "eigene_beobachtung"
+         and o.get("phase") in _BEOBACHTUNGSTEXTE
+         and isinstance(o.get("beobachtet_am"), str)
+         and beginn <= o["beobachtet_am"] <= heute.isoformat()
+         and o.get("pflanzen_id") in pflanzen),
+        key=lambda o: o["beobachtet_am"], reverse=True,
+    )
+    if beobachtet:
+        meldung.append(
+            f"{len(beobachtet)} eigene Pflanzenbeobachtungen der letzten sieben Tage:"
+        )
+        for o in beobachtet[:3]:
+            name = pflanzen[o["pflanzen_id"]][:65]
+            phase = _BEOBACHTUNGSTEXTE[o["phase"]]
+            meldung.append(f"• {name}: {phase} ({o['beobachtet_am']})")
+        if len(beobachtet) > 3:
+            meldung.append(f"… und {len(beobachtet) - 3} weitere Beobachtungen.")
     meldung.append("Weitere Informationen im Dashboard „Mein Garten“.")
     return "\n".join(meldung)
 
