@@ -1,0 +1,29 @@
+name: Mein Garten – Standortdaten Qualitätsprüfung
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/garten-pflegewissen-und-suche-20261030
+    paths:
+      - ".github/workflows/garten-standort-audit.yml"
+      - "tools/openplantdb_standort_audit.py"
+permissions:
+  contents: read
+jobs:
+  source-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: OpenPlantDB Standortmerkmale und Widersprüche aus festem Snapshot analysieren
+        run: python -m tools.openplantdb_standort_audit
+      - name: Transparente Qualitätsprüfung als Bericht
+        uses: actions/upload-artifact@v4
+        with:
+          name: Standortmerkmale_Qualitaet_Audit
+          path: berichte/standort_merkmale_audit_20261030.json
+          retention-days: 14
+          if-no-files-found: error
