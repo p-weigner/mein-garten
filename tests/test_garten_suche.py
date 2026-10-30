@@ -198,5 +198,78 @@ class TestDynamischeSuche(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result["pflanzen"][0]["bestaetigt"])
 
 
+
+
+class TestLokalerNamenscache(unittest.IsolatedAsyncioTestCase):
+    async def test_erfolgreicher_deutscher_name_ueberlebt_neustart_und_apiausfall(self):
+        import sys
+        import types
+        from copy import deepcopy
+
+        class FakeStore:
+            saved = None
+
+            def __init__(self, *_args):
+                pass
+
+            async def async_load(self):
+                return deepcopy(type(self).saved)
+
+            async def async_save(self, data):
+                type(self).saved = deepcopy(data)
+
+        storage = types.ModuleType("homeassistant.helpers.storage")
+        storage.Store = FakeStore
+        FakeStore.saved = None
+        with patch.dict(sys.modules, {"homeassistant.helpers.storage": storage}):
+            first = Pflanzensuche(object())
+            await first.async_laden()
+            first._i_nat = AsyncMock(return_value=[{
+                "wissenschaftlich": "Hydrangea macrophylla",
+                "deutsch": "Bauernhortensie", "bestaetigt": True,
+                "quellen": ["iNaturalist"],
+            }])
+            first._wikidata = AsyncMock(return_value=[])
+            first._gbif = AsyncMock(return_value=[])
+            resultat = await first.async_suchen("Bauernhortensie")
+            self.assertEqual(len(resultat["pflanzen"]), 1)
+            self.assertIsNotNone(FakeStore.saved)
+
+            second = Pflanzensuche(object())
+            await second.async_laden()
+            second._i_nat = AsyncMock(side_effect=OSError("offline"))
+            second._wikidata = AsyncMock(side_effect=OSError("offline"))
+            second._gbif = AsyncMock(side_effect=OSError("offline"))
+            offline = await second.async_suchen("bauernhor")
+            self.assertEqual(offline["pflanzen"][0]["wissenschaftlich"],
+                             "Hydrangea macrophylla")
+            self.assertIn("lokalem Cache", " ".join(offline["quellenstatus"]))
+
+    async def test_fehlsuche_wird_nicht_persistent_gespeichert(self):
+        import sys
+        import types
+
+        class FakeStore:
+            saved = None
+            def __init__(self, *_args):
+                pass
+            async def async_load(self):
+                return None
+            async def async_save(self, value):
+                type(self).saved = value
+
+        FakeStore.saved = None
+        storage = types.ModuleType("homeassistant.helpers.storage")
+        storage.Store = FakeStore
+        with patch.dict(sys.modules, {"homeassistant.helpers.storage": storage}):
+            service = Pflanzensuche(object())
+            await service.async_laden()
+            service._i_nat = AsyncMock(side_effect=OSError("offline"))
+            service._wikidata = AsyncMock(side_effect=OSError("offline"))
+            service._gbif = AsyncMock(side_effect=OSError("offline"))
+            self.assertEqual((await service.async_suchen("nichtgefunden"))["pflanzen"], [])
+            self.assertIsNone(FakeStore.saved)
+
+
 if __name__ == "__main__":
     unittest.main()
