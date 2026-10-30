@@ -156,7 +156,10 @@ def wochen_text(daten: dict, heute) -> str:
     )
     if beobachtet:
         meldung.append(
-            f"{len(beobachtet)} eigene Pflanzenbeobachtungen der letzten sieben Tage:"
+            f"{len(beobachtet)} eigene "
+            + ("Pflanzenbeobachtung" if len(beobachtet) == 1
+               else "Pflanzenbeobachtungen")
+            + " der letzten sieben Tage:"
         )
         for o in beobachtet[:3]:
             name = pflanzen[o["pflanzen_id"]][:65]
