@@ -26,11 +26,13 @@ def _snapshot(backend, hass=None) -> dict:
     data = hass.data.get(DOMAIN, {}) if hass is not None else {}
     hinweise = data.get("hinweise")
     saison = data.get("saison")
+    dwd = data.get("dwd_phaenologie")
     return {
         "daten": backend.snapshot(),
         "gruppen": list(PFLANZENGRUPPEN),
         "automatik": hinweise.einstellungen() if hinweise is not None else None,
         "saison": saison.stand() if saison is not None else None,
+        "dwd_phaenologie": dwd.stand() if dwd is not None else None,
         "version": 1,
     }
 
