@@ -6,6 +6,7 @@ from shutil import copytree, copy2
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from qa.validate_alpha_package import PaketFehler, validiere_paket
 
@@ -126,6 +127,26 @@ class TestAlphaPaket(unittest.TestCase):
         target.symlink_to("manifest.json")
         with self.assertRaisesRegex(PaketFehler, "Symbolische Links"):
             validiere_paket(self.package, self.root)
+
+    def test_pr_head_sha_ist_nicht_der_temporare_github_merge_commit(self):
+        pr_head = "a" * 40
+        test_merge = "b" * 40
+        with patch.dict("os.environ", {
+            "GARTEN_SOURCE_COMMIT": pr_head,
+            "GITHUB_SHA": test_merge,
+        }):
+            report = validiere_paket(self.package, self.root)
+        self.assertEqual(report["ci_commit"], pr_head)
+        self.assertEqual(report["ci_event_sha"], test_merge)
+        self.assertNotEqual(report["ci_commit"], report["ci_event_sha"])
+
+    def test_manipulierte_quellcommit_kennung_stoppt_auslieferung(self):
+        with patch.dict("os.environ", {
+            "GARTEN_SOURCE_COMMIT": "unbekannt",
+            "GITHUB_SHA": "b" * 40,
+        }):
+            with self.assertRaisesRegex(PaketFehler, "Quell-Commit"):
+                validiere_paket(self.package, self.root)
 
     def test_keine_fremde_hauptdatei_im_paket(self):
         self._write(self.package / "Zuhause.yaml", "title: Zuhause\n")
