@@ -10,10 +10,18 @@
 | GBIF | [Species API](https://techdocs.gbif.org/en/openapi/v1/species) | Internationale Taxonomie, wissenschaftliche Suche sowie zusätzliche `qField=VERNACULAR`-Suche im akzeptierten Pflanzen-Backbone; ein deutscher Sammelname kann mehrere echte Arten liefern | Nein |
 | iNaturalist | [Taxonomy-API](https://api.inaturalist.org/v1/docs/) | Deutsche Suchvorschläge und wissenschaftliche Taxa; Rang und Artenzuordnung müssen berücksichtigt werden | Nein |
 | Wikidata | [Lizenz CC0](https://www.wikidata.org/wiki/Wikidata:Licensing) | Deutsche Trivialnamen/Aliase mit P225 als taxonomischer Kandidat; Pflanzenart separat validieren | Nein |
-| OpenPlantDB | [Schema](https://github.com/cwfrazier1/openplantdb/blob/main/SCHEMA.md), [CC0-Projekt](https://github.com/cwfrazier1/openplantdb) | Strukturierte Aussaat- und Anzuchtwerte für etwa 294 Pflanzen, `last_frost`/USDA-Zonen; methodisch als zusätzliche *Rohdatenquelle* interessant | **Noch nicht**. Klimaanker und Sortenbezug beziehen sich auf US-Rahmen; ohne validierte Übertragung auf die Region Brandenburg keine automatischen Pflanztermine |
+| OpenPlantDB | [Schema](https://github.com/cwfrazier1/openplantdb/blob/main/SCHEMA.md), [CC0-Projekt](https://github.com/cwfrazier1/openplantdb) | Zwei fest versionierte CC0-Quellstände (294 bzw. 34.841 Rohdatensätze) als **1.292 eindeutige Offline-Saisonfenster** importiert; US-Planungswerte werden mit eigenem Frost-Referenzdatum umgerechnet | **Nur unverbindliche, manuell bestätigte Kontrollen.** Es gibt weiterhin keine für Brandenburg verifizierte automatische Aussaat-, Schnitt- oder Düngeanweisung |
 | Permapeople | [Datenquelle](https://permapeople.org/) | Ergänzende strukturierte Standort-, Wasser- und Winterhärteinformationen; bisheriger Test 19/21 exakte Arten. CC BY-SA 4.0 mit Quellenpflicht | Nein, bisher kaum strukturierte Pflege-/Schnitt- und Düngetermine |
 | DWD-Phänologie | [Datenbeschreibung](https://wetterdienst.readthedocs.io/en/latest/data/provider/dwd/phenology/index.html) | Beobachtete Wachstumsphasen in Deutschland, potenziell für regionale Saisonindikatoren. Keine artspezifische Pflegeanleitung | Nein. Beobachtung und zu empfehlende Arbeit strikt trennen |
 | MyMemory | [API-Dokumentation](https://mymemory.translated.net/doc/spec.php), [Limit](https://mymemory.translated.net/doc/usagelimits.php) | Freie maschinelle Übersetzung mit max. 500 Byte pro Abschnitt, anonyme Kontingente derzeit 5.000 Zeichen pro Tag. Keine Fachprüfung | Nein |
+
+## Stand der tatsächlichen Saisonabdeckung
+
+Der lokale Katalog besteht nun aus **152 Regeln des CC0-Basisstands** und **1.140 neuen, nicht kollidierenden Regeln** aus dem fest überprüften Datenstand vom 30. Oktober 2026. Die Gegenprobe mit unseren 50 deutschen Gartenarten ergibt **15 Arten mit strukturiertem Saisonfenster**, aber nur jeweils **eine von zehn** aus Gehölzen und Obst. Die weiteren Arten erhalten keine automatisch geratenen Empfehlungen.
+
+Die neuere Quellenfassung enthält 200 botanische Arten mit widersprüchlichen gültigen Frostfenstern. Solche neuen Angaben werden gesperrt. Bereits aus der älteren Fassung vorhandene Regeln bleiben inklusive ursprünglicher Version erhalten, gelten aber **ebenfalls nicht als fachlich validierte deutsche Empfehlungen**.
+
+[Detaillierte Dokumentation und Quellenversionen](SAISONFENSTER_CC0_2026-10-30.md).
 
 ## Schutzregel für zukünftige fachliche Automatiken
 
