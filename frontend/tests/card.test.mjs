@@ -1187,7 +1187,8 @@ test("Teilantwort: alter Schnitt wird von aktuellen Gießhinweisen sichtbar getr
   assert.ok(html.includes("Älterer deutscher Text"));
   assert.ok(html.includes("01.10.2026"));
   assert.ok(html.includes("nicht erneut aus der Quelle bestätigt"));
-  assert.ok(html.includes("1 Pflegefelder stammen nur aus älteren"));
+  assert.ok(html.includes("1 Pflegefeld stammt nur aus älteren"));
+  assert.ok(html.includes('<span class="chip warning">Ältere Information</span>'));
   assert.ok(html.includes('data-field="watering"'));
   assert.ok(!html.includes('data-field="pruning"'));
   assert.ok(!html.includes("Keine Angabe verfügbar."));
