@@ -84,9 +84,20 @@ class GartenBackend:
             "aufgabe_entfernen",
             "regel_anlegen", "regel_aktiv_setzen", "regel_entfernen",
             "saisonpruefung_anlegen",
+            "beobachtung_anlegen", "beobachtung_entfernen",
         }
         if methode not in erlaubte:
             raise ValueError("Nicht erlaubte Datenoperation")
+        if methode == "beobachtung_anlegen":
+            # Benutzerbeobachtungen auf dem vom HA-Betreiber eingestellten
+            # Ortsdatum validieren (UTC-Mitternacht darf keinen Fehler erzeugen).
+            from datetime import datetime, timezone
+            from .recurrence import lokaler_kalendertag
+
+            tz = getattr(getattr(self.hass, "config", None), "time_zone", "UTC")
+            parameter["heute"] = lokaler_kalendertag(
+                datetime.now(timezone.utc), tz
+            )
         async with self._lock:
             neuer_stand = GartenDaten(self._modell.snapshot())
             objekt = getattr(neuer_stand, methode)(**parameter)
