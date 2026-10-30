@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from custom_components.mein_garten.model import GartenDaten, DatensatzFehler
 from custom_components.mein_garten.season import (
-    CATALOG_FILE, SaisonFehler, SaisonService, pruefe_anker,
+    CATALOG_FILE, CATALOG_FILES, SaisonFehler, SaisonService, pruefe_anker,
     pruefe_katalog, vorschlaege_fuer, fenster_fuer,
 )
 
@@ -28,6 +28,45 @@ class TestSaisonKatalog(unittest.TestCase):
         self.assertEqual(len(self.catalog), 152)
         self.assertEqual(len(self.source["ausgangs_commit"]), 40)
         self.assertIn("solanum lycopersicum", self.catalog)
+
+    def test_neuer_cc0_katalog_eindeutig_und_alte_basis_bleibt_bestehen(self):
+        with CATALOG_FILES[1].open(encoding="utf-8") as stream:
+            extra = json.load(stream)
+        catalog_new = pruefe_katalog(extra)
+        self.assertEqual(len(catalog_new), 1140)
+        self.assertEqual(extra["ausgangs_commit"],
+                         "c6287784527ebb4162e242394ee08f46d338218b")
+        self.assertEqual(extra["quelle_sha256"],
+                         "aa2a9dc02203c6849e24e2f8d47a5339281638d504b1adfc211e771585a8f751")
+        self.assertFalse(set(catalog_new).intersection(self.catalog))
+        self.assertEqual(len(catalog_new) + len(self.catalog), 1292)
+        self.assertIn("buddleja davidii", catalog_new)
+        self.assertIn("solanum lycopersicum", self.catalog)
+        self.assertNotIn("solanum lycopersicum", catalog_new)
+        self.assertEqual(
+            catalog_new["buddleja davidii"]["_quell_commit"],
+            extra["ausgangs_commit"],
+        )
+
+    def test_50_deutsche_testarten_bewusst_nicht_als_volle_pflegeabdeckung(self):
+        with CATALOG_FILES[1].open(encoding="utf-8") as stream:
+            extra = pruefe_katalog(json.load(stream))
+        from pathlib import Path
+        testliste = json.loads((
+            Path(__file__).resolve().parent.parent /
+            "daten" / "pflanzensuche_50_de.json"
+        ).read_text(encoding="utf-8"))
+        all_species = set(self.catalog) | set(extra)
+        supported = [
+            x for x in testliste
+            if x["wissenschaftlich"].casefold() in all_species
+        ]
+        self.assertEqual(len(supported), 15)
+        self.assertLess(len(supported), len(testliste))
+        self.assertTrue(all("pruning" not in row["methode"] and
+                            "fertilization" not in row["methode"]
+                            for row in (list(self.source["regeln"])
+                                        + list(json.loads(CATALOG_FILES[1].read_text(encoding="utf-8"))["regeln"]))))
 
     def test_keine_automatischen_arbeiten_ohne_referenzdatum(self):
         pflanze = {"id": "p1", "name": "Meine Tomate",
@@ -163,7 +202,8 @@ class TestSaisonService(unittest.IsolatedAsyncioTestCase):
         self.modules.stop()
 
     async def test_laden_offline_und_ohne_netz(self):
-        self.assertGreaterEqual(self.service.stand()["katalog_arten"], 100)
+        self.assertEqual(self.service.stand()["katalog_arten"], 1292)
+        self.assertEqual(len(self.service.stand()["quellversionen"]), 2)
         self.assertEqual(self.service.stand()["anker"], {
             "last_frost": "", "first_frost": "",
         })
@@ -185,6 +225,25 @@ class TestSaisonService(unittest.IsolatedAsyncioTestCase):
         self.assertIn("prüfen", result["name"].lower())
         self.assertEqual(result["saisonbezug"]["lizenz"], "CC0 1.0")
         self.assertTrue(self.service.stand()["vorschlaege"][0]["vorgemerkt"])
+
+    async def test_zwei_arten_mit_unterschiedlichen_quellcommits(self):
+        sommerflieder = self.backend.model.pflanze_anlegen(
+            "Sommerflieder", "Buddleja davidii"
+        )
+        await self.service.async_anker_speichern({
+            "last_frost": "2027-05-15", "first_frost": "",
+        })
+        todo = {x["pflanzen_id"]: x for x in self.service.stand()["vorschlaege"]}
+        self.assertEqual(todo[self.tomate["id"]]["quell_commit"],
+                         "99393ea2dbe8da6973434974f92863beff3bbb32")
+        self.assertEqual(todo[sommerflieder["id"]]["quell_commit"],
+                         "c6287784527ebb4162e242394ee08f46d338218b")
+        term = await self.service.async_vormerken(
+            sommerflieder["id"], "opdb26-buddleja-davidii", "2027-05-16"
+        )
+        self.assertEqual(term["saisonbezug"]["quell_commit"],
+                         "c6287784527ebb4162e242394ee08f46d338218b")
+        self.assertEqual(term["saisonbezug"]["freigabe"], "manuell_durch_benutzer")
 
     async def test_keine_fernbefehle_oder_gefahrsachen_als_namen(self):
         await self.service.async_anker_speichern({
