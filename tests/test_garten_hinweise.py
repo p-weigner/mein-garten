@@ -103,6 +103,54 @@ class TestWetterUndEinstellungen(unittest.TestCase):
         self.assertNotIn("Fertig", text)
 
 
+    def test_freitagsbericht_zeigt_eigene_phaenologie_ohne_private_notizen(self):
+        daten = {
+            "pflanzen": [{"id": "p1", "name": "Bauernhortensie"}],
+            "aufgaben": [],
+            "beobachtungen": [
+                {"id": "b1", "pflanzen_id": "p1", "phase": "laubfaerbung",
+                 "beobachtet_am": "2026-10-29",
+                 "quelle": "eigene_beobachtung",
+                 "notiz": "Meine private Notiz: streng vertraulich",
+                 "person": "Angelina"},
+                {"id": "b2", "pflanzen_id": "p1", "phase": "bluete_beginn",
+                 "beobachtet_am": "2026-05-21",
+                 "quelle": "eigene_beobachtung"},
+                {"id": "b3", "pflanzen_id": "p1", "phase": "fruchtreife",
+                 "beobachtet_am": "2026-10-30",
+                 "quelle": "externe_DWD_Beobachtung"},
+            ],
+        }
+        text = wochen_text(daten, date(2026, 10, 30))
+        self.assertIn("1 eigene Pflanzenbeobachtungen", text)
+        self.assertIn("Bauernhortensie: Laubfärbung (2026-10-29)", text)
+        self.assertNotIn("streng vertraulich", text)
+        self.assertNotIn("Angelina", text)
+        self.assertNotIn("Blütebeginn", text)
+        self.assertNotIn("Fruchtreife", text)
+
+    def test_alter_freitagsbericht_ohne_entwicklungsdaten_bleibt_kompatibel(self):
+        text = wochen_text({"aufgaben": [], "pflanzen": []}, date(2026, 10, 30))
+        self.assertIn("Wochenübersicht", text)
+        self.assertNotIn("eigene Pflanzenbeobachtungen", text)
+
+    def test_wochenbericht_begrenzt_beobachtungen_auf_drei_eintraege(self):
+        daten = {
+            "pflanzen": [{"id": "p1", "name": "Rose"}],
+            "aufgaben": [],
+            "beobachtungen": [
+                {"id": str(i), "pflanzen_id": "p1", "phase": "austrieb",
+                 "beobachtet_am": f"2026-10-{26 + i:02d}",
+                 "quelle": "eigene_beobachtung"}
+                for i in range(4)
+            ],
+        }
+        text = wochen_text(daten, date(2026, 10, 30))
+        self.assertIn("4 eigene Pflanzenbeobachtungen", text)
+        self.assertIn("und 1 weitere Beobachtungen", text)
+        self.assertEqual(text.count("Rose: Austrieb"), 3)
+
+
 class MemoryStore:
     saved = None
     def __init__(self, *_args):
