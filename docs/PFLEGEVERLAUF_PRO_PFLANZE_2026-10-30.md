@@ -16,6 +16,8 @@ Die **letzte Gießkontrolle** und der Zeitpunkt, zu dem tatsächlich zuletzt Was
 
 Der Verlauf beginnt bei den **20 neuesten** Aufgaben. Mit **„Weitere 20 anzeigen“** können ältere abgeschlossene Aufgaben im selben Dialog nachgeladen werden.
 
+Ab diesem Entwicklungsstand gibt es zusätzlich **„＋ Gießkontrolle anlegen“** im Verlauf. Die Schaltfläche öffnet ein **noch nicht gespeichertes**, mit dieser Pflanze vorausgewähltes Aufgabenformular. Dabei werden die letzte Kontrolle und das letzte tatsächliche Gießen angezeigt, **ohne** ein neues Fälligkeitsdatum oder Gießintervall zu erfinden. [Ausführliche Bedienung und Tests](GIESSKONTROLLE_MIT_VERLAUFSKONTEXT_2026-10-30.md).
+
 Jeder Eintrag nennt den ursprünglichen Aufgabennamen, den tatsächlichen Abschlusszeitpunkt in der lokalen Browser-Zeitzone, gegebenenfalls das ursprünglich geplante Datum sowie – soweit vorhanden – die bei Erledigung über Home Assistant gespeicherte Person.
 
 ## Datenhaltung und Grenzen
