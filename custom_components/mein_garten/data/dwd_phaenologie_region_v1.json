@@ -1,0 +1,246 @@
+{
+  "schema": 1,
+  "quelle": "Deutscher Wetterdienst (DWD), Climate Data Center",
+  "lizenz": "CC BY 4.0",
+  "quellen_url": "https://opendata.dwd.de/climate_environment/CDC/observations_germany/phenology/immediate_reporters/wild/recent/",
+  "abgerufen_am": "2026-10-30",
+  "meldeverfahren": "DWD Sofortmelder, wildwachsende Pflanzen",
+  "qualitaetsfilter": "Eintrittsdatum_QB=1 (nicht beanstandet); QN=1,7,10",
+  "hinweis": "Gemeldete DWD-Stationsbeobachtungen, teils nur formal geprüft. Geografische Gebietsauswahl keine lokale Gartenmessung. Keine Prognose und keine Schnitt-, Dünge- oder Aussaatempfehlung.",
+  "regionen": {
+    "nordost": {
+      "label": "Nordostdeutsches Referenzgebiet (grob, 52,0–54,2° N / 12–15° O)",
+      "lat_min": 52.0,
+      "lat_max": 54.2,
+      "lon_min": 12.0,
+      "lon_max": 15.0
+    },
+    "deutschland": {
+      "label": "Deutschlandweite DWD-Beobachtungsstationen"
+    }
+  },
+  "basis_stationsliste": "https://opendata.dwd.de/climate_environment/CDC/help/PH_Beschreibung_Phaenologie_Stationen_Sofortmelder.txt",
+  "quell_dateien": [
+    {
+      "datei": "PH_Sofortmelder_Wildwachsende_Pflanze_Hasel_akt.txt",
+      "objekt_id": 113,
+      "phase_id": 5
+    },
+    {
+      "datei": "PH_Sofortmelder_Wildwachsende_Pflanze_Forsythie_akt.txt",
+      "objekt_id": 109,
+      "phase_id": 5
+    },
+    {
+      "datei": "PH_Sofortmelder_Wildwachsende_Pflanze_Rotbuche_akt.txt",
+      "objekt_id": 123,
+      "phase_id": 4
+    }
+  ],
+  "werte": [
+    {
+      "indikator": "hasel_bluete",
+      "pflanze": "Hasel (Arten nicht unterschieden)",
+      "phase": "Blütebeginn",
+      "region": "nordost",
+      "jahr": 2024,
+      "stationen": 18,
+      "median": "2024-01-29",
+      "quartil_von": "2024-01-23",
+      "quartil_bis": "2024-02-04"
+    },
+    {
+      "indikator": "hasel_bluete",
+      "pflanze": "Hasel (Arten nicht unterschieden)",
+      "phase": "Blütebeginn",
+      "region": "deutschland",
+      "jahr": 2024,
+      "stationen": 261,
+      "median": "2024-01-29",
+      "quartil_von": "2024-01-16",
+      "quartil_bis": "2024-02-04"
+    },
+    {
+      "indikator": "hasel_bluete",
+      "pflanze": "Hasel (Arten nicht unterschieden)",
+      "phase": "Blütebeginn",
+      "region": "nordost",
+      "jahr": 2025,
+      "stationen": 22,
+      "median": "2025-02-01",
+      "quartil_von": "2025-01-25",
+      "quartil_bis": "2025-02-07"
+    },
+    {
+      "indikator": "hasel_bluete",
+      "pflanze": "Hasel (Arten nicht unterschieden)",
+      "phase": "Blütebeginn",
+      "region": "deutschland",
+      "jahr": 2025,
+      "stationen": 273,
+      "median": "2025-02-01",
+      "quartil_von": "2025-01-26",
+      "quartil_bis": "2025-02-18"
+    },
+    {
+      "indikator": "hasel_bluete",
+      "pflanze": "Hasel (Arten nicht unterschieden)",
+      "phase": "Blütebeginn",
+      "region": "nordost",
+      "jahr": 2026,
+      "stationen": 19,
+      "median": "2026-02-27",
+      "quartil_von": "2026-02-26",
+      "quartil_bis": "2026-02-28"
+    },
+    {
+      "indikator": "hasel_bluete",
+      "pflanze": "Hasel (Arten nicht unterschieden)",
+      "phase": "Blütebeginn",
+      "region": "deutschland",
+      "jahr": 2026,
+      "stationen": 216,
+      "median": "2026-02-20",
+      "quartil_von": "2026-02-10",
+      "quartil_bis": "2026-02-25"
+    },
+    {
+      "indikator": "forsythie_bluete",
+      "pflanze": "Forsythie",
+      "phase": "Blütebeginn",
+      "region": "nordost",
+      "jahr": 2024,
+      "stationen": 20,
+      "median": "2024-03-03",
+      "quartil_von": "2024-02-25",
+      "quartil_bis": "2024-03-05"
+    },
+    {
+      "indikator": "forsythie_bluete",
+      "pflanze": "Forsythie",
+      "phase": "Blütebeginn",
+      "region": "deutschland",
+      "jahr": 2024,
+      "stationen": 277,
+      "median": "2024-03-02",
+      "quartil_von": "2024-02-25",
+      "quartil_bis": "2024-03-08"
+    },
+    {
+      "indikator": "forsythie_bluete",
+      "pflanze": "Forsythie",
+      "phase": "Blütebeginn",
+      "region": "nordost",
+      "jahr": 2025,
+      "stationen": 23,
+      "median": "2025-03-25",
+      "quartil_von": "2025-03-23",
+      "quartil_bis": "2025-03-26"
+    },
+    {
+      "indikator": "forsythie_bluete",
+      "pflanze": "Forsythie",
+      "phase": "Blütebeginn",
+      "region": "deutschland",
+      "jahr": 2025,
+      "stationen": 282,
+      "median": "2025-03-21",
+      "quartil_von": "2025-03-19",
+      "quartil_bis": "2025-03-24"
+    },
+    {
+      "indikator": "forsythie_bluete",
+      "pflanze": "Forsythie",
+      "phase": "Blütebeginn",
+      "region": "nordost",
+      "jahr": 2026,
+      "stationen": 21,
+      "median": "2026-03-20",
+      "quartil_von": "2026-03-19",
+      "quartil_bis": "2026-03-28"
+    },
+    {
+      "indikator": "forsythie_bluete",
+      "pflanze": "Forsythie",
+      "phase": "Blütebeginn",
+      "region": "deutschland",
+      "jahr": 2026,
+      "stationen": 263,
+      "median": "2026-03-16",
+      "quartil_von": "2026-03-10",
+      "quartil_bis": "2026-03-20"
+    },
+    {
+      "indikator": "rotbuche_blatt",
+      "pflanze": "Rotbuche",
+      "phase": "Blattentfaltung",
+      "region": "nordost",
+      "jahr": 2024,
+      "stationen": 18,
+      "median": "2024-04-10",
+      "quartil_von": "2024-04-06",
+      "quartil_bis": "2024-04-15"
+    },
+    {
+      "indikator": "rotbuche_blatt",
+      "pflanze": "Rotbuche",
+      "phase": "Blattentfaltung",
+      "region": "deutschland",
+      "jahr": 2024,
+      "stationen": 252,
+      "median": "2024-04-10",
+      "quartil_von": "2024-04-08",
+      "quartil_bis": "2024-04-14"
+    },
+    {
+      "indikator": "rotbuche_blatt",
+      "pflanze": "Rotbuche",
+      "phase": "Blattentfaltung",
+      "region": "nordost",
+      "jahr": 2025,
+      "stationen": 19,
+      "median": "2025-04-16",
+      "quartil_von": "2025-04-15",
+      "quartil_bis": "2025-04-21"
+    },
+    {
+      "indikator": "rotbuche_blatt",
+      "pflanze": "Rotbuche",
+      "phase": "Blattentfaltung",
+      "region": "deutschland",
+      "jahr": 2025,
+      "stationen": 250,
+      "median": "2025-04-17",
+      "quartil_von": "2025-04-14",
+      "quartil_bis": "2025-04-22"
+    },
+    {
+      "indikator": "rotbuche_blatt",
+      "pflanze": "Rotbuche",
+      "phase": "Blattentfaltung",
+      "region": "nordost",
+      "jahr": 2026,
+      "stationen": 18,
+      "median": "2026-04-21",
+      "quartil_von": "2026-04-18",
+      "quartil_bis": "2026-04-23"
+    },
+    {
+      "indikator": "rotbuche_blatt",
+      "pflanze": "Rotbuche",
+      "phase": "Blattentfaltung",
+      "region": "deutschland",
+      "jahr": 2026,
+      "stationen": 240,
+      "median": "2026-04-17",
+      "quartil_von": "2026-04-12",
+      "quartil_bis": "2026-04-21"
+    }
+  ],
+  "quell_sha256": {
+    "stationen": "a6aebdff27124d124053feaa569374dc4b9f01803357b82f78c61a8675f5d859",
+    "hasel_bluete": "d8ce0f7cf953340b6ec78c42b74ad4bf30533b1e8d7343efbb481db3f1fa1c4c",
+    "forsythie_bluete": "2e768506a70405b70b90668dd618cd29722fa35055fbcee83ca696e3fdff4699",
+    "rotbuche_blatt": "86f0e21f03f9f90165c0c905301c1c5cc861eb1a96c761b69cb17e11d7a8e7d1"
+  }
+}
