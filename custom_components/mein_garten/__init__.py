@@ -115,6 +115,14 @@ async def async_setup_entry(hass, entry) -> bool:
     from .search import Pflanzensuche
     from .care import PflegeService
 
+    suche = Pflanzensuche(hass)
+    try:
+        await suche.async_laden()
+    except Exception as exc:
+        raise ConfigEntryNotReady(
+            "Mein Garten: Pflanzennamen konnten nicht sicher geladen werden"
+        ) from exc
+
     pflege = PflegeService(hass)
     try:
         await pflege.async_laden()
@@ -132,7 +140,7 @@ async def async_setup_entry(hass, entry) -> bool:
         ) from exc
 
     hass.data.setdefault(DOMAIN, {})["backend"] = backend
-    hass.data[DOMAIN]["suche"] = Pflanzensuche(hass)
+    hass.data[DOMAIN]["suche"] = suche
     hass.data[DOMAIN]["pflege"] = pflege
     hass.data[DOMAIN]["hinweise"] = hinweise
 
