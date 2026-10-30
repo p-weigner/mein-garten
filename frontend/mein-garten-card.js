@@ -396,7 +396,8 @@
         art_nicht_gefunden: "Für diese botanische Art sind noch keine Pflegeinformationen vorhanden.",
         art_nicht_bestaetigt: "Die botanische Art konnte nicht eindeutig bestätigt werden.",
         art_unbekannt: "Bitte zuerst einen gültigen botanischen Artnamen auswählen.",
-        kein_deutscher_text: "Noch keine geprüfte deutsche Übersetzung verfügbar.",
+        kein_deutscher_text: "Noch keine deutsche Übersetzung verfügbar. Die Suche wird erneut versucht.",
+        teilweise: "Einige Pflegefelder sind noch nicht übersetzt und werden später automatisch erneut geprüft.",
         quellenantwort_ungueltig: "Unerwartete Antwort der Pflegequelle.",
         fehler: "Pflegeprofil konnte nicht geladen werden."
       };
