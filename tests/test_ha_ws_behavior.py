@@ -408,5 +408,42 @@ class TestGartenWebsocket(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(response["dwd_phaenologie"])
         self.assertEqual(response["daten"]["pflanzen"], [])
 
+    async def test_standort_daten_nur_fuer_eigene_pflanzen_und_read_only(self):
+        plant = self.backend.model.pflanze_anlegen(
+            "Hundsrose", "Rosa canina"
+        )
+        captured = []
+        def stand_fuer(plants):
+            captured.append(plants)
+            return {
+                "profile": {
+                    plant["id"]: {
+                        "wissenschaftlich": "Rosa canina",
+                        "merkmale": {"sun": "full", "water": "low"},
+                    }
+                },
+                "katalog_arten": 10642,
+                "quelle": "OpenPlantDB",
+                "lizenz": "CC0 1.0",
+            }
+        self.hass.data["mein_garten"]["standort"] = types.SimpleNamespace(
+            stand_fuer=stand_fuer
+        )
+        self.api.ws_get(self.hass, self.connection, {"id": 60})
+        data = self.connection.results[0][1]["standort"]
+        self.assertEqual(data["katalog_arten"], 10642)
+        self.assertEqual(data["profile"][plant["id"]]["merkmale"]["sun"], "full")
+        self.assertEqual(captured[0], self.backend.snapshot()["pflanzen"])
+        self.api.registriere_ws_befehle(self.hass)
+        self.assertFalse(any("standort" in handler.__name__
+                             for handler in self.registered))
+        self.assertEqual(self.backend.snapshot()["aufgaben"], [])
+
+    async def test_ohne_cc0_standortdienst_bleibt_garten_funktionsfaehig(self):
+        self.api.ws_get(self.hass, self.connection, {"id": 61})
+        response = self.connection.results[0][1]
+        self.assertIsNone(response["standort"])
+        self.assertEqual(response["daten"]["pflanzen"], [])
+
 if __name__ == "__main__":
     unittest.main()
