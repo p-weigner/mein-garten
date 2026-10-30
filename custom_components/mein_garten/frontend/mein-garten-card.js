@@ -512,7 +512,7 @@
       const notifyEntities = Object.keys(this._hass?.states || {})
         .filter((id) => /^notify\.[a-z0-9_]+$/.test(id));
       const notifyServices = Object.keys(this._hass?.services?.notify || {})
-        .filter((id) => /^[a-z0-9_]+$/.test(id) && id !== "send_message")
+        .filter((id) => /^[a-z0-9_]+$/.test(id) && !["send_message", "notify"].includes(id))
         .map((id) => "notify." + id);
       const options = (items) => [...new Set(items)].sort().map((id) =>
         '<option value="' + escapeHtml(id) + '"></option>').join("");
