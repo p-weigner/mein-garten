@@ -150,6 +150,14 @@ class TestAlphaPaket(unittest.TestCase):
             with self.assertRaisesRegex(PaketFehler, "Quell-Commit"):
                 validiere_paket(self.package, self.root)
 
+    def test_keine_versteckte_zuhause_konfiguration_in_gartenintegration(self):
+        self._write(
+            self.package / "custom_components/mein_garten/Zuhause.yaml",
+            "title: Zuhause\n",
+        )
+        with self.assertRaisesRegex(PaketFehler, "Private"):
+            validiere_paket(self.package, self.root)
+
     def test_keine_fremde_hauptdatei_im_paket(self):
         self._write(self.package / "Zuhause.yaml", "title: Zuhause\n")
         with self.assertRaisesRegex(PaketFehler, "Hauptdatei"):
