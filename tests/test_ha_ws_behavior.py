@@ -122,6 +122,45 @@ class TestGartenWebsocket(unittest.IsolatedAsyncioTestCase):
             "Hydrangea macrophylla",
         )
 
+    async def test_pflegeprofil_erneut_pruefen_nur_fuer_gespeicherte_pflanze(self):
+        plant = self.backend.model.pflanze_anlegen(
+            "Hundsrose", wissenschaftlich="Rosa canina"
+        )
+        pflege = types.SimpleNamespace(
+            async_profil=AsyncMock(return_value={
+                "art": "Rosa canina", "status": "ok",
+                "felder": {"watering": {"text": "Deutscher Hinweis"}},
+            })
+        )
+        self.hass.data["mein_garten"]["pflege"] = pflege
+        await self.api.ws_pflegeprofil(self.hass, self.connection, {
+            "id": 22, "pflanzen_id": plant["id"], "aktualisieren": True,
+        })
+        pflege.async_profil.assert_awaited_once_with(plant, aktualisieren=True)
+        self.assertFalse(self.connection.errors)
+        self.assertEqual(self.connection.results[0][1]["status"], "ok")
+
+    async def test_normaler_pflegeabruf_und_fremde_ids(self):
+        plant = self.backend.model.pflanze_anlegen(
+            "Hundsrose", wissenschaftlich="Rosa canina"
+        )
+        pflege = types.SimpleNamespace(
+            async_profil=AsyncMock(return_value={
+                "art": "Rosa canina", "status": "ok", "felder": {},
+            })
+        )
+        self.hass.data["mein_garten"]["pflege"] = pflege
+        await self.api.ws_pflegeprofil(self.hass, self.connection, {
+            "id": 23, "pflanzen_id": plant["id"],
+        })
+        pflege.async_profil.assert_awaited_once_with(plant, aktualisieren=False)
+        self.assertFalse(self.connection.errors)
+        await self.api.ws_pflegeprofil(self.hass, self.connection, {
+            "id": 24, "pflanzen_id": "nicht-vorhanden", "aktualisieren": True,
+        })
+        self.assertEqual(self.connection.errors[-1][1], "pflanze_nicht_gefunden")
+        self.assertEqual(pflege.async_profil.await_count, 1)
+
     async def test_ungueltige_suche_sendet_fehler(self):
         self.search.async_suchen.side_effect = ValueError("Suchbegriff zu kurz")
         await self.api.ws_pflanzen_suchen(self.hass, self.connection, {
