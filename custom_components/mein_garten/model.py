@@ -13,6 +13,8 @@ from uuid import uuid4
 from .recurrence import regel_faellig
 
 SCHEMA_VERSION = 1
+AUFGABENTYPEN = ("einfach", "giesskontrolle")
+GIESSERGEBNISSE = ("gegossen", "kontrolliert_kein_wasser")
 PFLANZENGRUPPEN = (
     "Blumen, Stauden und Rosen",
     "Sträucher, Hecken und Bäume",
@@ -218,7 +220,7 @@ class GartenDaten:
         self, name: str, startdatum: str, rhythmus: str,
         intervall_tage: int | None = None,
         pflanzen_id: str | None = None, bereich_id: str | None = None,
-        pflegefeld: str | None = None,
+        pflegefeld: str | None = None, aufgabentyp: str = "einfach",
     ) -> dict:
         """Nur explizit bestätigte Benutzerregeln, nie aus externen Freitexten."""
         name = _text(name, "Regelname", 200)
@@ -243,6 +245,12 @@ class GartenDaten:
                 raise DatensatzFehler("Unbekanntes Pflegefeld")
             if pflanzen_id is None:
                 raise DatensatzFehler("Ein Pflegehinweis muss einer Pflanze zugeordnet sein")
+        if not isinstance(aufgabentyp, str) or aufgabentyp not in AUFGABENTYPEN:
+            raise DatensatzFehler("Unbekannter Aufgabentyp")
+        if pflegefeld == "watering" and aufgabentyp != "giesskontrolle":
+            raise DatensatzFehler("Gießhinweis braucht die differenzierte Erledigung")
+        if pflegefeld is not None and pflegefeld != "watering" and aufgabentyp == "giesskontrolle":
+            raise DatensatzFehler("Gießkontrolle ist nur für das Pflegefeld Wasser zulässig")
         if len(self._data["regeln"]) >= 200:
             raise DatensatzFehler("Maximale Anzahl an Pflegewiederholungen erreicht")
         regel = {
@@ -257,6 +265,7 @@ class GartenDaten:
             "uebersprungen": [],
             "erstellt_utc": _jetzt(),
             "herkunft": "benutzerregel",
+            "aufgabentyp": aufgabentyp,
             "pflegebezug": ({
                 "quelle": "OpenPlantbook",
                 "feld": pflegefeld,
@@ -314,6 +323,8 @@ class GartenDaten:
                 "erledigt_utc": None,
                 "erstellt_utc": _jetzt(),
                 "herkunft": "benutzerregel",
+                "aufgabentyp": regel.get("aufgabentyp", "einfach"),
+                "ergebnis": None,
                 "regel_id": regel["id"],
             })
             neu += 1
@@ -358,8 +369,11 @@ class GartenDaten:
     def aufgabe_anlegen(
         self, name: str, faellig_am: str | None = None,
         pflanzen_id: str | None = None, bereich_id: str | None = None,
+        aufgabentyp: str = "einfach",
     ) -> dict:
         name = _text(name, "Aufgabenname", 200)
+        if not isinstance(aufgabentyp, str) or aufgabentyp not in AUFGABENTYPEN:
+            raise DatensatzFehler("Unbekannter Aufgabentyp")
         faellig_am = _datum(faellig_am)
         if pflanzen_id is not None:
             _existiert(self._data["pflanzen"], pflanzen_id, "Pflanze")
@@ -370,16 +384,35 @@ class GartenDaten:
             "pflanzen_id": pflanzen_id, "bereich_id": bereich_id,
             "status": "offen", "erledigt_utc": None,
             "erstellt_utc": _jetzt(), "herkunft": "manuell",
+            "aufgabentyp": aufgabentyp, "ergebnis": None,
         }
         self._data["aufgaben"].append(obj)
         return deepcopy(obj)
 
-    def aufgabe_erledigen(self, aufgaben_id: str, person: str | None = None) -> dict:
+    def aufgabe_erledigen(
+        self, aufgaben_id: str, person: str | None = None, ergebnis: str | None = None,
+    ) -> dict:
         task = _existiert(self._data["aufgaben"], aufgaben_id, "Aufgabe")
-        if task["status"] != "erledigt":
-            task["status"] = "erledigt"
-            task["erledigt_utc"] = _jetzt()
-            self._event("aufgabe_erledigt", aufgaben_id, person)
+        aufgabentyp = task.get("aufgabentyp", "einfach")
+        if task["status"] == "erledigt":
+            # Ein zweiter Klick oder WebSocket-Retry darf nichts überschreiben.
+            if ergebnis is not None and ergebnis != task.get("ergebnis", "erledigt"):
+                raise DatensatzFehler("Bereits erledigte Aufgabe zuerst wieder öffnen")
+            return deepcopy(task)
+        if aufgabentyp == "giesskontrolle":
+            if ergebnis not in GIESSERGEBNISSE:
+                raise DatensatzFehler(
+                    "Bei Gießkontrollen „gegossen“ oder „kein Wasser nötig“ wählen"
+                )
+        else:
+            if ergebnis not in (None, "erledigt"):
+                raise DatensatzFehler("Dieses Ergebnis ist nur für Gießkontrollen zulässig")
+            ergebnis = "erledigt"
+        task["status"] = "erledigt"
+        task["erledigt_utc"] = _jetzt()
+        task["ergebnis"] = ergebnis
+        self._event("aufgabe_erledigt", aufgaben_id, person)
+        self._data["historie"][-1]["ergebnis"] = ergebnis
         return deepcopy(task)
 
     def aufgabe_wieder_oeffnen(self, aufgaben_id: str, person: str | None = None) -> dict:
@@ -396,6 +429,7 @@ class GartenDaten:
                 )
             task["status"] = "offen"
             task["erledigt_utc"] = None
+            task["ergebnis"] = None
             self._event("aufgabe_wieder_geoeffnet", aufgaben_id, person)
         return deepcopy(task)
 
