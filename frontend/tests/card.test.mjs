@@ -1361,8 +1361,8 @@ test("Pflegeverlauf trennt echte Gießvorgänge von Kontrollen ohne Wasser", () 
     disabled: false, dataset: { action: "pflegeverlauf-open", id: "p1" },
   }) }});
   assert.equal(card._modal.type, "pflegeverlauf");
-  const html = card.shadowRoot.innerHTML;
-  assert.ok(html.includes("Pflegeverlauf: Lavendel"));
+  const html = card._pflegeverlaufHTML();
+  assert.ok(card._modalHTML().includes("Pflegeverlauf: Lavendel"));
   assert.ok(html.includes("Zuletzt tatsächlich gegossen"));
   assert.ok(html.includes("Letzte Gießkontrolle"));
   assert.ok(html.includes("Kontrolliert – kein Wasser nötig"));
