@@ -10,11 +10,13 @@ from __future__ import annotations
 
 import asyncio
 from copy import deepcopy
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 import json
 from pathlib import Path
 import re
 from typing import Any
+
+from .recurrence import lokaler_kalendertag
 
 STORAGE_KEY = "mein_garten_saison_v1.data"
 CATALOG_FILE = Path(__file__).parent / "data" / "saison_openplantdb_v0_1.json"
@@ -124,7 +126,8 @@ def fenster_fuer(regel: dict, frostanker: dict) -> tuple[date, date] | None:
 
 
 def vorschlaege_fuer(
-    katalog: dict, anker: dict, pflanzen: list[dict], aufgaben: list[dict]
+    katalog: dict, anker: dict, pflanzen: list[dict], aufgaben: list[dict],
+    heute: date | None = None,
 ) -> list[dict]:
     """Nur exakte wissenschaftliche Namen. Keine Gattungs- oder Sortenvermutung."""
     results = []
@@ -155,6 +158,7 @@ def vorschlaege_fuer(
             "fenster_bis": period[1].isoformat() if period else None,
             "fehlender_anker": None if period else rule["anker"],
             "vorgemerkt": planned,
+            "abgelaufen": bool(period and heute is not None and period[1] < heute),
             "quelle": SOURCE, "lizenz": LICENSE,
             "quell_commit": rule["_quell_commit"],
             "pruefstatus": "unverbindliche_Planungshilfe",
@@ -212,12 +216,18 @@ class SaisonService:
         self._quellversionen = sources
         self._ausgangs_commit = sources[0]["commit"]
 
+    def _heute(self) -> date:
+        """Vorlagen und Kalendertage folgen der Home-Assistant-Ortszeit."""
+        tz = getattr(getattr(self.hass, "config", None), "time_zone", "UTC")
+        return lokaler_kalendertag(datetime.now(timezone.utc), tz)
+
     def stand(self) -> dict:
         data = self.backend.snapshot()
         return {
             "anker": deepcopy(self._anker),
             "vorschlaege": vorschlaege_fuer(
-                self._katalog, self._anker, data["pflanzen"], data["aufgaben"]
+                self._katalog, self._anker, data["pflanzen"], data["aufgaben"],
+                self._heute(),
             ),
             "quelle": SOURCE,
             "lizenz": LICENSE,
@@ -259,6 +269,8 @@ class SaisonService:
             when = _kalendertag(datum)
             if when is None or not period[0] <= when <= period[1]:
                 raise SaisonFehler("Termin liegt außerhalb des gespeicherten Saisonfensters")
+            if when < self._heute():
+                raise SaisonFehler("Vergangene Saisontermine nicht erneut vormerken")
             return await self.backend.async_aendern(
                 "saisonpruefung_anlegen",
                 pflanzen_id=pflanzen_id,
