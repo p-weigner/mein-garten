@@ -508,8 +508,21 @@
         '</p></section>';
     }
 
+    _eigenePflegeNotizenHTML() {
+      const plant = this._getPlant(this._carePlant);
+      if (!plant || typeof plant.notizen !== "string" || !plant.notizen.trim())
+        return "";
+      return '<section class="card" style="margin:9px 0;padding:13px">' +
+        '<h3>Deine Pflanzennotizen</h3>' +
+        '<p style="white-space:pre-wrap">' + escapeHtml(plant.notizen) + '</p>' +
+        '<p class="small">Deine eigenen, nur in Home Assistant gespeicherten Angaben. ' +
+        'Keine externe Pflegequelle.</p>' +
+        '<button type="button" class="btn tiny" data-action="plant-edit" data-id="' +
+        escapeHtml(plant.id) + '">Notizen bearbeiten</button></section>';
+    }
+
     _careHTML() {
-      const grundlagen = this._standortHTML();
+      const grundlagen = this._standortHTML() + this._eigenePflegeNotizenHTML();
       if (this._careLoading)
         return grundlagen + '<p class="small">Deutsche Pflegeinformationen werden geladen …</p>';
       const profile = this._care;
@@ -521,25 +534,55 @@
         art_nicht_gefunden: "Für diese botanische Art sind noch keine Pflegeinformationen vorhanden.",
         art_nicht_bestaetigt: "Die botanische Art konnte nicht eindeutig bestätigt werden.",
         art_unbekannt: "Bitte zuerst einen gültigen botanischen Artnamen auswählen.",
-        kein_deutscher_text: "Noch keine deutsche Übersetzung verfügbar. Die Suche wird erneut versucht.",
-        teilweise: "Einige Pflegefelder sind noch nicht übersetzt und werden später automatisch erneut geprüft.",
+        kein_deutscher_text: "OpenPlantbook hat aktuell keinen verwendbaren deutschen Pflegehinweis geliefert.",
+        teilweise: "Einige Pflegefelder sind noch nicht übersetzt und werden bei einem späteren Abruf erneut geprüft.",
         quellenantwort_ungueltig: "Unerwartete Antwort der Pflegequelle.",
         fehler: "Pflegeprofil konnte nicht geladen werden."
       };
-      const heading = '<div class="notice">Quelle: <a href="https://open.plantbook.io/" target="_blank" rel="noopener noreferrer">OpenPlantbook</a> · Automatisch übersetzt, nicht fachlich geprüft. Daraus werden keine automatischen Pflegeaufgaben erzeugt.</div>';
       const fields = Object.entries(profile.felder || {});
-      const body = fields.map(([key, f]) => '<section class="card" style="margin:9px 0;padding:13px"><h3>' +
-        escapeHtml(f.titel) + '</h3><p style="white-space:pre-wrap">' +
-        escapeHtml(f.text || (f.status === "uebersetzung_ausstehend" ?
-          "Übersetzung ausstehend; keine erfundenen Angaben." : "Keine Angabe verfügbar.")) +
-        '</p>' + (f.text && this._carePlant ?
-          '<button type="button" class="btn tiny" data-action="care-plan" data-id="' +
-          escapeHtml(this._carePlant) + '" data-field="' + escapeHtml(key) +
-          '">Jährliche Kontrolle dazu planen</button>' : '') +
-        '</section>').join("");
-      return grundlagen + (profile.status !== "ok" ? '<p class="small">' +
+      const vorhanden = fields.filter(([, f]) =>
+        f && typeof f.text === "string" && f.text.trim());
+      const fehlende = fields.length - vorhanden.length;
+      const status = profile.status !== "ok" ?
+        '<p class="small">' +
         escapeHtml(profile.meldung || labels[profile.status] || "Keine Angaben verfügbar.") +
-        '</p>' : "") + heading + body;
+        '</p>' : "";
+      const heading = vorhanden.length ?
+        '<div class="notice">Quelle: <a href="https://open.plantbook.io/" ' +
+        'target="_blank" rel="noopener noreferrer">OpenPlantbook</a> · ' +
+        'Nicht fachlich geprüft. Fremdsprachige Inhalte werden automatisch ' +
+        'übersetzt; daraus entstehen keine automatischen Pflegeaufgaben.</div>' : "";
+      const body = vorhanden.map(([key, f]) => {
+        const sprache = f.status === "maschinenuebersetzt" ?
+          "Maschinell übersetzt – nicht fachlich geprüft" :
+          f.status === "original_deutsch" ?
+          "Deutscher Quelltext – nicht fachlich geprüft" :
+          "Ungeprüfter Pflegehinweis";
+        return '<section class="card" style="margin:9px 0;padding:13px">' +
+          '<h3>' + escapeHtml(f.titel || key) + '</h3>' +
+          '<p style="white-space:pre-wrap">' + escapeHtml(f.text) + '</p>' +
+          '<p class="small">' + escapeHtml(sprache) + '</p>' +
+          (this._carePlant ?
+            '<button type="button" class="btn tiny" data-action="care-plan" data-id="' +
+            escapeHtml(this._carePlant) + '" data-field="' + escapeHtml(key) +
+            '">Jährliche Kontrolle dazu planen</button>' : '') +
+          '</section>';
+      }).join("");
+      const luecken = fehlende > 0 && fields.length ?
+        '<p class="small">' + fehlende + ' von ' + fields.length +
+        ' Pflegefeldern haben derzeit keinen deutschen Hinweis. ' +
+        'Es werden keine fehlenden Angaben ergänzt oder geraten.</p>' : "";
+      const plant = this._getPlant(this._carePlant);
+      const ohneFreitext = !vorhanden.length ?
+        '<section class="card" style="margin:9px 0;padding:13px">' +
+        '<h3>Keine weiteren deutschen Pflegehinweise</h3>' +
+        '<p class="small">Du kannst vorhandene Standort-Grunddaten oben nutzen, ' +
+        'eigene Notizen pflegen oder eine individuelle Erinnerung im Kalender anlegen. ' +
+        'Fehlende Fachinformationen werden nicht erfunden.</p>' +
+        (plant ? '<button type="button" class="btn tiny" data-action="plant-edit" data-id="' +
+          escapeHtml(plant.id) + '">Pflanzennotizen bearbeiten</button>' : '') +
+        '</section>' : "";
+      return grundlagen + status + heading + body + luecken + ohneFreitext;
     }
 
     _getPlant(id) {
