@@ -178,5 +178,129 @@ class TestPflegeAbruf(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["status"], "art_nicht_bestaetigt")
 
 
+class TestPflegeManuelleAktualisierung(unittest.IsolatedAsyncioTestCase):
+    """Quelle wieder prüfen, ohne deutsche Cachetexte oder Tagesbudget zu verlieren."""
+
+    def make_service(self):
+        class Store:
+            def __init__(self):
+                self.saved = []
+            async def async_save(self, data):
+                self.saved.append(deepcopy(data))
+
+        service = PflegeService.__new__(PflegeService)
+        service.hass = MagicMock()
+        service._store = Store()
+        service._lock = asyncio.Lock()
+        service._data = {
+            "version": 1,
+            "profile": {},
+            "budget": {"tag": "", "zeichen": 170},
+            "translations": {},
+        }
+        return service
+
+    def result(self, service, text, status="ok"):
+        return service._result(
+            "Rosa canina", status,
+            {"watering": {"titel": "Gießen", "text": text,
+                           "status": "maschinenuebersetzt"}},
+        )
+
+    async def test_normale_cache_gültigkeit_und_erzwungener_abruf(self):
+        service = self.make_service()
+        service._fetch = AsyncMock(side_effect=[
+            self.result(service, "Ein deutscher Hinweis"),
+            self.result(service, "Aktualisierter deutscher Hinweis"),
+        ])
+        plant = {"wissenschaftlich": "Rosa canina"}
+        first = await service.async_profil(plant)
+        self.assertEqual(first["felder"]["watering"]["text"], "Ein deutscher Hinweis")
+        from_cache = await service.async_profil(plant)
+        self.assertEqual(from_cache, first)
+        service._fetch.assert_awaited_once()
+        fresh = await service.async_profil(plant, aktualisieren=True)
+        self.assertEqual(fresh["felder"]["watering"]["text"], "Aktualisierter deutscher Hinweis")
+        self.assertEqual(service._fetch.await_count, 2)
+        self.assertEqual(service._data["budget"]["zeichen"], 170)
+        self.assertEqual(len(service._store.saved), 2)
+
+    async def test_erneuter_klick_erzwingt_keinen_api_spam(self):
+        service = self.make_service()
+        service._fetch = AsyncMock(return_value=self.result(service, "Deutscher Hinweis"))
+        plant = {"wissenschaftlich": "Rosa canina"}
+        await service.async_profil(plant, aktualisieren=True)
+        repeated = await service.async_profil(plant, aktualisieren=True)
+        self.assertEqual(service._fetch.await_count, 1)
+        self.assertEqual(repeated["aktualisierung"], "wartezeit")
+        self.assertEqual(repeated["felder"]["watering"]["text"], "Deutscher Hinweis")
+        # Nur der Prüfversuch wird gedrosselt: bestehende Profile sind weiter lesbar.
+        normal = await service.async_profil(plant)
+        self.assertEqual(normal["status"], "ok")
+        self.assertNotIn("aktualisierung", normal)
+
+    async def test_abgelaufene_sperre_ermöglicht_erneuten_abruf(self):
+        service = self.make_service()
+        service._fetch = AsyncMock(return_value=self.result(service, "Deutscher Hinweis"))
+        plant = {"wissenschaftlich": "Rosa canina"}
+        await service.async_profil(plant, aktualisieren=True)
+        service._auffrischungen["rosa canina"] = _now() - timedelta(minutes=6)
+        await service.async_profil(plant, aktualisieren=True)
+        self.assertEqual(service._fetch.await_count, 2)
+
+    async def test_ausfall_erhält_übersetzte_texte_ohne_store_überschreiben(self):
+        for failed in ("quelle_nicht_erreichbar", "quelle_nicht_eingerichtet",
+                       "quellenantwort_ungueltig", "art_nicht_gefunden",
+                       "kein_deutscher_text"):
+            with self.subTest(failed=failed):
+                service = self.make_service()
+                prior = self.result(service, "Gespeicherter deutscher Text")
+                prior["abgerufen_utc"] = (
+                    _now() - timedelta(days=31)
+                ).isoformat(timespec="seconds")
+                service._data["profile"]["rosa canina"] = prior
+                service._fetch = AsyncMock(
+                    return_value=service._result("Rosa canina", failed)
+                )
+                result = await service.async_profil(
+                    {"wissenschaftlich": "Rosa canina"}, aktualisieren=True
+                )
+                self.assertEqual(result["aktualisierung"], failed)
+                self.assertEqual(
+                    result["felder"]["watering"]["text"],
+                    "Gespeicherter deutscher Text",
+                )
+                self.assertEqual(
+                    service._data["profile"]["rosa canina"], prior
+                )
+                self.assertEqual(len(service._store.saved), 0)
+
+    async def test_neue_vollständige_quelle_ersetzt_alte_teilangaben(self):
+        service = self.make_service()
+        prior = self.result(service, "Alter Hinweis", "teilweise")
+        service._data["profile"]["rosa canina"] = prior
+        service._fetch = AsyncMock(return_value=self.result(service, "Neu belegt"))
+        fresh = await service.async_profil(
+            {"wissenschaftlich": "Rosa canina"}, aktualisieren=True
+        )
+        self.assertEqual(fresh["status"], "ok")
+        self.assertEqual(fresh["felder"]["watering"]["text"], "Neu belegt")
+        self.assertNotIn("aktualisierung", fresh)
+        self.assertEqual(len(service._store.saved), 1)
+
+    async def test_falsche_flagtypen_und_unbekannte_arten_abgelehnt(self):
+        service = self.make_service()
+        service._fetch = AsyncMock()
+        with self.assertRaises(ValueError):
+            await service.async_profil(
+                {"wissenschaftlich": "Rosa canina"}, aktualisieren=1
+            )
+        missing = await service.async_profil(
+            {"wissenschaftlich": ""}, aktualisieren=True
+        )
+        self.assertEqual(missing["status"], "art_unbekannt")
+        service._fetch.assert_not_awaited()
+
+
 if __name__ == "__main__":
     unittest.main()
