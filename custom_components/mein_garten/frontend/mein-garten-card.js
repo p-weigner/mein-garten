@@ -275,6 +275,15 @@
       } else if (action === "area-new") {
         this._modal = { type: "bereich" };
         this._render();
+      } else if (action === "rule-new") {
+        this._modal = { type: "regel" };
+        this._render();
+      } else if (action === "rule-toggle" || action === "rule-remove") {
+        const rule = (this._data.regeln || []).find((r) => r.id === id);
+        if (!rule) return;
+        if (action === "rule-remove" && !window.confirm("Diese Wiederholung entfernen? Erledigte Aufgaben bleiben erhalten.")) return;
+        this._mutate(action === "rule-remove" ? "regel_entfernen" : "regel_aktiv_setzen",
+          action === "rule-remove" ? { regel_id: id } : { regel_id: id, aktiv: !rule.aktiv });
       } else if (action === "task-new") {
         this._modal = { type: "aufgabe" };
         this._render();
@@ -387,6 +396,13 @@
         }
       } else if (form.dataset.form === "bereich") {
         this._mutate("bereich_anlegen", { name: val("name") });
+      } else if (form.dataset.form === "regel") {
+        this._mutate("regel_anlegen", {
+          name: val("name"), startdatum: val("startdatum"), rhythmus: val("rhythmus"),
+          intervall_tage: val("rhythmus") === "tage" ? Number(val("intervall_tage")) : null,
+          pflanzen_id: val("pflanzen_id") || null,
+          bereich_id: val("bereich_id") || null,
+        });
       } else if (form.dataset.form === "aufgabe") {
         this._mutate("aufgabe_anlegen", {
           name: val("name"),
@@ -439,6 +455,24 @@
         "</button></div></form>";
     }
 
+    _ruleForm() {
+      const plants = (this._data.pflanzen || []).map((p) => ({ value: p.id, label: p.name }));
+      const areas = (this._data.bereiche || []).map((a) => ({ value: a.id, label: a.name }));
+      return '<form data-form="regel"><div class="form-grid">' +
+        '<div class="field full"><label>Wiederkehrende Aufgabe *</label><input name="name" maxlength="200" required placeholder="z. B. Pflanzen kontrollieren"></div>' +
+        '<div class="field"><label>Erste Fälligkeit *</label><input name="startdatum" type="date" required></div>' +
+        '<div class="field"><label>Rhythmus</label><select name="rhythmus">' +
+        '<option value="tage">Alle X Tage</option><option value="jaehrlich">Jedes Jahr</option></select></div>' +
+        '<div class="field"><label>Intervall in Tagen</label><input name="intervall_tage" type="number" min="1" max="365" value="14"></div>' +
+        '<div class="field"><label>Pflanze</label><select name="pflanzen_id">' +
+        this._options(plants, null, true) + '</select></div>' +
+        '<div class="field full"><label>Gartenbereich</label><select name="bereich_id">' +
+        this._options(areas, null, true) + '</select></div></div>' +
+        '<div class="notice">Diese Wiederholung wird von dir angelegt. Es werden keine ungeprüften Empfehlungen übernommen.</div>' +
+        '<div class="dialog-foot"><button type="button" class="btn ghost" data-action="close">Abbrechen</button>' +
+        '<button type="submit" class="btn primary">Wiederholung speichern</button></div></form>';
+    }
+
     _taskForm() {
       const plants = (this._data.pflanzen || []).map((p) => ({
         value: p.id, label: p.name
@@ -464,10 +498,11 @@
       const type = this._modal.type;
       const title = type === "pflege" ? "Pflegewissen: " + (this._modal.existing?.name || "") : type === "pflanze"
         ? (this._modal.existing ? "Pflanze bearbeiten" : "Neue Pflanze")
-        : type === "aufgabe" ? "Neue Pflegeaufgabe" : "Neuer Gartenbereich";
+        : type === "regel" ? "Neue Wiederholung" : type === "aufgabe" ? "Neue Pflegeaufgabe" : "Neuer Gartenbereich";
       let body = "";
       if (type === "pflege") body = this._careHTML();
       else if (type === "pflanze") body = this._plantForm();
+      else if (type === "regel") body = this._ruleForm();
       else if (type === "aufgabe") body = this._taskForm();
       else body = '<form data-form="bereich"><div class="field"><label>Bereichsname *</label>' +
         '<input name="name" required maxlength="120" placeholder="z. B. Hochbeet, Terrasse, Vorgarten"></div>' +
@@ -552,15 +587,23 @@
       const tasks = [...(this._data.aufgaben || [])].sort(byDate);
       const pending = tasks.filter((t) => t.status !== "erledigt");
       const done = tasks.filter((t) => t.status === "erledigt");
+      const rules = this._data.regeln || [];
       return '<div class="heading"><h2>Pflegekalender</h2>' +
-        '<button class="btn primary" data-action="task-new">＋ Aufgabe anlegen</button></div>' +
-        '<div class="notice">Aktuell zeigt der Kalender manuelle Aufgaben. Automatisch geprüfte Saison- und Wetteraufgaben folgen.</div>' +
+        '<div class="buttons"><button class="btn" data-action="rule-new">＋ Wiederholung anlegen</button><button class="btn primary" data-action="task-new">＋ Aufgabe anlegen</button></div></div>' +
+        '<div class="notice">Manuelle Aufgaben und deine Wiederholungen werden angezeigt. Fachlich geprüfte Saison- und Wetteraufgaben sind noch nicht verfügbar.</div>' +
         '<div class="grid"><section class="card"><h3>Offene Aufgaben (' + pending.length + ')</h3>' +
         (pending.length ? pending.map((t) => this._taskHTML(t)).join("")
           : '<p>Keine offenen Aufgaben.</p>') + '</section>' +
         '<section class="card"><h3>Erledigte Aufgaben (' + done.length + ')</h3>' +
         (done.length ? done.slice().reverse().map((t) => this._taskHTML(t)).join("")
-          : '<p>Hier erscheint später die Pflegehistorie.</p>') + '</section></div>';
+          : '<p>Hier erscheint später die Pflegehistorie.</p>') + '</section></div>' +
+        '<section class="card" style="margin-top:14px"><h3>Meine Wiederholungen (' + rules.length + ')</h3>' +
+        (rules.length ? rules.map((r) => '<div class="task"><div><div class="task-name">' + escapeHtml(r.name) +
+          '</div><div class="task-meta">' + escapeHtml(r.rhythmus === 'tage' ? 'Alle ' + r.intervall_tage + ' Tage' : 'Jährlich') +
+          ' · Start ' + escapeHtml(dateLabel(r.startdatum)) + (r.aktiv ? '' : ' · Pausiert') +
+          '</div></div><div class="buttons"><button class="btn tiny" data-action="rule-toggle" data-id="' + escapeHtml(r.id) + '">' +
+          (r.aktiv ? 'Pausieren' : 'Aktivieren') + '</button><button class="btn ghost tiny danger" data-action="rule-remove" data-id="' +
+          escapeHtml(r.id) + '">Entfernen</button></div></div>').join('') : '<p>Keine Wiederholungen vorhanden.</p>') + '</section>';
     }
 
     _areasHTML() {
