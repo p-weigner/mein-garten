@@ -336,6 +336,7 @@ class GartenDaten:
     def saisonpruefung_anlegen(
         self, pflanzen_id: str, saison_id: str, anker_jahr: int,
         name: str, faellig_am: str, fenster_von: str, fenster_bis: str,
+        quell_commit: str,
     ) -> dict:
         """Erst nach eigener Terminwahl – keine automatische Aussaatanweisung.
 
@@ -350,6 +351,9 @@ class GartenDaten:
             raise DatensatzFehler("Unbekannte Saisonvorlage")
         if type(anker_jahr) is not int or not 2020 <= anker_jahr <= 2100:
             raise DatensatzFehler("Ungültiges Referenzjahr")
+        if (not isinstance(quell_commit, str) or len(quell_commit) != 40
+                or any(c not in "0123456789abcdef" for c in quell_commit)):
+            raise DatensatzFehler("Ungültige Quellenversion")
         faellig_am, fenster_von, fenster_bis = (
             _datum(faellig_am), _datum(fenster_von), _datum(fenster_bis)
         )
@@ -383,6 +387,7 @@ class GartenDaten:
             "saisonbezug": {
                 "quelle": "OpenPlantDB",
                 "lizenz": "CC0 1.0",
+                "quell_commit": quell_commit,
                 "katalog_id": saison_id,
                 "anker_jahr": anker_jahr,
                 "fenster_von": fenster_von,
