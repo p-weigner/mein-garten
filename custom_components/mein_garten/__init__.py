@@ -96,9 +96,17 @@ async def async_setup_entry(hass, entry) -> bool:
             "Mein Garten: Daten konnten nicht sicher gelesen werden"
         ) from exc
     from .search import Pflanzensuche
+    from .care import PflegeService
+
+    pflege = PflegeService(hass)
+    try:
+        await pflege.async_laden()
+    except Exception as exc:
+        raise ConfigEntryNotReady("Mein Garten: Pflegecache konnte nicht sicher gelesen werden") from exc
 
     hass.data.setdefault(DOMAIN, {})["backend"] = backend
     hass.data[DOMAIN]["suche"] = Pflanzensuche(hass)
+    hass.data[DOMAIN]["pflege"] = pflege
     return True
 
 
@@ -106,4 +114,5 @@ async def async_unload_entry(hass, entry) -> bool:
     """Entfernt den Backend-Verweis; gespeicherte Daten bleiben erhalten."""
     hass.data.get(DOMAIN, {}).pop("backend", None)
     hass.data.get(DOMAIN, {}).pop("suche", None)
+    hass.data.get(DOMAIN, {}).pop("pflege", None)
     return True
