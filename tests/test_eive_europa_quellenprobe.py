@@ -23,7 +23,7 @@ class TestEiveEuropaQuellenprobe(unittest.TestCase):
             })
 
     def test_offene_publikation_allein_ist_kein_datensatz_lizenzbeleg(self):
-        with self.assertRaisesRegex(ValueError, "Lizenz"):
+        with self.assertRaisesRegex(ValueError, "CC BY 4.0"):
             lizenz_id({"id": int(RECORD), "metadata": {}})
         with self.assertRaisesRegex(ValueError, "CC BY"):
             lizenz_id({
