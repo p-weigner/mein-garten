@@ -129,6 +129,67 @@ async def ws_pflegeprofil(hass, connection, msg):
     connection.send_result(msg["id"], result)
 
 
+
+@websocket_api.websocket_command({
+    probatio.Required("type"): "mein_garten/regel_anlegen",
+    probatio.Required("name"): str,
+    probatio.Required("startdatum"): str,
+    probatio.Required("rhythmus"): str,
+    probatio.Optional("intervall_tage"): probatio.Any(None, int),
+    probatio.Optional("pflanzen_id"): probatio.Any(None, str),
+    probatio.Optional("bereich_id"): probatio.Any(None, str),
+})
+@websocket_api.async_response
+async def ws_regel_anlegen(hass, connection, msg):
+    await _aendern(hass, connection, msg, "regel_anlegen", {
+        key: msg[key] for key in (
+            "name", "startdatum", "rhythmus", "intervall_tage",
+            "pflanzen_id", "bereich_id"
+        ) if key in msg
+    })
+
+
+@websocket_api.websocket_command({
+    probatio.Required("type"): "mein_garten/regel_aktiv_setzen",
+    probatio.Required("regel_id"): str,
+    probatio.Required("aktiv"): bool,
+})
+@websocket_api.async_response
+async def ws_regel_aktiv_setzen(hass, connection, msg):
+    await _aendern(hass, connection, msg, "regel_aktiv_setzen", {
+        "regel_id": msg["regel_id"], "aktiv": msg["aktiv"]
+    })
+
+
+@websocket_api.websocket_command({
+    probatio.Required("type"): "mein_garten/regel_entfernen",
+    probatio.Required("regel_id"): str,
+})
+@websocket_api.async_response
+async def ws_regel_entfernen(hass, connection, msg):
+    await _aendern(hass, connection, msg, "regel_entfernen", {
+        "regel_id": msg["regel_id"]
+    })
+
+
+@websocket_api.websocket_command({
+    probatio.Required("type"): "mein_garten/pflegeplan_aktualisieren",
+})
+@websocket_api.async_response
+async def ws_pflegeplan_aktualisieren(hass, connection, msg):
+    backend = _backend(hass)
+    if backend is None:
+        connection.send_error(msg["id"], "nicht_eingerichtet", "Mein Garten ist nicht eingerichtet")
+        return
+    try:
+        await backend.async_pflegeplan_aktualisieren()
+    except Exception:
+        _LOGGER.exception("Mein Garten: Pflegeplan-Aktualisierung fehlgeschlagen")
+        connection.send_error(msg["id"], "pflegeplanfehler", "Pflegeplan konnte nicht aktualisiert werden")
+        return
+    connection.send_result(msg["id"], _snapshot(backend))
+
+
 @websocket_api.websocket_command({
     probatio.Required("type"): "mein_garten/bereich_anlegen",
     probatio.Required("name"): str,
@@ -266,6 +327,8 @@ def registriere_ws_befehle(hass) -> None:
     """Registriert nur lokale Befehle für authentifizierte HA-Nutzer."""
     for handler in (
         ws_get, ws_subscribe, ws_pflanzen_suchen, ws_pflegeprofil,
+        ws_regel_anlegen, ws_regel_aktiv_setzen, ws_regel_entfernen,
+        ws_pflegeplan_aktualisieren,
         ws_bereich_anlegen, ws_bereich_umbenennen, ws_bereich_entfernen,
         ws_pflanze_anlegen, ws_pflanze_bearbeiten, ws_pflanze_entfernen,
         ws_aufgabe_anlegen, ws_aufgabe_erledigen,
