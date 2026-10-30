@@ -717,3 +717,125 @@ test("Alte Gartendaten ohne Beobachtungen sind weiterhin lesbar", () => {
   assert.ok(card.shadowRoot.innerHTML.includes("Lavendel"));
   assert.ok(card.shadowRoot.innerHTML.includes('data-action="entwicklung-open"'));
 });
+
+
+test("DWD-Referenz zeigt beobachtete Regionaldaten und Quellen statt Pflegeratschläge", () => {
+  const card = buildCard();
+  card._tab = "kalender";
+  card._dwd = {
+    quelle: "Deutscher Wetterdienst (DWD), Climate Data Center",
+    lizenz: "CC BY 4.0",
+    abgerufen_am: "2026-10-30",
+    regionen: {
+      nordost: {label: "Nordostdeutsches Referenzgebiet (grob, 52,0–54,2° N / 12–15° O)"},
+      deutschland: {label: "Deutschlandweite DWD-Beobachtungsstationen"},
+    },
+    werte: [
+      {
+        indikator: "hasel_bluete", pflanze: "Hasel (Arten nicht unterschieden)",
+        phase: "Blütebeginn", region: "nordost", jahr: 2026,
+        median: "2026-02-20", quartil_von: "2026-02-13",
+        quartil_bis: "2026-02-25", stationen: 16,
+      },
+      {
+        indikator: "hasel_bluete", pflanze: "Hasel (Arten nicht unterschieden)",
+        phase: "Blütebeginn", region: "deutschland", jahr: 2026,
+        median: "2026-02-12", quartil_von: "2026-02-06",
+        quartil_bis: "2026-02-20", stationen: 130,
+      },
+    ],
+  };
+  card._render();
+  const html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes("DWD: Jahreszeiten im Vergleich"));
+  assert.ok(html.includes("Nordostdeutsches Referenzgebiet"));
+  assert.ok(html.includes("20.02.2026"));
+  assert.ok(html.includes("16 Stationen"));
+  assert.ok(html.includes("mittlere 50 %"));
+  assert.ok(html.includes("nur formal geprüft"));
+  assert.ok(html.includes("CC BY 4.0"));
+  assert.ok(html.includes("30.10.2026"));
+  assert.ok(html.includes("Originaldaten"));
+  assert.ok(html.includes("keine automatische Pflegeempfehlung"));
+  assert.ok(!html.includes("130 Stationen"));
+  assert.ok(!html.includes("Jetzt schneiden"));
+  assert.ok(!html.includes("Automatisch düngen"));
+});
+
+test("DWD-Vergleichsgebiet lässt sich ohne Netz- oder Nutzerdatenänderung wechseln", () => {
+  const card = buildCard();
+  card._tab = "kalender";
+  card._dwd = {
+    abgerufen_am: "2026-10-30",
+    regionen: {
+      nordost: {label: "Nordost"},
+      deutschland: {label: "Deutschland"},
+    },
+    werte: [
+      {
+        indikator: "forsythie_bluete", pflanze: "Forsythie",
+        phase: "Blütebeginn", region: "nordost", jahr: 2025,
+        median: "2025-03-25", quartil_von: "2025-03-24",
+        quartil_bis: "2025-03-27", stationen: 23,
+      },
+      {
+        indikator: "forsythie_bluete", pflanze: "Forsythie",
+        phase: "Blütebeginn", region: "deutschland", jahr: 2025,
+        median: "2025-03-12", quartil_von: "2025-03-04",
+        quartil_bis: "2025-03-20", stationen: 166,
+      },
+    ],
+  };
+  card._render();
+  assert.ok(card.shadowRoot.innerHTML.includes("25.03.2025"));
+  let requests = [];
+  card._call = (...args) => {requests.push(args);};
+  const select = {dataset: {action: "dwd-region", region: "deutschland"}};
+  card._onClick({target: {closest: () => select}});
+  assert.equal(card._dwdRegion, "deutschland");
+  assert.ok(card.shadowRoot.innerHTML.includes("12.03.2025"));
+  assert.ok(card.shadowRoot.innerHTML.includes("166 Stationen"));
+  assert.ok(!card.shadowRoot.innerHTML.includes("23 Stationen"));
+  assert.deepEqual(requests, []);
+  const wrong = {dataset: {action: "dwd-region", region: "privatadresse"}};
+  card._onClick({target: {closest: () => wrong}});
+  assert.equal(card._dwdRegion, "deutschland");
+});
+
+test("Abwesende DWD-Daten beeinflussen weder Pflanzen noch Aufgaben", () => {
+  const card = buildCard();
+  card._tab = "kalender";
+  card._dwd = null;
+  card._data.aufgaben = [{
+    id: "t1", name: "Eigene Kontrolle",
+    status: "offen", faellig_am: "2026-11-02",
+  }];
+  card._render();
+  const html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes("Eigene Kontrolle"));
+  assert.ok(!html.includes("DWD: Jahreszeiten im Vergleich"));
+});
+
+test("DWD-Beobachtungslabels werden HTML-sicher dargestellt", () => {
+  const card = buildCard();
+  card._tab = "kalender";
+  card._dwd = {
+    abgerufen_am: "2026-10-30",
+    regionen: {
+      nordost: {label: '<script>alert(1)</script>'},
+      deutschland: {label: "Deutschland"},
+    },
+    werte: [{
+      indikator: "hasel_bluete", pflanze: '<img src=x onerror=alert(1)>',
+      phase: "Blütebeginn", region: "nordost", jahr: 2026,
+      median: "2026-03-01", quartil_von: "2026-02-27",
+      quartil_bis: "2026-03-03", stationen: 9,
+    }],
+  };
+  card._render();
+  const html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes("&lt;img"));
+  assert.ok(html.includes("&lt;script&gt;"));
+  assert.ok(!html.includes("<script>alert(1)</script>"));
+  assert.ok(!html.includes("<img src=x"));
+});
