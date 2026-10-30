@@ -109,6 +109,18 @@ class TestDynamischeSuche(unittest.IsolatedAsyncioTestCase):
         self.service = Pflanzensuche(object())
         self.service._gbif = AsyncMock(return_value=[])
 
+    async def test_relevanz_der_api_statt_alphabetischer_sortierung(self):
+        self.service._i_nat = AsyncMock(return_value=[
+            {"wissenschaftlich": "Malus domestica", "deutsch": "",
+             "bestaetigt": True, "quellen": ["iNaturalist"]},
+            {"wissenschaftlich": "Malus angustifolia", "deutsch": "",
+             "bestaetigt": True, "quellen": ["iNaturalist"]},
+        ])
+        self.service._wikidata = AsyncMock(return_value=[])
+        self.service._gbif = AsyncMock(return_value=[])
+        result = await self.service.async_suchen("Apfelbaum")
+        self.assertEqual(result["pflanzen"][0]["wissenschaftlich"], "Malus domestica")
+
     async def test_deutsche_suche_ueber_wikidata_mit_verifikation(self):
         self.service._i_nat = AsyncMock(side_effect=[
             [],
