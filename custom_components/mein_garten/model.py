@@ -395,6 +395,7 @@ class GartenDaten:
                 "quelle": "OpenPlantDB",
                 "lizenz": "CC0 1.0",
                 "quell_commit": quell_commit,
+                "wissenschaftlich": wissenschaftlich,
                 "katalog_id": saison_id,
                 "anker_jahr": anker_jahr,
                 "fenster_von": fenster_von,
