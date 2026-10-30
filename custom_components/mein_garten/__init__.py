@@ -188,6 +188,22 @@ async def async_setup_entry(hass, entry) -> bool:
     hass.data[DOMAIN]["hinweise"] = hinweise
     hass.data[DOMAIN]["saison"] = saison
 
+    from .dwd_reference import DwdPhaenologie
+
+    # Externe Klimastationsdaten sind ein rein informativer Zusatz.
+    # Ein beschädigter optionaler Snapshot darf weder die lokale
+    # Gartenverwaltung noch den manuellen Pflegekalender blockieren.
+    dwd = DwdPhaenologie(hass)
+    try:
+        await dwd.async_laden()
+        hass.data[DOMAIN]["dwd_phaenologie"] = dwd
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception(
+            "Mein Garten: optionale DWD-Phänologiereferenz konnte nicht geladen werden"
+        )
+        hass.data[DOMAIN].pop("dwd_phaenologie", None)
+
     from homeassistant.helpers.event import async_track_time_change
     from homeassistant.core import callback
 
@@ -245,4 +261,5 @@ async def async_unload_entry(hass, entry) -> bool:
     hass.data.get(DOMAIN, {}).pop("pflege", None)
     hass.data.get(DOMAIN, {}).pop("hinweise", None)
     hass.data.get(DOMAIN, {}).pop("saison", None)
+    hass.data.get(DOMAIN, {}).pop("dwd_phaenologie", None)
     return True
