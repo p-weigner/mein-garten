@@ -663,6 +663,10 @@
         (linked ? " · " + escapeHtml(linked.name) : "") +
         (task.herkunft === "wetterprognose" ?
           ' <span class="tag">Wetterprognose, keine bestätigte Frostwarnung</span>' : "") +
+        (task.pflegebezug ?
+          ' <span class="tag">Quellenhinweis: ' +
+          escapeHtml(task.pflegebezug.quelle || "unbekannt") +
+          ' · nicht fachlich geprüft</span>' : "") +
         (overdue ? ' <span class="tag">Überfällig</span>' : "") +
         (isDone && task.ergebnis === "gegossen" ? ' <span class="chip">Gegossen</span>' : "") +
         (isDone && task.ergebnis === "kontrolliert_kein_wasser" ?
