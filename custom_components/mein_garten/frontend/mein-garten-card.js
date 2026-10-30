@@ -598,8 +598,8 @@
         (veraltete === 1 ? ' Pflegefeld stammt' : ' Pflegefelder stammen') +
         ' nur aus älteren gespeicherten Übersetzungen. ' +
         (veraltete === 1 ? 'Es wurde' : 'Sie wurden') +
-        ' beim letzten Abruf nicht neu bestätigt und kann' +
-        (veraltete === 1 ? '' : 'en') +
+        ' beim letzten Abruf nicht neu bestätigt und ' +
+        (veraltete === 1 ? 'kann' : 'können') +
         ' nicht für neue Jahreskontrollen übernommen werden. ' +
         'Die übrigen neu verfügbaren Angaben bleiben separat sichtbar.</div>' : "";
       const luecken = fehlende > 0 && fields.length ?
