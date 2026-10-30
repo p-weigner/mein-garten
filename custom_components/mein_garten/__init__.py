@@ -204,6 +204,22 @@ async def async_setup_entry(hass, entry) -> bool:
         )
         hass.data[DOMAIN].pop("dwd_phaenologie", None)
 
+    from .standort import StandortService
+
+    # Der strukturierte CC0-Standortkatalog ist ein reiner Hinweis. Bei
+    # Beschädigung bleibt die bisherige Gartenverwaltung inklusive der
+    # bestehenden OpenPlantbook-Pflegeprofile erreichbar.
+    standort = StandortService(hass)
+    try:
+        await standort.async_laden()
+        hass.data[DOMAIN]["standort"] = standort
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception(
+            "Mein Garten: optionaler CC0-Standortkatalog nicht verfügbar"
+        )
+        hass.data[DOMAIN].pop("standort", None)
+
     from homeassistant.helpers.event import async_track_time_change
     from homeassistant.core import callback
 
@@ -262,4 +278,5 @@ async def async_unload_entry(hass, entry) -> bool:
     hass.data.get(DOMAIN, {}).pop("hinweise", None)
     hass.data.get(DOMAIN, {}).pop("saison", None)
     hass.data.get(DOMAIN, {}).pop("dwd_phaenologie", None)
+    hass.data.get(DOMAIN, {}).pop("standort", None)
     return True
