@@ -156,9 +156,14 @@ class TestBenachrichtigungen(unittest.IsolatedAsyncioTestCase):
             states=types.SimpleNamespace(get=self.states.get),
             services=self.services,
         )
-        self.backend = types.SimpleNamespace(snapshot=lambda: {
-            "pflanzen": [], "aufgaben": [],
-        })
+        self.geplante_frostpruefungen = []
+        async def registrieren(datum, temperatur, schwelle):
+            self.geplante_frostpruefungen.append((datum, temperatur, schwelle))
+            return True
+        self.backend = types.SimpleNamespace(
+            snapshot=lambda: {"pflanzen": [], "aufgaben": []},
+            async_frostpruefung_anlegen=registrieren,
+        )
         self.hinweise = GartenHinweise(self.hass, self.backend)
         MemoryStore.saved = None
         self.jetzt = datetime.fromisoformat("2026-10-30T15:00:00+00:00")
@@ -193,6 +198,8 @@ class TestBenachrichtigungen(unittest.IsolatedAsyncioTestCase):
         actions = [c for c in self.services.calls if c[0] == "notify"]
         self.assertEqual(len(actions), 1)
         self.assertIn("etwa -1.0 °C", actions[0][2]["message"])
+        self.assertEqual(len(self.geplante_frostpruefungen), 1)
+        self.assertEqual(self.geplante_frostpruefungen[0][1], -1)
         weather_calls = [c for c in self.services.calls if c[0] == "weather"]
         self.assertEqual(weather_calls[0][3]["target"], {"entity_id": "weather.home"})
 
