@@ -302,8 +302,11 @@ class TestPflegeManuelleAktualisierung(unittest.IsolatedAsyncioTestCase):
         service._fetch.assert_not_awaited()
 
 
-class TestPflegeTeilantworten(TestPflegeManuelleAktualisierung):
+class TestPflegeTeilantworten(unittest.IsolatedAsyncioTestCase):
     """Einzelfeld-Historie für teilweise fehlende Pflegeinformationen."""
+
+    make_service = TestPflegeManuelleAktualisierung.make_service
+    result = TestPflegeManuelleAktualisierung.result
 
     def _prepare(self, service):
         previous = service._result("Rosa canina", "ok", {
