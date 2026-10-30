@@ -987,3 +987,71 @@ test("Botanische Namen aus dem Standort-Snapshot sind HTML-escaped", () => {
   assert.ok(!html.includes('<img src=x onerror'));
   assert.ok(!html.includes("automatisches Gießen"));
 });
+
+
+test("Pflegewissen zeigt eigene Notizen lokal und HTML-sicher trotz Quellenausfall", () => {
+  const card = buildCard();
+  card._carePlant = "p1";
+  card._data.pflanzen = [{
+    id: "p1", name: "Hortensie", wissenschaftlich: "Hydrangea macrophylla",
+    notizen: '<script>alert("privat")</script>',
+  }];
+  card._care = { status: "quelle_nicht_erreichbar", felder: {} };
+  const html = card._careHTML();
+  assert.ok(html.includes("Deine Pflanzennotizen"));
+  assert.ok(html.includes("&lt;script&gt;"));
+  assert.ok(!html.includes('<script>alert("privat")</script>'));
+  assert.ok(html.includes('data-action="plant-edit" data-id="p1"'));
+  assert.ok(html.includes("OpenPlantbook ist momentan nicht erreichbar"));
+  assert.ok(!html.includes("Automatisch übersetzt, nicht fachlich geprüft"));
+});
+
+test("Teilweise übersetzte Pflegehinweise zeigen nur echte Texte statt Leer-Karten", () => {
+  const card = buildCard();
+  card._carePlant = "p2";
+  card._data.pflanzen = [{
+    id: "p2", name: "Rose", wissenschaftlich: "Rosa canina", notizen: "",
+  }];
+  card._care = {
+    status: "teilweise", felder: {
+      watering: {titel: "Gießen", text: "Bei Bedarf kontrollieren.", status: "maschinenuebersetzt"},
+      pruning: {titel: "Schnitt", text: null, status: "keine_angabe"},
+      fertilization: {titel: "Düngung", text: null, status: "uebersetzung_ausstehend"},
+    },
+  };
+  const html = card._careHTML();
+  assert.ok(html.includes("Bei Bedarf kontrollieren."));
+  assert.ok(html.includes("Maschinell übersetzt"));
+  assert.ok(html.includes("2 von 3 Pflegefeldern"));
+  assert.ok(!html.includes("Keine Angabe verfügbar."));
+  assert.ok(html.includes("data-action=\"care-plan\""));
+});
+
+test("Keine deutschen Pflegefreitexte führen zu ehrlicher Meldung und Notiz-Zugriff", () => {
+  const card = buildCard();
+  card._carePlant = "p3";
+  card._data.pflanzen = [{
+    id: "p3", name: "Felsenbirne", wissenschaftlich: "Amelanchier lamarckii", notizen: "",
+  }];
+  card._care = { status: "kein_deutscher_text", felder: {
+    sunlight: {titel: "Licht und Standort", text: null, status: "keine_angabe"},
+  }};
+  const html = card._careHTML();
+  assert.ok(html.includes("Keine weiteren deutschen Pflegehinweise"));
+  assert.ok(html.includes('data-action="plant-edit" data-id="p3"'));
+  assert.ok(html.includes("1 von 1 Pflegefeldern"));
+  assert.ok(!html.includes('data-action="care-plan"'));
+});
+
+test("Während des Übersetzens bleiben lokale Pflanzennotizen sichtbar", () => {
+  const card = buildCard();
+  card._carePlant = "p4";
+  card._data.pflanzen = [{
+    id: "p4", name: "Lavendel", wissenschaftlich: "Lavandula angustifolia",
+    notizen: "Standort am Zaun",
+  }];
+  card._careLoading = true;
+  const html = card._careHTML();
+  assert.ok(html.includes("Standort am Zaun"));
+  assert.ok(html.includes("Deutsche Pflegeinformationen werden geladen"));
+});
