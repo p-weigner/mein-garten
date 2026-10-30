@@ -294,9 +294,7 @@ class PflegeService:
                     age = now - updated
                     # Ein vollständig übersetztes Profil ist für die
                     # normale Gültigkeitsdauer nicht erneut abzufragen.
-                    if timedelta(0) <= age < ttl and (
-                        not aktualisieren or stored["status"] == "ok"
-                    ):
+                    if timedelta(0) <= age < ttl and not aktualisieren:
                         return deepcopy(stored)
                 except (ValueError, KeyError, TypeError):
                     pass
@@ -310,7 +308,8 @@ class PflegeService:
                     attempts = {}
                     self._auffrischungen = attempts
                 last = attempts.get(cache_key)
-                if last is not None and now - last < timedelta(minutes=MANUAL_REFRESH_MINUTES):
+                if (last is not None and timedelta(0) <= now - last
+                        < timedelta(minutes=MANUAL_REFRESH_MINUTES)):
                     result = deepcopy(stored) if cached else self._result(
                         species, "aktualisierung_zu_frueh"
                     )
@@ -321,12 +320,21 @@ class PflegeService:
                     del attempts[min(attempts, key=attempts.get)]
 
             result = await self._fetch(species)
-            # Ein temporärer Ausfall löscht keine zuvor tatsächlich geladenen
-            # deutschen Texte. Der genaue Ausfallstatus ist für die UI sichtbar.
-            if result["status"] in TRANSIENT_SOURCE_ERRORS and cached:
+            # Eine neue Quellantwort ohne brauchbare deutsche Hinweise darf
+            # nicht die letzte tatsächlich vorhandene Übersetzung verdrängen.
+            # Die Anzeige markiert in diesem Fall die alten Inhalte ausdrücklich
+            # als zwischengespeichert und den letzten problematischen Abruf.
+            if cached and (
+                result["status"] in TRANSIENT_SOURCE_ERRORS
+                or not any(
+                    isinstance(field, dict) and isinstance(field.get("text"), str)
+                    and field["text"].strip()
+                    for field in result.get("felder", {}).values()
+                )
+            ):
                 if any(
                     isinstance(field, dict) and isinstance(field.get("text"), str)
-                    and bool(field["text"].strip())
+                    and field["text"].strip()
                     for field in stored["felder"].values()
                 ):
                     previous = deepcopy(stored)
