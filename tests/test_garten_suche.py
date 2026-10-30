@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 from custom_components.mein_garten.search import (
     Pflanzensuche, _dedupe, _inat_results, _norm, _plant_name,
-    _wikidata_taxa,
+    _wikidata_taxa, _gbif_results,
 )
 
 
@@ -32,6 +32,17 @@ class TestTaxonParsing(unittest.TestCase):
             {"name": "Fragaria × ananassa", "rank": "hybrid", "id": 5}
         ]})
         self.assertEqual(result[0]["wissenschaftlich"], "Fragaria × ananassa")
+
+    def test_gbif_nur_pflanzenarten(self):
+        values = _gbif_results([
+            {"rank": "SPECIES", "kingdom": "Plantae",
+             "canonicalName": "Hydrangea macrophylla", "key": 12},
+            {"rank": "GENUS", "kingdom": "Plantae", "canonicalName": "Hydrangea"},
+            {"rank": "SPECIES", "kingdom": "Animalia",
+             "canonicalName": "Vespa crabro"},
+        ])
+        self.assertEqual(len(values), 1)
+        self.assertEqual(values[0]["wissenschaftlich"], "Hydrangea macrophylla")
 
     def test_ungueltige_api_antwort(self):
         with self.assertRaises(ValueError):
@@ -96,6 +107,7 @@ class TestTaxonParsing(unittest.TestCase):
 class TestDynamischeSuche(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.service = Pflanzensuche(object())
+        self.service._gbif = AsyncMock(return_value=[])
 
     async def test_deutsche_suche_ueber_wikidata_mit_verifikation(self):
         self.service._i_nat = AsyncMock(side_effect=[
