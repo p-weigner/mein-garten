@@ -7,6 +7,8 @@ außer dem Suchbegriff; kein API-Schlüssel notwendig.
 from __future__ import annotations
 
 import asyncio
+from copy import deepcopy
+from datetime import datetime, timedelta, timezone
 from time import monotonic
 import logging
 import re
@@ -18,6 +20,9 @@ _WIKIDATA = "https://www.wikidata.org/w/api.php"
 _GBIF = "https://api.gbif.org/v1/species/suggest"
 _TTL = 900.0
 _MAX_CACHE = 100
+_DISK_CACHE = 300
+_LOCAL_TTL_DAYS = 365
+_LOCAL_STORAGE_KEY = "mein_garten_namen_v1.data"
 _PLANT_TAXON = 47126
 _SPECIES_RANKS = {"species", "hybrid", "subspecies", "variety", "form"}
 _QID = re.compile(r"^Q[1-9][0-9]*$")
@@ -143,12 +148,86 @@ def _gbif_results(payload: Any) -> list[dict]:
 
 
 class Pflanzensuche:
-    """Kurzzeit-Cache verhindert unnötige API-Last beim Tippen."""
+    """15-Minuten-RAM-Cache und persistente, nur positive deutsche Namenstreffer."""
 
     def __init__(self, hass):
         self.hass = hass
         self._cache: dict[str, tuple[float, dict]] = {}
         self._lock = asyncio.Lock()
+        self._store = None
+        self._lokale_queries: dict[str, dict] = {}
+
+    async def async_laden(self) -> None:
+        """Positive Artentaxa sind offline verfügbar, ohne eine feste Artenliste."""
+        from homeassistant.helpers.storage import Store
+
+        store = Store(self.hass, 1, _LOCAL_STORAGE_KEY)
+        saved = await store.async_load()
+        if saved is not None:
+            if (not isinstance(saved, dict) or saved.get("version") != 1
+                    or not isinstance(saved.get("queries"), dict)):
+                raise ValueError("Unbekanntes Format des Garten-Namenscaches")
+            for key, record in saved["queries"].items():
+                if (not isinstance(key, str) or not isinstance(record, dict)
+                        or not isinstance(record.get("zeit"), str)
+                        or not isinstance(record.get("pflanzen"), list)):
+                    continue
+                try:
+                    when = datetime.fromisoformat(record["zeit"])
+                except ValueError:
+                    continue
+                if when.tzinfo is None or datetime.now(timezone.utc) - when > timedelta(days=_LOCAL_TTL_DAYS):
+                    continue
+                items = [
+                    deepcopy(p) for p in record["pflanzen"][:15]
+                    if isinstance(p, dict)
+                    and _plant_name(p.get("wissenschaftlich"))
+                    and isinstance(p.get("deutsch"), str)
+                    and isinstance(p.get("bestaetigt"), bool)
+                    and isinstance(p.get("quellen"), list)
+                ]
+                if items:
+                    self._lokale_queries[key] = {"zeit": record["zeit"], "pflanzen": items}
+                if len(self._lokale_queries) >= _DISK_CACHE:
+                    break
+        self._store = store
+
+    def _lokale_treffer(self, query: str) -> list[dict]:
+        """Frühere exakte Treffer und längere Namensvarianten als Fallback."""
+        term = _norm(query)
+        result = []
+        for key, rec in self._lokale_queries.items():
+            if key != term and not (len(term) >= 4 and key.startswith(term)):
+                continue
+            result.extend(deepcopy(rec["pflanzen"]))
+            if len(result) >= 50:
+                break
+        return _dedupe(result)
+
+    async def _sichere_treffer(self, key: str, candidates: list[dict]) -> None:
+        if self._store is None or not candidates:
+            return
+        # Keine Negativantworten, privaten Notizen oder Zugangsdaten persistieren.
+        items = [{
+            "wissenschaftlich": p["wissenschaftlich"],
+            "deutsch": p["deutsch"],
+            "bestaetigt": p["bestaetigt"],
+            "quellen": list(p["quellen"]),
+        } for p in candidates[:15]]
+        neu = deepcopy(self._lokale_queries)
+        neu[key] = {
+            "zeit": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "pflanzen": items,
+        }
+        if len(neu) > _DISK_CACHE:
+            oldest = min(neu, key=lambda k: neu[k]["zeit"])
+            del neu[oldest]
+        try:
+            await self._store.async_save({"version": 1, "queries": neu})
+        except Exception:
+            _LOGGER.exception("Mein Garten: Namenscache konnte nicht geschrieben werden")
+            return
+        self._lokale_queries = neu
 
     async def _json(self, url: str, **params: Any) -> Any:
         from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -223,7 +302,7 @@ class Pflanzensuche:
         query = _WS.sub(" ", query.strip())
         if not 2 <= len(query) <= 80:
             raise ValueError("Der Suchbegriff muss 2 bis 80 Zeichen enthalten")
-        key = query.casefold()
+        key = _norm(query)
         cached = self._cache.get(key)
         if cached and monotonic() - cached[0] < _TTL:
             return dict(cached[1])
@@ -251,7 +330,11 @@ class Pflanzensuche:
                     gbif = data
             if wikidata:
                 wikidata = await self._verify_wikidata(wikidata)
-            all_items = _dedupe(inat + wikidata + gbif)
+            netz_treffer = _dedupe(inat + wikidata + gbif)
+            offline_treffer = self._lokale_treffer(query)
+            all_items = _dedupe(netz_treffer + offline_treffer)
+            if offline_treffer and notes:
+                notes.append("Vorhandene Pflanzennamen aus lokalem Cache ergänzt")
             # Botanisch validierte Kandidaten und treffende deutsche Namen zuerst.
             all_items.sort(key=lambda x: (
                 not x["bestaetigt"],
@@ -265,7 +348,10 @@ class Pflanzensuche:
                 "quellenstatus": notes,
                 "hinweis": "Die Art vor dem Übernehmen prüfen; ähnliche Arten können andere Pflege benötigen.",
             }
-            self._cache[key] = (monotonic(), result)
-            if len(self._cache) > _MAX_CACHE:
-                self._cache.pop(next(iter(self._cache)))
+            if all_items or not notes:
+                self._cache[key] = (monotonic(), result)
+                if len(self._cache) > _MAX_CACHE:
+                    self._cache.pop(next(iter(self._cache)))
+            if netz_treffer:
+                await self._sichere_treffer(key, all_items)
             return dict(result)
