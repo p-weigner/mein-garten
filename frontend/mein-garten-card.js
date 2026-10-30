@@ -566,7 +566,9 @@
         'zeigt Datenabdeckung, keine Garantie für die Kulturpraxis.</div>' +
         '<p class="small">Quelle: <a href="https://doi.org/10.5281/zenodo.7534792" ' +
         'target="_blank" rel="noopener noreferrer">Dengler et al. (2023), ' +
-        'EIVE 1.0</a> · CC BY 4.0 · gerundete Werte, exakte Artenzuordnung</p>' +
+        'EIVE 1.0</a> · <a href="https://creativecommons.org/licenses/by/4.0/" ' +
+        'target="_blank" rel="noopener noreferrer">CC BY 4.0</a> · ' +
+        'gerundete Werte, exakte Artenzuordnung</p>' +
         '</section>';
     }
 
