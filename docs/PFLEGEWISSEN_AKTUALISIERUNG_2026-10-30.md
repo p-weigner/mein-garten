@@ -39,12 +39,12 @@ OpenPlantbook kann zeitweise keine Art finden, eine fehlerhafte Antwort liefern 
 
 ## Testnachweis
 
-Der erfolgreiche Basislauf von **328 Python- und 56 Frontend-Tests** bleibt als Vorversion dokumentiert. Die erweiterte Einzelfeld-Historie erhält einen neuen Gesamttestlauf, der separat abzunehmen ist.
+Die erweiterte Einzelfeld-Historie ist im [erfolgreichen Gesamt-Testlauf 41082016491](https://github.com/p-weigner/mein-garten/actions/runs/41082016491) mit **334 Python- und 60 Frontend-Tests**, jeweils ohne Fehler, geprüft. Das neue vollständige Alpha-Testpaket wurde als GitHub-Actions-Artefakt erzeugt. Der frühere Basislauf [41077570176](https://github.com/p-weigner/mein-garten/actions/runs/41077570176) bleibt als Vergleich erhalten.
 
-[Erfolgreicher GitHub-Actions-Lauf 41077570176](https://github.com/p-weigner/mein-garten/actions/runs/41077570176):
+[Aktueller erfolgreicher GitHub-Actions-Lauf 41082016491](https://github.com/p-weigner/mein-garten/actions/runs/41082016491):
 
-- **328 Python-Tests bestanden**, keine Fehler;
-- **56 Node-/Frontend-Tests bestanden**, keine Fehler;
+- **334 Python-Tests bestanden**, keine Fehler;
+- **60 Node-/Frontend-Tests bestanden**, keine Fehler;
 - Python-Kompilierung, JavaScript-Syntax und bytegleiche gespiegelte Frontend-Dateien bestanden;
 - HA-2026.10-Probatio-WebSocket-Schema-Prüfung mit echter Bibliothek bestanden;
 - vollständiges Alpha-Testpaket erzeugt.
