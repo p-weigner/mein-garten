@@ -6,7 +6,25 @@ niemals Termine. Keine verlorenen Termine beim Neustart, keine Duplikate.
 """
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+
+def lokaler_kalendertag(zeitpunkt: datetime, zeitzone: str) -> date:
+    """Planungsdatum immer aus der Home-Assistant-Zeitzone ableiten.
+
+    Dadurch bleiben Fälligkeiten auch um 00:05 MESZ/MEZ korrekt, wenn
+    die Host-Umgebung intern UTC nutzt.
+    """
+    if not isinstance(zeitpunkt, datetime) or zeitpunkt.tzinfo is None:
+        raise ValueError("Zeitpunkt muss eine Zeitzone enthalten")
+    if not isinstance(zeitzone, str) or not zeitzone:
+        raise ValueError("Home-Assistant-Zeitzone fehlt")
+    try:
+        return zeitpunkt.astimezone(ZoneInfo(zeitzone)).date()
+    except ZoneInfoNotFoundError as exc:
+        raise ValueError("Unbekannte Home-Assistant-Zeitzone") from exc
+
 
 
 def termin_fuer_regel(regel: dict, heute: date) -> date | None:
