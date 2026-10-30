@@ -217,6 +217,7 @@ class GartenDaten:
         self, name: str, startdatum: str, rhythmus: str,
         intervall_tage: int | None = None,
         pflanzen_id: str | None = None, bereich_id: str | None = None,
+        pflegefeld: str | None = None,
     ) -> dict:
         """Nur explizit bestätigte Benutzerregeln, nie aus externen Freitexten."""
         name = _text(name, "Regelname", 200)
@@ -236,6 +237,11 @@ class GartenDaten:
             _existiert(self._data["pflanzen"], pflanzen_id, "Pflanze")
         if bereich_id is not None:
             _existiert(self._data["bereiche"], bereich_id, "Bereich")
+        if pflegefeld is not None:
+            if pflegefeld not in {"watering", "sunlight", "soil", "pruning", "fertilization"}:
+                raise DatensatzFehler("Unbekanntes Pflegefeld")
+            if pflanzen_id is None:
+                raise DatensatzFehler("Ein Pflegehinweis muss einer Pflanze zugeordnet sein")
         if len(self._data["regeln"]) >= 200:
             raise DatensatzFehler("Maximale Anzahl an Pflegewiederholungen erreicht")
         regel = {
@@ -250,6 +256,12 @@ class GartenDaten:
             "uebersprungen": [],
             "erstellt_utc": _jetzt(),
             "herkunft": "benutzerregel",
+            "pflegebezug": ({
+                "quelle": "OpenPlantbook",
+                "feld": pflegefeld,
+                "pruefstatus": "nicht_fachlich_geprueft",
+                "freigabe": "manuell_durch_benutzer",
+            } if pflegefeld else None),
         }
         self._data["regeln"].append(regel)
         return deepcopy(regel)
