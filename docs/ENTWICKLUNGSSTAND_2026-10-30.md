@@ -8,6 +8,7 @@
 |---|---|
 | Pflanzensuche | iNaturalist + Wikidata + wissenschaftliche GBIF-Suche + GBIF-Trivialnamensindex; Trivialnamen ausschließlich für akzeptierte botanische Pflanzenarten aus dem GBIF-Backbone, Mehrdeutigkeiten im Dashboard sichtbar; deutsche positive Treffer in begrenztem lokalen Namenscache für 365 Tage und als Präfix-Fallback bei API-Ausfall |
 | Pflegeprofile | Per Pflanzenkarte abrufbar; bestehende Home-Assistant-OpenPlantbook-Integration, `search` und `get` mit `include: care`; strenger botanischer Artabgleich; fünf Pflegefelder |
+| CC0-Standort-Steckbriefe | **10.642 botanische Arten** aus einem kleinen, festen OpenPlantDB-Offline-Datensatz. Allgemeine Licht-, Wasser-, Frosttoleranz- und Wachstums-Kategorien erscheinen im Pflegewissen **sofort und ohne OpenPlantbook**. Bei widersprüchlichen Sortenwerten werden die jeweiligen Felder weggelassen; keine automatische Bewässerung oder regional behauptete Winterhärte |
 | Deutsch | Automatische Übersetzung der externen Pflegefelder über MyMemory, maximal 5.000 Zeichen pro Tag, lokal begrenzter privater Cache; ausstehende oder nicht vorhandene Angaben werden als solche angezeigt |
 | Wiederholungen | Benutzerdefinierte Regeln alle 1–365 Tage oder jährlich; erster Termin ausdrücklich vom Benutzer angegeben; nicht doppelt bei Neustart; Pause und Löschung |
 | Pflegewissen → Termin | Aus einem deutschen Pflegefeld lässt sich eine **Jahreskontrolle** erstellen. Der Termin wird erst nach eigener Datumseingabe angelegt, und der Bezug auf die nicht fachlich geprüfte Quelle bleibt sichtbar |
@@ -48,6 +49,16 @@ Keine Codeänderung für neu angelegte Pflanzen. Die persönlichen Gartennotizen
 - Bei Sammelnamen (z. B. „Felsenbirne“) liefert der Trivialnamensindex mehrere botanisch akzeptierte Arten. Eine akzeptierte Art ist kein Beweis, dass der deutsche Sammelname eindeutig wäre; die Nutzerin wählt die tatsächliche Art.
 - Das Wikimedia-/Wikidata-Fallback wurde in einer separaten Live-Diagnose untersucht, lieferte in der GitHub-Runner-Umgebung nur HTTP-Fehler und wird deshalb **nicht** als zusätzliche Abhängigkeit in die Suchlogik integriert.
 - [50 Testarten](../daten/pflanzensuche_50_de.json), [reproduzierbarer Live-Test](../tools/pflanzensuche_50_live.py) und [Quellen-/Lizenzprüfung](FACHQUELLEN_FREIGABE_2026-10-30.md).
+
+## Strukturierte Standort-Grundlagen ohne fremde Pflegefreitexte
+
+- **10.642 botanisch eindeutige Arten** mit mindestens einer verwendbaren CC0-Standortkategorie, aus dem fest versionierten OpenPlantDB-Stand mit 34.841 Rohdatensätzen. Nur eine etwa 645 KB große Offline-Datei in der Integration; Hash und Quellcommit sind gepinnt.
+- Die 50 deutschen Testpflanzen erhalten nun **46 Profile mit mindestens einer Angabe**, davon **37 mit Licht und Wasser zugleich**. Das ist deutlich breiter als die nur **15/50** saisonal unterstützten Arten.
+- Quellkonflikte werden je Feld ausgeschlossen statt gemittelt: Licht bei 133 Arten, Wasser bei 148, Frostkategorie bei 117, Wachstumsgruppe bei 74. Beispiel *Hydrangea macrophylla*: Licht vorhanden, Wasser aus widersprüchlichen Werten **nicht** übernommen.
+- Das Dashboard zeigt die Basisangaben sofort in **Pflanzen → Pflegewissen**, auch wenn OpenPlantbook nicht eingerichtet oder erreichbar ist. Die separaten übersetzten OpenPlantbook-Texte bleiben optisch und fachlich als eigene Quelle gekennzeichnet.
+- **Keine** neuen Standortabfragen, API-Schlüssel oder Monatsgebühren. Die WebSocket-Antwort überträgt nur Profilwerte zu **den eigenen erfassten Pflanzen**, nicht alle 10.642 Arten.
+- Sonnen-, Wasser- und Frostkategorien sind allgemeine Quellangaben, keine für Brandenburg geprüften Pflege-, Bewässerungs- oder Winterhärteanweisungen. Daraus entstehen **keine** automatischen Aufgaben.
+- [Vollständige Abdeckung, Qualitätsmessung, Quelle und Lizenz](STANDORTWISSEN_CC0_2026-10-30.md).
 
 ## Amtliche DWD-Phänologie als separater, read-only Regionalvergleich
 
