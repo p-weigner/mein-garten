@@ -2,15 +2,6 @@ name: Mein Garten – GBIF Trivialnamen-Diagnose
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - codex/garten-pflegewissen-und-suche-20261030
-    paths:
-      - ".github/workflows/gbif-trivialnamen-probe.yml"
-      - "tools/gbif_trivialnamen_probe.py"
-      - "tools/gbif_quellenrang_probe.py"
-      - "tools/deutsche_schreibweisen_probe.py"
-      - "tools/schreibvarianten_quellen_probe.py"
 
 permissions:
   contents: read
