@@ -546,3 +546,30 @@ test("Die tatsächliche Saisonabdeckung eigener Pflanzen bleibt sichtbar", () =>
   assert.ok(!html.includes("<Rispenhortensie>"));
   assert.ok(html.includes("weiterhin mit eigenen Aufgaben"));
 });
+
+
+test("Vergangene Saisonfenster werden nicht erneut zur Planung angeboten", () => {
+  const card = buildCard();
+  card._tab = "kalender";
+  const proposal = {
+    pflanzen_id: "p1", pflanze: "Tomate",
+    wissenschaftlich: "Solanum lycopersicum", katalog_id: "tomato",
+    titel: "Vorziehen prüfen", fenster_von: "2027-03-20",
+    fenster_bis: "2027-04-03", abgelaufen: true, vorgemerkt: false,
+  };
+  card._data.pflanzen = [{id: "p1", name: "Tomate"}];
+  card._saison = {
+    anker: {last_frost: "2027-05-15", first_frost: ""},
+    katalog_arten: 1292,
+    vorschlaege: [proposal],
+  };
+  card._render();
+  const html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes("bereits in der Vergangenheit"));
+  assert.ok(html.includes("Vergangen"));
+  assert.ok(html.includes('data-action="saison-plan"'));
+  assert.match(html, /data-action="saison-plan"[^>]*disabled/);
+  const btn = {dataset: {action: "saison-plan", id: "p1", katalog: "tomato"}};
+  card._onClick({target: {closest: () => btn}});
+  assert.equal(card._modal, null);
+});
