@@ -83,6 +83,7 @@ class GartenBackend:
             "aufgabe_anlegen", "aufgabe_erledigen", "aufgabe_wieder_oeffnen",
             "aufgabe_entfernen",
             "regel_anlegen", "regel_aktiv_setzen", "regel_entfernen",
+            "saisonpruefung_anlegen",
         }
         if methode not in erlaubte:
             raise ValueError("Nicht erlaubte Datenoperation")
@@ -163,7 +164,18 @@ async def async_setup_entry(hass, entry) -> bool:
     hass.data.setdefault(DOMAIN, {})["backend"] = backend
     hass.data[DOMAIN]["suche"] = suche
     hass.data[DOMAIN]["pflege"] = pflege
+    from .season import SaisonService
+
+    saison = SaisonService(hass, backend)
+    try:
+        await saison.async_laden()
+    except Exception as exc:
+        raise ConfigEntryNotReady(
+            "Mein Garten: Saisonkalender konnte nicht sicher geladen werden"
+        ) from exc
+
     hass.data[DOMAIN]["hinweise"] = hinweise
+    hass.data[DOMAIN]["saison"] = saison
 
     from homeassistant.helpers.event import async_track_time_change
     from homeassistant.core import callback
@@ -221,4 +233,5 @@ async def async_unload_entry(hass, entry) -> bool:
     hass.data.get(DOMAIN, {}).pop("suche", None)
     hass.data.get(DOMAIN, {}).pop("pflege", None)
     hass.data.get(DOMAIN, {}).pop("hinweise", None)
+    hass.data.get(DOMAIN, {}).pop("saison", None)
     return True
