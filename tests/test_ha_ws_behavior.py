@@ -321,5 +321,64 @@ class TestGartenWebsocket(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(self.connection.results)
 
 
+    async def test_entwicklungsphase_per_websocket_speichert_ha_benutzer(self):
+        plant = self.backend.model.pflanze_anlegen(
+            "Bauernhortensie", "Hydrangea macrophylla"
+        )
+        await self.api.ws_beobachtung_anlegen(self.hass, self.connection, {
+            "id": 41,
+            "pflanzen_id": plant["id"],
+            "phase": "bluete_beginn",
+            "beobachtet_am": "2025-05-11",
+            "notiz": "Erste Blüten am Südbeet",
+        })
+        self.assertFalse(self.connection.errors)
+        res = self.connection.results[0][1]
+        record = res["objekt"]
+        self.assertEqual(record["quelle"], "eigene_beobachtung")
+        self.assertEqual(record["person"], "Angelina")
+        self.assertEqual(record["wissenschaftlich"], "Hydrangea macrophylla")
+        self.assertEqual(res["daten"]["beobachtungen"][0]["id"], record["id"])
+        self.assertEqual(self.backend.model.snapshot()["aufgaben"], [])
+
+    async def test_entwicklungsphase_unzulaessig_ohne_neue_art_zu_erfinden(self):
+        plant = self.backend.model.pflanze_anlegen("Lavendel", "Lavandula angustifolia")
+        await self.api.ws_beobachtung_anlegen(self.hass, self.connection, {
+            "id": 42,
+            "pflanzen_id": plant["id"],
+            "phase": "automatisch_schneiden",
+            "beobachtet_am": "2025-05-11",
+            "notiz": "",
+        })
+        self.assertEqual(self.connection.errors[0][1], "ungueltige_eingabe")
+        self.assertEqual(self.backend.model.snapshot()["beobachtungen"], [])
+
+    async def test_entwicklungskorrektur_entfernt_beobachtung_und_protokolleintrag(self):
+        plant = self.backend.model.pflanze_anlegen("Felsenbirne")
+        record = self.backend.model.beobachtung_anlegen(
+            plant["id"], "laubfaerbung", "2025-10-11",
+            person="Angelina",
+        )
+        await self.api.ws_beobachtung_entfernen(self.hass, self.connection, {
+            "id": 43, "beobachtung_id": record["id"],
+        })
+        self.assertEqual(self.connection.errors, [])
+        self.assertEqual(self.backend.model.snapshot()["beobachtungen"], [])
+        self.assertEqual(self.backend.model.snapshot()["historie"], [])
+
+    async def test_beobachtungsdaten_auch_im_live_snapshot(self):
+        plant = self.backend.model.pflanze_anlegen("Hortensie")
+        self.backend.model.beobachtung_anlegen(
+            plant["id"], "austrieb", "2025-04-05"
+        )
+        self.api.ws_get(self.hass, self.connection, {"id": 44})
+        snapshot = self.connection.results[0][1]["daten"]
+        self.assertEqual(len(snapshot["beobachtungen"]), 1)
+        self.assertIn("beobachtungen", snapshot)
+        self.api.registriere_ws_befehle(self.hass)
+        self.assertIn(self.api.ws_beobachtung_anlegen, self.registered)
+        self.assertIn(self.api.ws_beobachtung_entfernen, self.registered)
+
+
 if __name__ == "__main__":
     unittest.main()
