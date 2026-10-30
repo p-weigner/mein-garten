@@ -51,11 +51,13 @@ Keine Codeänderung für neu angelegte Pflanzen. Die persönlichen Gartennotizen
 
 ## Strukturierter Saisonkalender als Planungshilfe
 
-- Neu: **152 eindeutige CC0-Saison-Datensätze** aus OpenPlantDB, Quellcommit 99393ea2dbe8da6973434974f92863beff3bbb32 vom 5. Juli 2026 (ursprünglicher 294er-Ausgangsbestand). Der stark gewachsene aktuelle OpenPlantDB-Hauptbranch wird **nicht** ungeprüft in Home Assistant Green geladen.
+- **1.292 eindeutige CC0-Saison-Datensätze** aus zwei fest versionierten OpenPlantDB-Snapshots: 152 vom 5. Juli 2026 (`99393ea2dbe8da6973434974f92863beff3bbb32`) und 1.140 zusätzliche vom 30. Oktober 2026 (`c6287784527ebb4162e242394ee08f46d338218b`). Von 34.841 neuesten Rohdatensätzen wurden nur botanisch eindeutige Arten mit konsistentem Frostfenster in den lokalen Katalog übernommen. Kein Download der großen Quelldatei auf Home Assistant Green.
 - Botanisch exakter Artabgleich; nur die unterstützten Frostanker last_frost/first_frost und quellgebundene Wochenintervalle werden übernommen. Keine unbekannten Gattungen/Sorten oder fehlenden Daten schätzen.
 - Der Nutzer legt Frostreferenztage **selbst** fest. Die berechneten Zeitfenster sind ausdrücklich US-Planungswerte, keine lokale Brandenburg-Fachfreigabe.
 - Neue Ansicht im **Pflegekalender**: Saisonfenster, Quellen-/Lizenzinformation, Eingabe der Referenztage und manuell bestätigte Kontrollaufgaben. **Keine** automatische Aussaat, Schnittarbeit oder Düngung.
 - Ein Saisontermin ist je Pflanze, Vorlage und Referenzjahr eindeutig und enthält die Quellversionsnummer dauerhaft.
+- Für die repräsentative Liste mit 50 deutschen Gartenpflanzen bestehen inzwischen **15** fachlich noch ungeprüfte Saisonfenster (zuvor 10). Besonders Gehölze, Rosen und Stauden haben weiterhin große Datenlücken; der Kalender zeigt fehlende Artvorlagen sichtbar an.
+- Vergangene Saisonfenster werden anhand der Home-Assistant-Ortszeit markiert und können nicht erneut als „neue“ Termine angelegt werden.
 - Weitere Informationen: [CC0-Saisonfenster](SAISONFENSTER_CC0_2026-10-30.md).
 
 ## Grenzen und notwendige Abnahme
