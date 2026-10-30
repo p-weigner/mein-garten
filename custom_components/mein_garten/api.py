@@ -28,6 +28,7 @@ def _snapshot(backend, hass=None) -> dict:
     saison = data.get("saison")
     dwd = data.get("dwd_phaenologie")
     standort = data.get("standort")
+    eive = data.get("eive_europa")
     snapshot = backend.snapshot()
     return {
         "daten": snapshot,
@@ -36,6 +37,7 @@ def _snapshot(backend, hass=None) -> dict:
         "saison": saison.stand() if saison is not None else None,
         "dwd_phaenologie": dwd.stand() if dwd is not None else None,
         "standort": standort.stand_fuer(snapshot["pflanzen"]) if standort is not None else None,
+        "eive": eive.stand_fuer(snapshot["pflanzen"]) if eive is not None else None,
         "version": 1,
     }
 
