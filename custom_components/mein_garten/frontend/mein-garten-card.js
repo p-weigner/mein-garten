@@ -24,6 +24,19 @@
     return year + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   };
   const byDate = (a, b) => (a.faellig_am || "9999-99-99").localeCompare(b.faellig_am || "9999-99-99");
+  const ENTWICKLUNGSPHASEN = [
+    { value: "austrieb", label: "Austrieb" },
+    { value: "knospenbildung", label: "Knospenbildung" },
+    { value: "bluete_beginn", label: "Blütebeginn" },
+    { value: "fruchtansatz", label: "Fruchtansatz" },
+    { value: "fruchtreife", label: "Fruchtreife" },
+    { value: "laubfaerbung", label: "Laubfärbung" },
+    { value: "blattfall", label: "Blattfall" }
+  ];
+  const phaseLabel = (key) => ENTWICKLUNGSPHASEN.find((p) => p.value === key)?.label || "Unbekannte Phase";
+  const neuesteBeobachtungen = (list) => [...list].sort((a, b) =>
+    (b.beobachtet_am || "").localeCompare(a.beobachtet_am || "") ||
+    (b.erstellt_utc || "").localeCompare(a.erstellt_utc || ""));
   const CSS = [
     ":host{display:block;--garten-bg:#15231b;--garten-card:#203329;--garten-card2:#263c2e;--garten-border:#3c5946;--garten-text:#eaf2e8;--garten-muted:#a6bca9;--garten-accent:#b0d0a8;--garten-shadow:0 14px 34px #08150c50}",
     "*{box-sizing:border-box}button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{opacity:.5;cursor:default}",
@@ -303,6 +316,16 @@
             "OpenPlantbook und ihre Übersetzung sind nicht fachlich geprüft.",
         };
         this._render();
+      } else if (action === "entwicklung-open") {
+        const plant = this._getPlant(id);
+        if (!plant) return;
+        this._modal = { type: "entwicklung", existing: plant };
+        this._render();
+      } else if (action === "beobachtung-remove") {
+        const item = (this._data?.beobachtungen || []).find((b) => b.id === id);
+        if (!item) return;
+        if (!window.confirm("Diese eigene Entwicklungsbeobachtung löschen?")) return;
+        this._mutate("beobachtung_entfernen", { beobachtung_id: id });
       } else if (action === "care-open") {
         const plant = this._getPlant(id);
         if (!plant) return;
@@ -469,6 +492,14 @@
         } else {
           this._mutate("pflanze_anlegen", data);
         }
+      } else if (form.dataset.form === "entwicklung") {
+        if (!this._modal?.existing || this._modal.type !== "entwicklung") return;
+        this._mutate("beobachtung_anlegen", {
+          pflanzen_id: this._modal.existing.id,
+          phase: val("phase"),
+          beobachtet_am: val("beobachtet_am"),
+          notiz: val("notiz"),
+        });
       } else if (form.dataset.form === "bereich") {
         this._mutate("bereich_anlegen", { name: val("name") });
       } else if (form.dataset.form === "saisonanker") {
@@ -706,15 +737,68 @@
         escapeHtml(task.id) + '">Gegossen</button></div>';
     }
 
+    _entwicklungHTML() {
+      const plant = this._modal.existing;
+      const records = neuesteBeobachtungen(
+        (this._data?.beobachtungen || []).filter((r) => r.pflanzen_id === plant.id)
+      );
+      const firstFlower = new Map();
+      for (const r of records) {
+        if (r.phase !== "bluete_beginn") continue;
+        const year = String(r.beobachtet_am).slice(0, 4);
+        if (!firstFlower.has(year) || r.beobachtet_am < firstFlower.get(year))
+          firstFlower.set(year, r.beobachtet_am);
+      }
+      const years = [...firstFlower.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+      const comparison = years.length > 1
+        ? '<div class="notice">Frühester von dir dokumentierter Blütebeginn: ' +
+          years.slice(0, 3).map(([year, date]) =>
+            escapeHtml(year) + ' · ' + escapeHtml(dateLabel(date))
+          ).join(' / ') +
+          '. Das sind Beobachtungen, keine Vorhersagen für kommende Jahre.</div>'
+        : '';
+      return '<div class="small">Beobachte Entwicklungsphasen deiner eigenen Pflanzen. ' +
+        'Die Daten bleiben lokal in Home Assistant und sind keine automatischen ' +
+        'Pflege- oder Schnittanweisungen.</div>' +
+        '<form data-form="entwicklung"><div class="form-grid">' +
+        '<div class="field"><label>Entwicklungsphase *</label><select name="phase" required>' +
+        this._options(ENTWICKLUNGSPHASEN, "", false) + '</select></div>' +
+        '<div class="field"><label>Beobachtet am *</label><input type="date" ' +
+        'name="beobachtet_am" required max="' + escapeHtml(dateToday()) +
+        '" value="' + escapeHtml(dateToday()) + '"></div>' +
+        '<div class="field full"><label>Eigene Notiz (optional)</label>' +
+        '<textarea name="notiz" maxlength="500" placeholder="z. B. erste Blüten am Südbeet"></textarea>' +
+        '</div></div><div class="dialog-foot"><button type="button" class="btn ghost" ' +
+        'data-action="close">Schließen</button><button type="submit" class="btn primary">' +
+        'Beobachtung speichern</button></div></form>' +
+        '<hr class="line"><h3>Eigener Entwicklungsverlauf (' + records.length + ')</h3>' +
+        comparison +
+        (records.length ? records.map((r) =>
+          '<div class="task"><div><div class="task-name">' +
+          escapeHtml(phaseLabel(r.phase)) + ' · ' +
+          escapeHtml(dateLabel(r.beobachtet_am)) + '</div>' +
+          '<div class="task-meta">Eigene Beobachtung' +
+          (r.person ? ' · ' + escapeHtml(r.person) : '') +
+          (r.notiz ? ' · ' + escapeHtml(r.notiz) : '') +
+          (r.wissenschaftlich && r.wissenschaftlich !== plant.wissenschaftlich
+            ? ' · Damalige Art: ' + escapeHtml(r.wissenschaftlich) : '') +
+          '</div></div><button type="button" class="btn ghost tiny danger" ' +
+          'data-action="beobachtung-remove" data-id="' + escapeHtml(r.id) +
+          '">Löschen</button></div>'
+        ).join('') :
+          '<p class="small">Noch keine Entwicklungsphase erfasst.</p>');
+    }
+
     _modalHTML() {
       if (!this._modal) return "";
       const type = this._modal.type;
       const title = type === "pflege" ? "Pflegewissen: " + (this._modal.existing?.name || "") : type === "pflanze"
         ? (this._modal.existing ? "Pflanze bearbeiten" : "Neue Pflanze")
-        : type === "saisonanker" ? "Frost-Referenzdaten" : type === "saison" ? "Saisonfenster vormerken" : type === "automatik" ? "Automatische Benachrichtigungen" : type === "giessen" ? "Gießkontrolle abschließen" : type === "regel" ? "Neue Wiederholung" : type === "aufgabe" ? "Neue Pflegeaufgabe" : "Neuer Gartenbereich";
+        : type === "entwicklung" ? "Pflanzenentwicklung: " + (this._modal.existing?.name || "") : type === "saisonanker" ? "Frost-Referenzdaten" : type === "saison" ? "Saisonfenster vormerken" : type === "automatik" ? "Automatische Benachrichtigungen" : type === "giessen" ? "Gießkontrolle abschließen" : type === "regel" ? "Neue Wiederholung" : type === "aufgabe" ? "Neue Pflegeaufgabe" : "Neuer Gartenbereich";
       let body = "";
       if (type === "pflege") body = this._careHTML();
       else if (type === "pflanze") body = this._plantForm();
+      else if (type === "entwicklung") body = this._entwicklungHTML();
       else if (type === "automatik") body = this._automatikForm();
       else if (type === "saisonanker") body = this._saisonankerForm();
       else if (type === "saison") body = this._saisonForm();
@@ -803,12 +887,19 @@
         html += '<div class="section"><h3 class="section-title">' + escapeHtml(group) +
           '</h3><div class="grid">' + entries.map((p) => {
             const area = this._getArea(p.bereich_id);
+            const current = neuesteBeobachtungen(
+              (this._data.beobachtungen || []).filter((r) => r.pflanzen_id === p.id)
+            )[0];
             return '<section class="card"><h3>🌿 ' + escapeHtml(p.name) + '</h3>' +
               (p.wissenschaftlich ? '<p><em>' + escapeHtml(p.wissenschaftlich) + '</em></p>' : "") +
               '<span class="chip">' + escapeHtml(area ? area.name : "Nicht zugeordnet") + '</span>' +
               (p.notizen ? '<p style="margin-top:12px;white-space:pre-wrap">' + escapeHtml(p.notizen) + '</p>' : "") +
+              (current ? '<p class="small" style="margin-top:11px">Zuletzt beobachtet: ' +
+                escapeHtml(phaseLabel(current.phase)) + ' · ' +
+                escapeHtml(dateLabel(current.beobachtet_am)) + '</p>' : "") +
               '<div class="footer"><button class="btn tiny" data-action="care-open" data-id="' +
-              escapeHtml(p.id) + '">Pflegewissen</button><button class="btn tiny" data-action="plant-edit" data-id="' +
+              escapeHtml(p.id) + '">Pflegewissen</button><button class="btn tiny" data-action="entwicklung-open" data-id="' +
+              escapeHtml(p.id) + '">Entwicklung</button><button class="btn tiny" data-action="plant-edit" data-id="' +
               escapeHtml(p.id) + '">Bearbeiten</button>' +
               '<button class="btn ghost tiny danger" data-action="plant-remove" data-id="' +
               escapeHtml(p.id) + '">Entfernen</button></div></section>';
@@ -873,6 +964,25 @@
         ).join("") : "") + '</section>';
     }
 
+    _beobachtungenKalenderHTML() {
+      const items = neuesteBeobachtungen(this._data?.beobachtungen || []);
+      if (!items.length) return "";
+      return '<section class="card" style="margin:14px 0"><h3>🍃 Eigene Pflanzenbeobachtungen</h3>' +
+        '<p class="small">Beobachtete Entwicklungsphasen aus deinem Garten. ' +
+        'Keine Vorhersagen und keine automatisch abgeleiteten Pflegearbeiten.</p>' +
+        items.slice(0, 6).map((b) => {
+          const plant = this._getPlant(b.pflanzen_id);
+          return '<div class="task"><div><div class="task-name">' +
+            escapeHtml(plant ? plant.name : "Pflanze") + ' · ' +
+            escapeHtml(phaseLabel(b.phase)) + '</div><div class="task-meta">' +
+            escapeHtml(dateLabel(b.beobachtet_am)) +
+            (b.notiz ? ' · ' + escapeHtml(b.notiz) : '') +
+            '</div></div>' +
+            (plant ? '<button class="btn tiny" data-action="entwicklung-open" data-id="' +
+              escapeHtml(plant.id) + '">Verlauf</button>' : '') + '</div>';
+        }).join('') + '</section>';
+    }
+
     _calendarHTML() {
       const tasks = [...(this._data.aufgaben || [])].sort(byDate);
       const pending = tasks.filter((t) => t.status !== "erledigt");
@@ -884,6 +994,7 @@
         'Frostprognosen und Freitagsberichte lassen sich über Benachrichtigungen einschalten. ' +
         'Artspezifische Schnitt- und Düngeaufgaben bleiben bis zur Fachprüfung gesperrt.</div>' +
         this._saisonHTML() +
+        this._beobachtungenKalenderHTML() +
         '<div class="grid"><section class="card"><h3>Offene Aufgaben (' + pending.length + ')</h3>' +
         (pending.length ? pending.map((t) => this._taskHTML(t)).join("")
           : '<p>Keine offenen Aufgaben.</p>') + '</section>' +
