@@ -23,11 +23,14 @@ def _backend(hass):
 
 
 def _snapshot(backend, hass=None) -> dict:
-    hinweise = hass.data.get(DOMAIN, {}).get("hinweise") if hass is not None else None
+    data = hass.data.get(DOMAIN, {}) if hass is not None else {}
+    hinweise = data.get("hinweise")
+    saison = data.get("saison")
     return {
         "daten": backend.snapshot(),
         "gruppen": list(PFLANZENGRUPPEN),
         "automatik": hinweise.einstellungen() if hinweise is not None else None,
+        "saison": saison.stand() if saison is not None else None,
         "version": 1,
     }
 
@@ -130,6 +133,64 @@ async def ws_pflegeprofil(hass, connection, msg):
         return
     connection.send_result(msg["id"], result)
 
+
+
+@websocket_api.websocket_command({
+    probatio.Required("type"): "mein_garten/saisonanker_speichern",
+    probatio.Required("last_frost"): str,
+    probatio.Required("first_frost"): str,
+})
+@websocket_api.async_response
+async def ws_saisonanker_speichern(hass, connection, msg):
+    """Frostanker sind Benutzerentscheidungen, keine US-Klimazonenübertragung."""
+    service = hass.data.get(DOMAIN, {}).get("saison")
+    backend = _backend(hass)
+    if service is None or backend is None:
+        connection.send_error(msg["id"], "nicht_eingerichtet", "Saisonkalender nicht eingerichtet")
+        return
+    try:
+        await service.async_anker_speichern({
+            "last_frost": msg["last_frost"],
+            "first_frost": msg["first_frost"],
+        })
+    except ValueError as exc:
+        connection.send_error(msg["id"], "ungueltige_eingabe", str(exc))
+        return
+    except Exception:
+        _LOGGER.exception("Mein Garten: Saisonanker nicht gespeichert")
+        connection.send_error(msg["id"], "speicherfehler", "Saisonreferenz nicht gespeichert")
+        return
+    from homeassistant.helpers.dispatcher import async_dispatcher_send
+    async_dispatcher_send(hass, SIGNAL_UPDATED)
+    connection.send_result(msg["id"], _snapshot(backend, hass))
+
+
+@websocket_api.websocket_command({
+    probatio.Required("type"): "mein_garten/saison_vormerken",
+    probatio.Required("pflanzen_id"): str,
+    probatio.Required("katalog_id"): str,
+    probatio.Required("datum"): str,
+})
+@websocket_api.async_response
+async def ws_saison_vormerken(hass, connection, msg):
+    """Nur Server-Katalog und bestätigtes Datum; keine freien Tätigkeitsfelder."""
+    service = hass.data.get(DOMAIN, {}).get("saison")
+    backend = _backend(hass)
+    if service is None or backend is None:
+        connection.send_error(msg["id"], "nicht_eingerichtet", "Saisonkalender nicht eingerichtet")
+        return
+    try:
+        task = await service.async_vormerken(
+            msg["pflanzen_id"], msg["katalog_id"], msg["datum"]
+        )
+    except (ValueError, DatensatzFehler) as exc:
+        connection.send_error(msg["id"], "ungueltige_eingabe", str(exc))
+        return
+    except Exception:
+        _LOGGER.exception("Mein Garten: Saisonkontrolle nicht gespeichert")
+        connection.send_error(msg["id"], "speicherfehler", "Saisonkontrolle nicht gespeichert")
+        return
+    connection.send_result(msg["id"], {"objekt": task, **_snapshot(backend, hass)})
 
 
 @websocket_api.websocket_command({
@@ -369,6 +430,7 @@ def registriere_ws_befehle(hass) -> None:
     """Registriert nur lokale Befehle für authentifizierte HA-Nutzer."""
     for handler in (
         ws_get, ws_subscribe, ws_pflanzen_suchen, ws_pflegeprofil,
+        ws_saisonanker_speichern, ws_saison_vormerken,
         ws_automatik_speichern, ws_regel_anlegen, ws_regel_aktiv_setzen, ws_regel_entfernen,
         ws_pflegeplan_aktualisieren,
         ws_bereich_anlegen, ws_bereich_umbenennen, ws_bereich_entfernen,
