@@ -49,6 +49,15 @@ Keine Codeänderung für neu angelegte Pflanzen. Die persönlichen Gartennotizen
 - Das Wikimedia-/Wikidata-Fallback wurde in einer separaten Live-Diagnose untersucht, lieferte in der GitHub-Runner-Umgebung nur HTTP-Fehler und wird deshalb **nicht** als zusätzliche Abhängigkeit in die Suchlogik integriert.
 - [50 Testarten](../daten/pflanzensuche_50_de.json), [reproduzierbarer Live-Test](../tools/pflanzensuche_50_live.py) und [Quellen-/Lizenzprüfung](FACHQUELLEN_FREIGABE_2026-10-30.md).
 
+## Strukturierter Saisonkalender als Planungshilfe
+
+- Neu: **152 eindeutige CC0-Saison-Datensätze** aus OpenPlantDB, Quellcommit 99393ea2dbe8da6973434974f92863beff3bbb32 vom 5. Juli 2026 (ursprünglicher 294er-Ausgangsbestand). Der stark gewachsene aktuelle OpenPlantDB-Hauptbranch wird **nicht** ungeprüft in Home Assistant Green geladen.
+- Botanisch exakter Artabgleich; nur die unterstützten Frostanker last_frost/first_frost und quellgebundene Wochenintervalle werden übernommen. Keine unbekannten Gattungen/Sorten oder fehlenden Daten schätzen.
+- Der Nutzer legt Frostreferenztage **selbst** fest. Die berechneten Zeitfenster sind ausdrücklich US-Planungswerte, keine lokale Brandenburg-Fachfreigabe.
+- Neue Ansicht im **Pflegekalender**: Saisonfenster, Quellen-/Lizenzinformation, Eingabe der Referenztage und manuell bestätigte Kontrollaufgaben. **Keine** automatische Aussaat, Schnittarbeit oder Düngung.
+- Ein Saisontermin ist je Pflanze, Vorlage und Referenzjahr eindeutig und enthält die Quellversionsnummer dauerhaft.
+- Weitere Informationen: [CC0-Saisonfenster](SAISONFENSTER_CC0_2026-10-30.md).
+
 ## Grenzen und notwendige Abnahme
 
 1. **Artspezifische Saison-Automatik noch nicht freigegeben:** Eine vertrauenswürdige, lizenzrechtlich zulässige und fachlich validierte strukturierte Quelle für Schnitt-, Dünge- und Pflanzenpflegekalender fehlt weiterhin. Es werden keine entsprechenden Maßnahmen aus einem ungeprüften Pflegefreitext abgeleitet.
