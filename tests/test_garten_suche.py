@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 from custom_components.mein_garten.search import (
     Pflanzensuche, _dedupe, _inat_results, _norm, _plant_name,
-    _wikidata_taxa, _gbif_results,
+    _wikidata_taxa, _gbif_results, _gbif_vernacular_results, _GBIF_BACKBONE,
 )
 
 
@@ -43,6 +43,36 @@ class TestTaxonParsing(unittest.TestCase):
         ])
         self.assertEqual(len(values), 1)
         self.assertEqual(values[0]["wissenschaftlich"], "Hydrangea macrophylla")
+
+    def test_gbif_trivialnamen_nur_akzeptierte_pflanzenarten(self):
+        basis = {
+            "datasetKey": _GBIF_BACKBONE,
+            "kingdom": "Plantae",
+            "rank": "SPECIES",
+            "taxonomicStatus": "ACCEPTED",
+        }
+        results = _gbif_vernacular_results({"results": [
+            {**basis, "canonicalName": "Prunus avium", "key": 3020791,
+             "nubKey": 3020791},
+            {**basis, "canonicalName": "Prunus serotina", "key": 99,
+             "nubKey": 99, "taxonomicStatus": "SYNONYM"},
+            {**basis, "canonicalName": "Vespa crabro", "key": 77,
+             "nubKey": 77, "kingdom": "Animalia"},
+            {**basis, "canonicalName": "Prunus domestica", "key": 88,
+             "nubKey": 87},
+            {**basis, "canonicalName": "Hydrangea", "key": 79,
+             "nubKey": 79, "rank": "GENUS"},
+            {**basis, "canonicalName": "Malus domestica", "key": 7,
+             "nubKey": 7, "datasetKey": "andere-checkliste"},
+        ]})
+        self.assertEqual([v["wissenschaftlich"] for v in results], ["Prunus avium"])
+        self.assertEqual(results[0]["quellen"], ["GBIF-Trivialnamen"])
+        self.assertEqual(results[0]["deutsch"], "")
+
+    def test_gbif_trivialnamen_api_fehlformat_abgelehnt(self):
+        for broken in (None, [], {}, {"results": {}}):
+            with self.subTest(value=broken), self.assertRaises(ValueError):
+                _gbif_vernacular_results(broken)
 
     def test_ungueltige_api_antwort(self):
         with self.assertRaises(ValueError):
@@ -108,6 +138,7 @@ class TestDynamischeSuche(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.service = Pflanzensuche(object())
         self.service._gbif = AsyncMock(return_value=[])
+        self.service._gbif_vernacular = AsyncMock(return_value=[])
 
     async def test_relevanz_der_api_statt_alphabetischer_sortierung(self):
         self.service._i_nat = AsyncMock(return_value=[
@@ -121,7 +152,28 @@ class TestDynamischeSuche(unittest.IsolatedAsyncioTestCase):
         result = await self.service.async_suchen("Apfelbaum")
         self.assertEqual(result["pflanzen"][0]["wissenschaftlich"], "Malus domestica")
 
+    async def test_deutscher_gbif_trivialname_ergaenzt_falsches_autocomplete(self):
+        self.service._i_nat = AsyncMock(return_value=[
+            {"wissenschaftlich": "Malus angustifolia", "deutsch": "",
+             "bestaetigt": True, "quellen": ["iNaturalist"]}
+        ])
+        self.service._wikidata = AsyncMock(return_value=[])
+        self.service._gbif_vernacular = AsyncMock(return_value=[
+            {"wissenschaftlich": "Malus sylvestris", "deutsch": "",
+             "bestaetigt": True, "quellen": ["GBIF-Trivialnamen"]},
+            {"wissenschaftlich": "Malus domestica", "deutsch": "",
+             "bestaetigt": True, "quellen": ["GBIF-Trivialnamen"]},
+        ])
+        result = await self.service.async_suchen("Apfelbaum")
+        self.assertEqual(
+            [p["wissenschaftlich"] for p in result["pflanzen"][:2]],
+            ["Malus sylvestris", "Malus domestica"]
+        )
+        self.assertTrue(all(p["bestaetigt"] for p in result["pflanzen"]))
+        self.service._gbif_vernacular.assert_awaited_once_with("Apfelbaum")
+
     async def test_deutsche_suche_ueber_wikidata_mit_verifikation(self):
+
         self.service._i_nat = AsyncMock(side_effect=[
             [],
             [{"wissenschaftlich": "Hydrangea macrophylla",
@@ -158,7 +210,7 @@ class TestDynamischeSuche(unittest.IsolatedAsyncioTestCase):
         self.service._wikidata = AsyncMock(side_effect=RuntimeError("offline"))
         result = await self.service.async_suchen("Bauernhortensie")
         self.assertEqual(result["pflanzen"], [])
-        self.assertEqual(len(result["quellenstatus"]), 2)
+        self.assertEqual(len(result["quellenstatus"]), 4)
 
     async def test_cache_verhindert_unnoetige_requests(self):
         self.service._i_nat = AsyncMock(return_value=[])
@@ -243,6 +295,7 @@ class TestLokalerNamenscache(unittest.IsolatedAsyncioTestCase):
             }])
             first._wikidata = AsyncMock(return_value=[])
             first._gbif = AsyncMock(return_value=[])
+            first._gbif_vernacular = AsyncMock(return_value=[])
             resultat = await first.async_suchen("Bauernhortensie")
             self.assertEqual(len(resultat["pflanzen"]), 1)
             self.assertIsNotNone(FakeStore.saved)
@@ -252,6 +305,7 @@ class TestLokalerNamenscache(unittest.IsolatedAsyncioTestCase):
             second._i_nat = AsyncMock(side_effect=OSError("offline"))
             second._wikidata = AsyncMock(side_effect=OSError("offline"))
             second._gbif = AsyncMock(side_effect=OSError("offline"))
+            second._gbif_vernacular = AsyncMock(side_effect=OSError("offline"))
             offline = await second.async_suchen("bauernhor")
             self.assertEqual(offline["pflanzen"][0]["wissenschaftlich"],
                              "Hydrangea macrophylla")
@@ -279,6 +333,7 @@ class TestLokalerNamenscache(unittest.IsolatedAsyncioTestCase):
             service._i_nat = AsyncMock(side_effect=OSError("offline"))
             service._wikidata = AsyncMock(side_effect=OSError("offline"))
             service._gbif = AsyncMock(side_effect=OSError("offline"))
+            service._gbif_vernacular = AsyncMock(side_effect=OSError("offline"))
             self.assertEqual((await service.async_suchen("nichtgefunden"))["pflanzen"], [])
             self.assertIsNone(FakeStore.saved)
 
