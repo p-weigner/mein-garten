@@ -1036,7 +1036,7 @@
         'Keine Vorhersage und keine automatische Pflegeempfehlung.</p>' +
         (items || '<p class="small">Für diese Region liegen derzeit nicht genügend ' +
           'gültige Stationsmeldungen vor.</p>') +
-        '<p class="small" style="margin-top:12px">Datenstand: ' +
+        '<p class="small" style="margin-top:12px">DWD-Daten abgerufen am: ' +
         escapeHtml(dateLabel(dataset.abgerufen_am)) +
         ' · Quelle: Deutscher Wetterdienst (DWD), Climate Data Center · ' +
         'Statistisch aufbereitet durch Mein Garten · ' +
