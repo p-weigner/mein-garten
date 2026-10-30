@@ -1,0 +1,32 @@
+name: Mein Garten – CC0 Saison-Datenqualitätsprüfung
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/garten-pflegewissen-und-suche-20261030
+    paths:
+      - ".github/workflows/garten-saison-quellcheck.yml"
+      - "tools/openplantdb_umfang_probe.py"
+permissions:
+  contents: read
+jobs:
+  saison-source-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Repository laden
+        uses: actions/checkout@v4
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fest versionierte CC0-Datenquelle laden und 50 Pflanzennamen prüfen
+        run: python -m tools.openplantdb_umfang_probe
+      - name: Nur öffentliche Qualitätsmetriken als Bericht archivieren
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Saison_CC0_Quellenpruefung
+          path: berichte/saison_quellcheck_20261030.json
+          retention-days: 14
+          if-no-files-found: warn

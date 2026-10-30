@@ -1,0 +1,25 @@
+name: Mein Garten – GBIF Trivialnamen-Diagnose
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Nur öffentliche GBIF-Trivialnamen testen
+        run: python -m tools.gbif_trivialnamen_probe
+      - name: Ursprüngliche und zusätzliche Quellenränge prüfen
+        run: python -m tools.gbif_quellenrang_probe
+      - name: Zusammengesetzte deutsche Schreibweisen über Wikimedia prüfen
+        run: python -m tools.deutsche_schreibweisen_probe
+      - name: Allgemeine Schreibvarianten bei bestehenden Pflanzenquellen prüfen
+        run: python -m tools.schreibvarianten_quellen_probe

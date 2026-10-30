@@ -46,6 +46,8 @@ class TestHomeAssistantIntegrationContract(unittest.TestCase):
             "mein_garten/pflanze_anlegen",
             "mein_garten/pflanze_bearbeiten",
             "mein_garten/pflanze_entfernen",
+            "mein_garten/beobachtung_anlegen",
+            "mein_garten/beobachtung_entfernen",
             "mein_garten/aufgabe_anlegen",
             "mein_garten/aufgabe_erledigen",
             "mein_garten/aufgabe_wieder_oeffnen",

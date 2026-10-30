@@ -1,0 +1,39 @@
+name: Mein Garten – Qualitätsaudit Anbauhinweise
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/garten-pflegewissen-und-suche-20261030
+    paths:
+      - ".github/workflows/garten-pflegefreitext-audit.yml"
+      - "tools/openplantdb_pflegefreitext_audit.py"
+      - "tools/openplantdb_umfang_probe.py"
+      - "tests/test_openplantdb_pflegefreitext_audit.py"
+      - "daten/pflanzensuche_50_de.json"
+
+permissions:
+  contents: read
+
+jobs:
+  quellenaudit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Repository lesen
+        uses: actions/checkout@v4
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Audit-Logik isoliert testen
+        run: python -m unittest discover -s tests -p test_openplantdb_pflegefreitext_audit.py -v
+      - name: Exakten CC0-Quellstand lesen und Anbauhinweise auditierten
+        run: python -m tools.openplantdb_pflegefreitext_audit
+      - name: Kompakten Bericht ohne fremde Volltexte bereitstellen
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pflanzenpflege_Quellenqualitaet_Audit
+          path: berichte/anbauhinweise_qualitaet_20261030.json
+          retention-days: 30
+          if-no-files-found: error

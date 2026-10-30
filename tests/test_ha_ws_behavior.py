@@ -62,6 +62,8 @@ class TestGartenWebsocket(unittest.IsolatedAsyncioTestCase):
             self.dispatch.append((signal, callback))
             return lambda: self.dispatch.remove((signal, callback))
         dispatcher.async_dispatcher_connect = connect
+        self.sent_signals = []
+        dispatcher.async_dispatcher_send = lambda hass, signal: self.sent_signals.append(signal)
         helpers = types.ModuleType("homeassistant.helpers")
         helpers.dispatcher = dispatcher
         homeassistant = types.ModuleType("homeassistant")
@@ -105,6 +107,23 @@ class TestGartenWebsocket(unittest.IsolatedAsyncioTestCase):
         self.assertIn(self.api.ws_pflanzen_suchen, self.registered)
         self.assertIn(self.api.ws_subscribe, self.registered)
 
+    async def test_europaeische_eive_standortwerte_erscheinen_nur_als_optional_snapshot(self):
+        self.hass.data["mein_garten"]["eive_europa"] = types.SimpleNamespace(
+            stand_fuer=lambda plants: {
+                "quelle": "EIVE 1.0",
+                "lizenz": "CC BY 4.0",
+                "profile": {},
+                "automatische_aufgaben": False,
+            }
+        )
+        result = self.api._snapshot(self.backend, self.hass)
+        self.assertEqual(result["eive"]["quelle"], "EIVE 1.0")
+        self.assertEqual(result["eive"]["lizenz"], "CC BY 4.0")
+        self.assertFalse(result["eive"]["automatische_aufgaben"])
+        self.hass.data["mein_garten"].pop("eive_europa")
+        without = self.api._snapshot(self.backend, self.hass)
+        self.assertIsNone(without["eive"])
+
     async def test_startzustand(self):
         self.api.ws_get(self.hass, self.connection, {"id": 1})
         self.assertEqual(self.connection.results[0][1]["version"], 1)
@@ -119,6 +138,45 @@ class TestGartenWebsocket(unittest.IsolatedAsyncioTestCase):
             self.connection.results[0][1]["pflanzen"][0]["wissenschaftlich"],
             "Hydrangea macrophylla",
         )
+
+    async def test_pflegeprofil_erneut_pruefen_nur_fuer_gespeicherte_pflanze(self):
+        plant = self.backend.model.pflanze_anlegen(
+            "Hundsrose", wissenschaftlich="Rosa canina"
+        )
+        pflege = types.SimpleNamespace(
+            async_profil=AsyncMock(return_value={
+                "art": "Rosa canina", "status": "ok",
+                "felder": {"watering": {"text": "Deutscher Hinweis"}},
+            })
+        )
+        self.hass.data["mein_garten"]["pflege"] = pflege
+        await self.api.ws_pflegeprofil(self.hass, self.connection, {
+            "id": 22, "pflanzen_id": plant["id"], "aktualisieren": True,
+        })
+        pflege.async_profil.assert_awaited_once_with(plant, aktualisieren=True)
+        self.assertFalse(self.connection.errors)
+        self.assertEqual(self.connection.results[0][1]["status"], "ok")
+
+    async def test_normaler_pflegeabruf_und_fremde_ids(self):
+        plant = self.backend.model.pflanze_anlegen(
+            "Hundsrose", wissenschaftlich="Rosa canina"
+        )
+        pflege = types.SimpleNamespace(
+            async_profil=AsyncMock(return_value={
+                "art": "Rosa canina", "status": "ok", "felder": {},
+            })
+        )
+        self.hass.data["mein_garten"]["pflege"] = pflege
+        await self.api.ws_pflegeprofil(self.hass, self.connection, {
+            "id": 23, "pflanzen_id": plant["id"],
+        })
+        pflege.async_profil.assert_awaited_once_with(plant, aktualisieren=False)
+        self.assertFalse(self.connection.errors)
+        await self.api.ws_pflegeprofil(self.hass, self.connection, {
+            "id": 24, "pflanzen_id": "nicht-vorhanden", "aktualisieren": True,
+        })
+        self.assertEqual(self.connection.errors[-1][1], "pflanze_nicht_gefunden")
+        self.assertEqual(pflege.async_profil.await_count, 1)
 
     async def test_ungueltige_suche_sendet_fehler(self):
         self.search.async_suchen.side_effect = ValueError("Suchbegriff zu kurz")
@@ -192,6 +250,256 @@ class TestGartenWebsocket(unittest.IsolatedAsyncioTestCase):
         self.connection.subscriptions[9]()
         self.assertEqual(self.dispatch, [])
 
+
+    async def test_automatik_optionen_ueber_ws_speichern_ohne_push(self):
+        options = {
+            "weather_entity": "", "notify_target": "",
+            "freitag_aktiv": False, "frost_aktiv": False, "frost_grenze_c": 2.0,
+        }
+        async def speichern(neu):
+            options.update(neu)
+            return dict(options)
+        service = types.SimpleNamespace(
+            einstellungen=lambda: dict(options),
+            async_einstellungen_speichern=speichern,
+        )
+        self.hass.data["mein_garten"]["hinweise"] = service
+        await self.api.ws_automatik_speichern(self.hass, self.connection, {
+            "id": 15, "weather_entity": "weather.home",
+            "notify_target": "notify.mobile_app_angelina",
+            "freitag_aktiv": True, "frost_aktiv": True, "frost_grenze_c": 2.0,
+        })
+        self.assertEqual(self.connection.errors, [])
+        self.assertTrue(self.connection.results[0][1]["automatik"]["frost_aktiv"])
+        self.assertEqual(self.sent_signals, ["mein_garten_updated"])
+
+    async def test_automatik_fehlermeldung_enthaelt_keine_geheimnisse(self):
+        async def speichern(_neu):
+            raise ValueError("Ungültige Wetterentität")
+        self.hass.data["mein_garten"]["hinweise"] = types.SimpleNamespace(
+            einstellungen=lambda: {},
+            async_einstellungen_speichern=speichern,
+        )
+        await self.api.ws_automatik_speichern(self.hass, self.connection, {
+            "id": 16, "weather_entity": "script.schlafenszeit",
+            "notify_target": "notify.mobile_app_angelina",
+            "freitag_aktiv": True, "frost_aktiv": True, "frost_grenze_c": 2.0,
+        })
+        self.assertEqual(self.connection.errors[0][1], "ungueltige_eingabe")
+        self.assertFalse(self.connection.results)
+
+
+    async def test_giessentscheidung_ueber_websocket_als_historie(self):
+        task = self.backend.model.aufgabe_anlegen(
+            "Tomate kontrollieren", aufgabentyp="giesskontrolle"
+        )
+        await self.api.ws_aufgabe_erledigen(self.hass, self.connection, {
+            "id": 20, "aufgaben_id": task["id"], "ergebnis": "kontrolliert_kein_wasser",
+        })
+        self.assertEqual(self.connection.errors, [])
+        self.assertEqual(self.connection.results[0][1]["objekt"]["ergebnis"],
+                         "kontrolliert_kein_wasser")
+        self.assertEqual(self.backend.model.snapshot()["historie"][-1]["person"], "Angelina")
+
+    async def test_giesskontrolle_braucht_auswahl_auch_bei_ws(self):
+        task = self.backend.model.aufgabe_anlegen(
+            "Tomate kontrollieren", aufgabentyp="giesskontrolle"
+        )
+        await self.api.ws_aufgabe_erledigen(self.hass, self.connection, {
+            "id": 21, "aufgaben_id": task["id"],
+        })
+        self.assertEqual(self.connection.errors[0][1], "ungueltige_eingabe")
+        self.assertEqual(self.backend.model.snapshot()["aufgaben"][0]["status"], "offen")
+
+
+    async def test_saison_ws_stand_zeigt_anker_und_vorschlaege(self):
+        class FakeSeason:
+            def stand(self):
+                return {
+                    "anker": {"last_frost": "2027-05-15", "first_frost": ""},
+                    "vorschlaege": [], "katalog_arten": 152,
+                }
+        self.hass.data["mein_garten"]["saison"] = FakeSeason()
+        self.api.ws_get(self.hass, self.connection, {"id": 30})
+        self.assertEqual(self.connection.results[0][1]["saison"]["katalog_arten"], 152)
+        self.assertEqual(self.connection.results[0][1]["saison"]["anker"]["last_frost"],
+                         "2027-05-15")
+
+    async def test_saisonanker_ws_valide_speicherung_und_synchronisation(self):
+        options = {"last_frost": "", "first_frost": ""}
+        async def save(data):
+            options.update(data)
+            return dict(options)
+        self.hass.data["mein_garten"]["saison"] = types.SimpleNamespace(
+            stand=lambda: {"anker": dict(options), "vorschlaege": []},
+            async_anker_speichern=save,
+        )
+        await self.api.ws_saisonanker_speichern(self.hass, self.connection, {
+            "id": 31, "last_frost": "2027-05-15", "first_frost": "2027-10-15",
+        })
+        self.assertEqual(self.connection.errors, [])
+        self.assertEqual(self.connection.results[0][1]["saison"]["anker"]["first_frost"],
+                         "2027-10-15")
+        self.assertEqual(self.sent_signals, ["mein_garten_updated"])
+
+    async def test_saisonplanung_ws_nimmt_nur_id_und_datum_an(self):
+        plant = self.backend.model.pflanze_anlegen("Tomate", "Solanum lycopersicum")
+        expected = {"pflanzen_id": plant["id"], "katalog_id": "tomato",
+                    "datum": "2027-03-25"}
+        async def plan(plant_id, rule_id, when):
+            self.assertEqual({
+                "pflanzen_id": plant_id, "katalog_id": rule_id, "datum": when,
+            }, expected)
+            return {"id": "task1", "name": "Vorziehen prüfen"}
+        self.hass.data["mein_garten"]["saison"] = types.SimpleNamespace(
+            stand=lambda: {"anker": {}, "vorschlaege": []},
+            async_vormerken=plan,
+        )
+        await self.api.ws_saison_vormerken(self.hass, self.connection, {
+            "id": 32, **expected,
+        })
+        self.assertEqual(self.connection.errors, [])
+        self.assertEqual(self.connection.results[0][1]["objekt"]["id"], "task1")
+
+    async def test_saisonplanung_ws_blockiert_manipulierten_termin(self):
+        from custom_components.mein_garten.season import SaisonFehler
+        async def reject(*_args):
+            raise SaisonFehler("Termin liegt außerhalb des gespeicherten Saisonfensters")
+        self.hass.data["mein_garten"]["saison"] = types.SimpleNamespace(
+            stand=lambda: {"anker": {}, "vorschlaege": []},
+            async_vormerken=reject,
+        )
+        await self.api.ws_saison_vormerken(self.hass, self.connection, {
+            "id": 33, "pflanzen_id": "p1", "katalog_id": "tomato",
+            "datum": "2050-01-01",
+        })
+        self.assertEqual(self.connection.errors[0][1], "ungueltige_eingabe")
+        self.assertFalse(self.connection.results)
+
+
+    async def test_entwicklungsphase_per_websocket_speichert_ha_benutzer(self):
+        plant = self.backend.model.pflanze_anlegen(
+            "Bauernhortensie", "Hydrangea macrophylla"
+        )
+        await self.api.ws_beobachtung_anlegen(self.hass, self.connection, {
+            "id": 41,
+            "pflanzen_id": plant["id"],
+            "phase": "bluete_beginn",
+            "beobachtet_am": "2025-05-11",
+            "notiz": "Erste Blüten am Südbeet",
+        })
+        self.assertFalse(self.connection.errors)
+        res = self.connection.results[0][1]
+        record = res["objekt"]
+        self.assertEqual(record["quelle"], "eigene_beobachtung")
+        self.assertEqual(record["person"], "Angelina")
+        self.assertEqual(record["wissenschaftlich"], "Hydrangea macrophylla")
+        self.assertEqual(res["daten"]["beobachtungen"][0]["id"], record["id"])
+        self.assertEqual(self.backend.model.snapshot()["aufgaben"], [])
+
+    async def test_entwicklungsphase_unzulaessig_ohne_neue_art_zu_erfinden(self):
+        plant = self.backend.model.pflanze_anlegen("Lavendel", "Lavandula angustifolia")
+        await self.api.ws_beobachtung_anlegen(self.hass, self.connection, {
+            "id": 42,
+            "pflanzen_id": plant["id"],
+            "phase": "automatisch_schneiden",
+            "beobachtet_am": "2025-05-11",
+            "notiz": "",
+        })
+        self.assertEqual(self.connection.errors[0][1], "ungueltige_eingabe")
+        self.assertEqual(self.backend.model.snapshot()["beobachtungen"], [])
+
+    async def test_entwicklungskorrektur_entfernt_beobachtung_und_protokolleintrag(self):
+        plant = self.backend.model.pflanze_anlegen("Felsenbirne")
+        record = self.backend.model.beobachtung_anlegen(
+            plant["id"], "laubfaerbung", "2025-10-11",
+            person="Angelina",
+        )
+        await self.api.ws_beobachtung_entfernen(self.hass, self.connection, {
+            "id": 43, "beobachtung_id": record["id"],
+        })
+        self.assertEqual(self.connection.errors, [])
+        self.assertEqual(self.backend.model.snapshot()["beobachtungen"], [])
+        self.assertEqual(self.backend.model.snapshot()["historie"], [])
+
+    async def test_beobachtungsdaten_auch_im_live_snapshot(self):
+        plant = self.backend.model.pflanze_anlegen("Hortensie")
+        self.backend.model.beobachtung_anlegen(
+            plant["id"], "austrieb", "2025-04-05"
+        )
+        self.api.ws_get(self.hass, self.connection, {"id": 44})
+        snapshot = self.connection.results[0][1]["daten"]
+        self.assertEqual(len(snapshot["beobachtungen"]), 1)
+        self.assertIn("beobachtungen", snapshot)
+        self.api.registriere_ws_befehle(self.hass)
+        self.assertIn(self.api.ws_beobachtung_anlegen, self.registered)
+        self.assertIn(self.api.ws_beobachtung_entfernen, self.registered)
+
+
+    async def test_dwd_phaenologie_ist_reiner_lesewert_im_ws_snapshot(self):
+        dwd_data = {
+            "quelle": "Deutscher Wetterdienst",
+            "lizenz": "CC BY 4.0",
+            "werte": [{
+                "indikator": "hasel_bluete", "region": "nordost",
+                "jahr": 2026, "median": "2026-02-20",
+                "stationen": 18,
+            }],
+        }
+        self.hass.data["mein_garten"]["dwd_phaenologie"] = types.SimpleNamespace(
+            stand=lambda: dwd_data
+        )
+        self.api.ws_get(self.hass, self.connection, {"id": 55})
+        response = self.connection.results[0][1]
+        self.assertEqual(response["dwd_phaenologie"], dwd_data)
+        self.assertFalse(self.connection.errors)
+        self.api.registriere_ws_befehle(self.hass)
+        self.assertFalse(any("dwd" in handler.__name__
+                             for handler in self.registered))
+        self.assertEqual(self.backend.model.snapshot()["aufgaben"], [])
+
+    async def test_ohne_dwd_quelle_bleibt_garten_ws_verwendbar(self):
+        self.api.ws_get(self.hass, self.connection, {"id": 56})
+        response = self.connection.results[0][1]
+        self.assertIsNone(response["dwd_phaenologie"])
+        self.assertEqual(response["daten"]["pflanzen"], [])
+
+    async def test_standort_daten_nur_fuer_eigene_pflanzen_und_read_only(self):
+        plant = self.backend.model.pflanze_anlegen(
+            "Hundsrose", "Rosa canina"
+        )
+        captured = []
+        def stand_fuer(plants):
+            captured.append(plants)
+            return {
+                "profile": {
+                    plant["id"]: {
+                        "wissenschaftlich": "Rosa canina",
+                        "merkmale": {"sun": "full", "water": "low"},
+                    }
+                },
+                "katalog_arten": 10642,
+                "quelle": "OpenPlantDB",
+                "lizenz": "CC0 1.0",
+            }
+        self.hass.data["mein_garten"]["standort"] = types.SimpleNamespace(
+            stand_fuer=stand_fuer
+        )
+        self.api.ws_get(self.hass, self.connection, {"id": 60})
+        data = self.connection.results[0][1]["standort"]
+        self.assertEqual(data["katalog_arten"], 10642)
+        self.assertEqual(data["profile"][plant["id"]]["merkmale"]["sun"], "full")
+        self.assertEqual(captured[0], self.backend.snapshot()["pflanzen"])
+        self.api.registriere_ws_befehle(self.hass)
+        self.assertFalse(any("standort" in handler.__name__
+                             for handler in self.registered))
+        self.assertEqual(self.backend.snapshot()["aufgaben"], [])
+
+    async def test_ohne_cc0_standortdienst_bleibt_garten_funktionsfaehig(self):
+        self.api.ws_get(self.hass, self.connection, {"id": 61})
+        response = self.connection.results[0][1]
+        self.assertIsNone(response["standort"])
+        self.assertEqual(response["daten"]["pflanzen"], [])
 
 if __name__ == "__main__":
     unittest.main()

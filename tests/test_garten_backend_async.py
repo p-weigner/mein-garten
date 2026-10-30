@@ -5,6 +5,7 @@ samt atomarem Speichervorgang und Schreibfehler-Rollback.
 """
 import asyncio
 from copy import deepcopy
+from datetime import date
 import sys
 import types
 import unittest
@@ -116,6 +117,61 @@ class TestHABackendAsync(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.backend.snapshot()["bereiche"]), 12)
         self.assertEqual(len(FakeStore.persistent["bereiche"]), 12)
 
+
+    async def test_pflanzenphasen_werden_mit_ha_datum_atomar_gespeichert(self):
+        plant = await self.backend.async_aendern(
+            "pflanze_anlegen", name="Gartenhortensie",
+            wissenschaftlich="Hydrangea macrophylla",
+        )
+        with patch(
+            "custom_components.mein_garten.recurrence.lokaler_kalendertag",
+            return_value=date(2026, 10, 30),
+        ) as local_day:
+            phase = await self.backend.async_aendern(
+                "beobachtung_anlegen", pflanzen_id=plant["id"],
+                phase="bluete_beginn", beobachtet_am="2026-05-01",
+                person="Angelina",
+            )
+        local_day.assert_called_once()
+        self.assertEqual(phase["quelle"], "eigene_beobachtung")
+        self.assertEqual(phase["person"], "Angelina")
+        self.assertEqual(len(FakeStore.persistent["beobachtungen"]), 1)
+        restarted = GartenBackend(object())
+        await restarted.async_laden()
+        self.assertEqual(restarted.snapshot()["beobachtungen"][0], phase)
+
+    async def test_zukuenftige_pflanzenphase_wird_nicht_gespeichert(self):
+        plant = await self.backend.async_aendern(
+            "pflanze_anlegen", name="Lavendel"
+        )
+        before = self.backend.snapshot()
+        with patch(
+            "custom_components.mein_garten.recurrence.lokaler_kalendertag",
+            return_value=date(2026, 10, 30),
+        ):
+            with self.assertRaisesRegex(DatensatzFehler, "Zukunft"):
+                await self.backend.async_aendern(
+                    "beobachtung_anlegen", pflanzen_id=plant["id"],
+                    phase="austrieb", beobachtet_am="2026-10-31",
+                    person="Angelina",
+                )
+        self.assertEqual(self.backend.snapshot(), before)
+        self.assertEqual(FakeStore.persistent, before)
+
+    async def test_beobachtungsfehler_bei_speicherung_wird_zurueckgerollt(self):
+        plant = await self.backend.async_aendern(
+            "pflanze_anlegen", name="Himbeere"
+        )
+        before = self.backend.snapshot()
+        FakeStore.should_fail = True
+        with self.assertRaises(OSError):
+            await self.backend.async_aendern(
+                "beobachtung_anlegen", pflanzen_id=plant["id"],
+                phase="fruchtreife", beobachtet_am="2025-07-01",
+                person="Angelina",
+            )
+        self.assertEqual(self.backend.snapshot(), before)
+        self.assertEqual(FakeStore.persistent, before)
 
 if __name__ == "__main__":
     unittest.main()

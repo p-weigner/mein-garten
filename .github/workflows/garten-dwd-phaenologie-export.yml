@@ -1,0 +1,29 @@
+name: Mein Garten – DWD Phänologie Offline-Export
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/garten-pflegewissen-und-suche-20261030
+    paths:
+      - ".github/workflows/garten-dwd-phaenologie-export.yml"
+      - "tools/dwd_phaenologie_export.py"
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: DWD Sofortmeldungen auf plausibles regionales Zeitfenster reduzieren
+        run: python -m tools.dwd_phaenologie_export
+      - name: Nur das kleine CC-BY-4.0 Referenzpaket als Audit-Artefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: DWD_Phaenologie_Offline_Referenz_Entwurf
+          path: custom_components/mein_garten/data/dwd_phaenologie_region_v1.json
+          retention-days: 7
+          if-no-files-found: error

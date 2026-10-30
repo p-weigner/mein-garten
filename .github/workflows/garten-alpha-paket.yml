@@ -2,6 +2,13 @@ name: Mein Garten V1 – Alpha-Paket
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "custom_components/mein_garten/**"
+      - "frontend/**"
+      - "tests/**"
+      - "qa/**"
+      - ".github/workflows/garten-alpha-paket.yml"
   push:
     branches: [main]
     paths:
@@ -22,12 +29,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
-      - name: Repository laden
+      - name: Exakten PR-Quellstand laden
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Python 3.12 für isolierte Backend-Tests
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Excel-Lesebibliothek für isolierte EIVE-Forschungsprüfungen
+        run: python -m pip install "openpyxl==3.1.5"
       - name: Python-Quelltexte prüfen
         run: python -m compileall -q custom_components/mein_garten
       - name: Backend-, Such- und Speicher-Tests
@@ -55,6 +66,12 @@ jobs:
           cp docs/ALPHA_INSTALLATION.md paket/ANLEITUNG.md
           cp hacs.json paket/hacs.json
           echo "TECHNISCHER ALPHA-TEST - NICHT DIE FERTIGE V1" > paket/STATUS.txt
+      - name: Alpha-Paketintegrität und Schutz des Zuhause-Dashboards prüfen
+        env:
+          GARTEN_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$GARTEN_SOURCE_COMMIT"
+          python -m qa.validate_alpha_package
       - name: Alpha-Testpaket bereitstellen
         uses: actions/upload-artifact@v4
         with:

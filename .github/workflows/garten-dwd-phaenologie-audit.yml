@@ -1,0 +1,22 @@
+name: Mein Garten – DWD Phänologie Datenformat-Audit
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/garten-pflegewissen-und-suche-20261030
+    paths:
+      - ".github/workflows/garten-dwd-phaenologie-audit.yml"
+      - "tools/dwd_phaenologie_probe.py"
+permissions:
+  contents: read
+jobs:
+  pheno-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: DWD-Sofortmelder Quelldateien mit Größenlimit prüfen
+        run: python -m tools.dwd_phaenologie_probe

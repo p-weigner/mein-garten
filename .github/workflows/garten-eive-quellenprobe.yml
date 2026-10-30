@@ -1,0 +1,61 @@
+name: Mein Garten – EIVE Europa-Quellenprobe
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/garten-pflegewissen-und-suche-20261030
+    paths:
+      - ".github/workflows/garten-eive-quellenprobe.yml"
+      - "tools/eive_europa_quellenprobe.py"
+      - "tests/test_eive_europa_quellenprobe.py"
+      - "tools/eive_europa_artenabdeckung.py"
+      - "tests/test_eive_europa_artenabdeckung.py"
+      - "tools/eive_europa_export.py"
+      - "tests/test_eive_europa_export.py"
+      - "daten/pflanzensuche_50_de.json"
+
+permissions:
+  contents: read
+
+jobs:
+  eive-quellenprobe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Forschungsbranch lesen
+        uses: actions/checkout@v4
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: XLSX-Prüfbibliothek nur im CI-Runner installieren
+        run: python -m pip install "openpyxl==3.1.5"
+      - name: Grenzen und Lizenzregeln isoliert testen
+        run: python -m unittest discover -s tests -p test_eive_europa_quellenprobe.py -v
+      - name: Europäische Nischenwerte je botanische Art isoliert testen
+        run: python -m unittest discover -s tests -p test_eive_europa_artenabdeckung.py -v
+      - name: Zenodo-Datei, Originalchecksumme, Metadatenlizenz und Schema prüfen
+        run: python -m tools.eive_europa_quellenprobe
+      - name: Exakte EIVE-Abdeckung bei 50 deutschen Pflanzen messen
+        run: python -m tools.eive_europa_artenabdeckung
+      - name: Deterministischen Offline-Katalog mit Quellenangaben erzeugen
+        run: |
+          python -m unittest discover -s tests -p test_eive_europa_export.py -v
+          python -m tools.eive_europa_export
+      - name: Komprimierten CC-BY-Offline-Katalog als Forschungsartefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: EIVE_Europa_CC_BY_Offline_Katalog
+          path: berichte/eive_europa_ccby_v1.json.gz.b64
+          retention-days: 30
+          if-no-files-found: error
+      - name: Kleinen Schema- und Quellenbericht hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: EIVE_Europa_Quellenprobe
+          path: |
+            berichte/eive_europa_quellenprobe_20261030.json
+            berichte/eive_europa_artenabdeckung_20261030.json
+          retention-days: 30
+          if-no-files-found: error

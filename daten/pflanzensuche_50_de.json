@@ -1,0 +1,252 @@
+[
+  {
+    "gruppe": "Blumen, Stauden und Rosen",
+    "name_de": "Bauernhortensie",
+    "wissenschaftlich": "Hydrangea macrophylla"
+  },
+  {
+    "gruppe": "Blumen, Stauden und Rosen",
+    "name_de": "Rispenhortensie",
+    "wissenschaftlich": "Hydrangea paniculata"
+  },
+  {
+    "gruppe": "Blumen, Stauden und Rosen",
+    "name_de": "Wald-Hortensie",
+    "wissenschaftlich": "Hydrangea arborescens"
+  },
+  {
+    "gruppe": "Blumen, Stauden und Rosen",
+    "name_de": "Echter Lavendel",
+    "wissenschaftlich": "Lavandula angustifolia"
+  },
+  {
+    "gruppe": "Blumen, Stauden und Rosen",
+    "name_de": "Pfingstrose",
+    "wissenschaftlich": "Paeonia lactiflora"
+  },
+  {
+    "gruppe": "Blumen, Stauden und Rosen",
+    "name_de": "Purpur-Sonnenhut",
+    "wissenschaftlich": "Echinacea purpurea"
+  },
+  {
+    "gruppe": "Blumen, Stauden und Rosen",
+    "name_de": "Rittersporn",
+    "wissenschaftlich": "Delphinium elatum"
+  },
+  {
+    "gruppe": "Blumen, Stauden und Rosen",
+    "name_de": "Frauenmantel",
+    "wissenschaftlich": "Alchemilla mollis"
+  },
+  {
+    "gruppe": "Blumen, Stauden und Rosen",
+    "name_de": "Fetthenne",
+    "wissenschaftlich": "Hylotelephium spectabile"
+  },
+  {
+    "gruppe": "Blumen, Stauden und Rosen",
+    "name_de": "Ringelblume",
+    "wissenschaftlich": "Calendula officinalis"
+  },
+  {
+    "gruppe": "Sträucher, Hecken und Bäume",
+    "name_de": "Buchsbaum",
+    "wissenschaftlich": "Buxus sempervirens"
+  },
+  {
+    "gruppe": "Sträucher, Hecken und Bäume",
+    "name_de": "Kirschlorbeer",
+    "wissenschaftlich": "Prunus laurocerasus"
+  },
+  {
+    "gruppe": "Sträucher, Hecken und Bäume",
+    "name_de": "Sommerflieder",
+    "wissenschaftlich": "Buddleja davidii"
+  },
+  {
+    "gruppe": "Sträucher, Hecken und Bäume",
+    "name_de": "Gewöhnlicher Flieder",
+    "wissenschaftlich": "Syringa vulgaris"
+  },
+  {
+    "gruppe": "Sträucher, Hecken und Bäume",
+    "name_de": "Hainbuche",
+    "wissenschaftlich": "Carpinus betulus"
+  },
+  {
+    "gruppe": "Sträucher, Hecken und Bäume",
+    "name_de": "Haselnuss",
+    "wissenschaftlich": "Corylus avellana"
+  },
+  {
+    "gruppe": "Sträucher, Hecken und Bäume",
+    "name_de": "Europäische Eibe",
+    "wissenschaftlich": "Taxus baccata"
+  },
+  {
+    "gruppe": "Sträucher, Hecken und Bäume",
+    "name_de": "Liguster",
+    "wissenschaftlich": "Ligustrum vulgare"
+  },
+  {
+    "gruppe": "Sträucher, Hecken und Bäume",
+    "name_de": "Schwarzer Holunder",
+    "wissenschaftlich": "Sambucus nigra"
+  },
+  {
+    "gruppe": "Sträucher, Hecken und Bäume",
+    "name_de": "Felsenbirne",
+    "wissenschaftlich": "Amelanchier lamarckii"
+  },
+  {
+    "gruppe": "Gemüse und Kräuter",
+    "name_de": "Tomate",
+    "wissenschaftlich": "Solanum lycopersicum"
+  },
+  {
+    "gruppe": "Gemüse und Kräuter",
+    "name_de": "Gurke",
+    "wissenschaftlich": "Cucumis sativus"
+  },
+  {
+    "gruppe": "Gemüse und Kräuter",
+    "name_de": "Paprika",
+    "wissenschaftlich": "Capsicum annuum"
+  },
+  {
+    "gruppe": "Gemüse und Kräuter",
+    "name_de": "Zucchini",
+    "wissenschaftlich": "Cucurbita pepo"
+  },
+  {
+    "gruppe": "Gemüse und Kräuter",
+    "name_de": "Möhre",
+    "wissenschaftlich": "Daucus carota"
+  },
+  {
+    "gruppe": "Gemüse und Kräuter",
+    "name_de": "Basilikum",
+    "wissenschaftlich": "Ocimum basilicum"
+  },
+  {
+    "gruppe": "Gemüse und Kräuter",
+    "name_de": "Petersilie",
+    "wissenschaftlich": "Petroselinum crispum"
+  },
+  {
+    "gruppe": "Gemüse und Kräuter",
+    "name_de": "Schnittlauch",
+    "wissenschaftlich": "Allium schoenoprasum"
+  },
+  {
+    "gruppe": "Gemüse und Kräuter",
+    "name_de": "Rosmarin",
+    "wissenschaftlich": "Salvia rosmarinus"
+  },
+  {
+    "gruppe": "Gemüse und Kräuter",
+    "name_de": "Thymian",
+    "wissenschaftlich": "Thymus vulgaris"
+  },
+  {
+    "gruppe": "Obst und Beeren",
+    "name_de": "Apfelbaum",
+    "wissenschaftlich": "Malus domestica"
+  },
+  {
+    "gruppe": "Obst und Beeren",
+    "name_de": "Birnbaum",
+    "wissenschaftlich": "Pyrus communis"
+  },
+  {
+    "gruppe": "Obst und Beeren",
+    "name_de": "Süßkirsche",
+    "wissenschaftlich": "Prunus avium"
+  },
+  {
+    "gruppe": "Obst und Beeren",
+    "name_de": "Sauerkirsche",
+    "wissenschaftlich": "Prunus cerasus"
+  },
+  {
+    "gruppe": "Obst und Beeren",
+    "name_de": "Zwetschge",
+    "wissenschaftlich": "Prunus domestica"
+  },
+  {
+    "gruppe": "Obst und Beeren",
+    "name_de": "Pfirsich",
+    "wissenschaftlich": "Prunus persica"
+  },
+  {
+    "gruppe": "Obst und Beeren",
+    "name_de": "Gartenerdbeere",
+    "wissenschaftlich": "Fragaria × ananassa"
+  },
+  {
+    "gruppe": "Obst und Beeren",
+    "name_de": "Himbeere",
+    "wissenschaftlich": "Rubus idaeus"
+  },
+  {
+    "gruppe": "Obst und Beeren",
+    "name_de": "Rote Johannisbeere",
+    "wissenschaftlich": "Ribes rubrum"
+  },
+  {
+    "gruppe": "Obst und Beeren",
+    "name_de": "Stachelbeere",
+    "wissenschaftlich": "Ribes uva-crispa"
+  },
+  {
+    "gruppe": "Kübel- und Topfpflanzen",
+    "name_de": "Olivenbaum",
+    "wissenschaftlich": "Olea europaea"
+  },
+  {
+    "gruppe": "Kübel- und Topfpflanzen",
+    "name_de": "Zitronenbaum",
+    "wissenschaftlich": "Citrus × limon"
+  },
+  {
+    "gruppe": "Kübel- und Topfpflanzen",
+    "name_de": "Oleander",
+    "wissenschaftlich": "Nerium oleander"
+  },
+  {
+    "gruppe": "Kübel- und Topfpflanzen",
+    "name_de": "Bougainvillea",
+    "wissenschaftlich": "Bougainvillea glabra"
+  },
+  {
+    "gruppe": "Kübel- und Topfpflanzen",
+    "name_de": "Pelargonie",
+    "wissenschaftlich": "Pelargonium zonale"
+  },
+  {
+    "gruppe": "Kübel- und Topfpflanzen",
+    "name_de": "Engelstrompete",
+    "wissenschaftlich": "Brugmansia suaveolens"
+  },
+  {
+    "gruppe": "Kübel- und Topfpflanzen",
+    "name_de": "Dipladenia",
+    "wissenschaftlich": "Mandevilla sanderi"
+  },
+  {
+    "gruppe": "Kübel- und Topfpflanzen",
+    "name_de": "Wandelröschen",
+    "wissenschaftlich": "Lantana camara"
+  },
+  {
+    "gruppe": "Kübel- und Topfpflanzen",
+    "name_de": "Japanischer Fächerahorn",
+    "wissenschaftlich": "Acer palmatum"
+  },
+  {
+    "gruppe": "Kübel- und Topfpflanzen",
+    "name_de": "Fuchsie",
+    "wissenschaftlich": "Fuchsia magellanica"
+  }
+]

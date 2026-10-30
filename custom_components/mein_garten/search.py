@@ -7,6 +7,8 @@ außer dem Suchbegriff; kein API-Schlüssel notwendig.
 from __future__ import annotations
 
 import asyncio
+from copy import deepcopy
+from datetime import datetime, timedelta, timezone
 from time import monotonic
 import logging
 import re
@@ -15,8 +17,14 @@ from typing import Any
 _LOGGER = logging.getLogger(__name__)
 _INAT = "https://api.inaturalist.org/v1/taxa/autocomplete"
 _WIKIDATA = "https://www.wikidata.org/w/api.php"
+_GBIF = "https://api.gbif.org/v1/species/suggest"
+_GBIF_VERNACULAR = "https://api.gbif.org/v1/species/search"
+_GBIF_BACKBONE = "d7dddbf4-2cf0-4f39-9b2a-bb099caae36c"
 _TTL = 900.0
 _MAX_CACHE = 100
+_DISK_CACHE = 300
+_LOCAL_TTL_DAYS = 365
+_LOCAL_STORAGE_KEY = "mein_garten_namen_v1.data"
 _PLANT_TAXON = 47126
 _SPECIES_RANKS = {"species", "hybrid", "subspecies", "variety", "form"}
 _QID = re.compile(r"^Q[1-9][0-9]*$")
@@ -27,6 +35,27 @@ _WS = re.compile(r"\s+")
 def _norm(name: str) -> str:
     """Normalisiert Schreibvarianten, setzt aber keine Taxon-Synonyme gleich."""
     return _WS.sub(" ", name.replace("×", " x ").casefold()).strip()
+
+
+def _deutscher_namenkern(name: str) -> str:
+    """Leerzeichen, Bindestriche und übliche Umlautumschriften vergleichen."""
+    if not isinstance(name, str):
+        return ""
+    name = name.casefold().replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+    return "".join(c for c in name if c.isalpha())
+
+
+def _relevanter_deutscher_name(query: str, name: str) -> bool:
+    """Z. B. 'Frauenmantel' in 'Weicher Frauenmantel' als echtes Namenssignal.
+
+    Keine künstliche botanische Zuordnung: Es wird nur der bereits vom
+    Anbieter gelieferte deutsche Name zum ursprünglichen Suchwort verglichen.
+    """
+    if not isinstance(name, str) or not name:
+        return False
+    term = _norm(query).replace("-", " ")
+    label = _norm(name).replace("-", " ")
+    return len(term) >= 4 and term in label
 
 
 def _plant_name(name: str) -> bool:
@@ -116,13 +145,151 @@ def _wikidata_taxa(search: Any, entities: Any, query: str) -> list[dict]:
     return candidates
 
 
+def _gbif_results(payload: Any) -> list[dict]:
+    """Nur echte botanische Artvorschläge, niemals beliebige GBIF-Freitexttreffer."""
+    if not isinstance(payload, list):
+        raise ValueError("Unerwartete GBIF-Antwort")
+    plants = []
+    for taxon in payload[:25]:
+        if not isinstance(taxon, dict):
+            continue
+        rank = str(taxon.get("rank", "")).upper()
+        kingdom = str(taxon.get("kingdom", "")).casefold()
+        latin = taxon.get("scientificName", "")
+        canonical = taxon.get("canonicalName")
+        if rank not in {"SPECIES", "SUBSPECIES", "VARIETY"} or kingdom != "plantae":
+            continue
+        if isinstance(canonical, str) and _plant_name(canonical):
+            plants.append({
+                "wissenschaftlich": canonical[:160],
+                "deutsch": "",
+                "bestaetigt": True,
+                "quellen": ["GBIF"],
+                "id_gbif": taxon.get("key"),
+            })
+    return plants
+
+
+def _gbif_vernacular_results(payload: Any) -> list[dict]:
+    """Gebräuchliche Namen nur im akzeptierten botanischen GBIF-Backbone.
+
+    Der deutsche Name ist dadurch ein *Suchhinweis*, keine eindeutige
+    Zuordnung: z. B. 'Apfelbaum' kann Wild- und Kulturapfel bezeichnen.
+    Es werden keine automatisch erfundenen deutschen Labels ausgegeben.
+    """
+    if not isinstance(payload, dict) or not isinstance(payload.get("results"), list):
+        raise ValueError("Unerwartete Antwort der GBIF-Trivialnamenssuche")
+    out = []
+    for taxon in payload["results"][:20]:
+        if not isinstance(taxon, dict):
+            continue
+        key = taxon.get("key")
+        name = taxon.get("canonicalName")
+        if not (
+            isinstance(key, int) and not isinstance(key, bool) and key > 0
+            and taxon.get("datasetKey") == _GBIF_BACKBONE
+            and taxon.get("nubKey") == key
+            and str(taxon.get("kingdom", "")).casefold() == "plantae"
+            and str(taxon.get("rank", "")).upper() == "SPECIES"
+            and str(taxon.get("taxonomicStatus", "")).upper() == "ACCEPTED"
+            and _plant_name(name)
+        ):
+            continue
+        out.append({
+            "wissenschaftlich": name[:160],
+            "deutsch": "",
+            "bestaetigt": True,
+            "quellen": ["GBIF-Trivialnamen"],
+            "id_gbif": key,
+        })
+    return out
+
+
 class Pflanzensuche:
-    """Kurzzeit-Cache verhindert unnötige API-Last beim Tippen."""
+    """15-Minuten-RAM-Cache und persistente, nur positive deutsche Namenstreffer."""
 
     def __init__(self, hass):
         self.hass = hass
         self._cache: dict[str, tuple[float, dict]] = {}
         self._lock = asyncio.Lock()
+        self._store = None
+        self._lokale_queries: dict[str, dict] = {}
+
+    async def async_laden(self) -> None:
+        """Positive Artentaxa sind offline verfügbar, ohne eine feste Artenliste."""
+        from homeassistant.helpers.storage import Store
+
+        store = Store(self.hass, 1, _LOCAL_STORAGE_KEY)
+        saved = await store.async_load()
+        if saved is not None:
+            if (not isinstance(saved, dict) or saved.get("version") != 1
+                    or not isinstance(saved.get("queries"), dict)):
+                raise ValueError("Unbekanntes Format des Garten-Namenscaches")
+            for key, record in saved["queries"].items():
+                if (not isinstance(key, str) or not isinstance(record, dict)
+                        or not isinstance(record.get("zeit"), str)
+                        or not isinstance(record.get("pflanzen"), list)):
+                    continue
+                try:
+                    when = datetime.fromisoformat(record["zeit"])
+                except ValueError:
+                    continue
+                if when.tzinfo is None or datetime.now(timezone.utc) - when > timedelta(days=_LOCAL_TTL_DAYS):
+                    continue
+                items = [
+                    deepcopy(p) for p in record["pflanzen"][:15]
+                    if isinstance(p, dict)
+                    and _plant_name(p.get("wissenschaftlich"))
+                    and len(p["wissenschaftlich"]) <= 160
+                    and isinstance(p.get("deutsch"), str)
+                    and len(p["deutsch"]) <= 120
+                    and isinstance(p.get("bestaetigt"), bool)
+                    and isinstance(p.get("quellen"), list)
+                    and len(p["quellen"]) <= 5
+                    and all(isinstance(q, str) and len(q) <= 40 for q in p["quellen"])
+                ]
+                if items:
+                    self._lokale_queries[key] = {"zeit": record["zeit"], "pflanzen": items}
+                if len(self._lokale_queries) >= _DISK_CACHE:
+                    break
+        self._store = store
+
+    def _lokale_treffer(self, query: str) -> list[dict]:
+        """Frühere exakte Treffer und längere Namensvarianten als Fallback."""
+        term = _norm(query)
+        result = []
+        for key, rec in self._lokale_queries.items():
+            if key != term and not (len(term) >= 4 and key.startswith(term)):
+                continue
+            result.extend(deepcopy(rec["pflanzen"]))
+            if len(result) >= 50:
+                break
+        return _dedupe(result)
+
+    async def _sichere_treffer(self, key: str, candidates: list[dict]) -> None:
+        if self._store is None or not candidates:
+            return
+        # Keine Negativantworten, privaten Notizen oder Zugangsdaten persistieren.
+        items = [{
+            "wissenschaftlich": p["wissenschaftlich"],
+            "deutsch": p["deutsch"],
+            "bestaetigt": p["bestaetigt"],
+            "quellen": list(p["quellen"]),
+        } for p in candidates[:15]]
+        neu = deepcopy(self._lokale_queries)
+        neu[key] = {
+            "zeit": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "pflanzen": items,
+        }
+        if len(neu) > _DISK_CACHE:
+            oldest = min(neu, key=lambda k: neu[k]["zeit"])
+            del neu[oldest]
+        try:
+            await self._store.async_save({"version": 1, "queries": neu})
+        except Exception:
+            _LOGGER.exception("Mein Garten: Namenscache konnte nicht geschrieben werden")
+            return
+        self._lokale_queries = neu
 
     async def _json(self, url: str, **params: Any) -> Any:
         from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -149,6 +316,51 @@ class Pflanzensuche:
             _INAT, q=query, locale="de", per_page=18, taxon_id=_PLANT_TAXON
         )
         return _inat_results(data)
+
+    async def _gbif(self, query: str) -> list[dict]:
+        return _gbif_results(await self._json(_GBIF, q=query, limit=25))
+
+    async def _gbif_vernacular(self, query: str) -> list[dict]:
+        return _gbif_vernacular_results(await self._json(
+            _GBIF_VERNACULAR, q=query, qField="VERNACULAR",
+            rank="SPECIES", status="ACCEPTED",
+            datasetKey=_GBIF_BACKBONE, limit=20,
+        ))
+
+    async def _varianten(self, query: str) -> list[dict]:
+        """Nur bei sonst leeren Ergebnissen eine gesicherte Schreibvariante suchen.
+
+        Der erste Teil langer Komposita führt bei iNaturalist zu deutschen
+        Aliasen. Wir behalten nur *vollständige* Gleichheit nach
+        Bindestrich-/Leerzeichen-Normalisierung, nie bloße Ähnlichkeit.
+        Bei mehrteiligen Namen ist zusätzlich der letzte lange Wortteil
+        eine bewusst mehrdeutige, manuell zu prüfende Vorschlagsquelle.
+        """
+        words = query.split()
+        last = words[-1]
+        if len(last) < 10 or not last.isalpha():
+            return []
+        # Ein einzelner zusätzlicher Autocomplete-Request statt 10-20
+        # wahlloser Bindestrichversuche, damit öffentliche APIs geschont werden.
+        requests = [self._i_nat(last[:6])]
+        if len(words) > 1:
+            requests.append(self._gbif_vernacular(last))
+        data = await asyncio.gather(*requests, return_exceptions=True)
+        results = []
+        if not isinstance(data[0], BaseException):
+            for item in data[0]:
+                name = item.get("deutsch", "")
+                if _deutscher_namenkern(name) != _deutscher_namenkern(last):
+                    continue
+                candidate = deepcopy(item)
+                candidate["quellen"] = list(candidate["quellen"]) + ["Schreibvariante"]
+                results.append(candidate)
+        if len(words) > 1 and len(data) > 1 and not isinstance(data[1], BaseException):
+            for item in data[1][:8]:
+                candidate = deepcopy(item)
+                candidate["quellen"] = list(candidate["quellen"]) + ["Schreibvariante"]
+                results.append(candidate)
+        return _dedupe(results)
 
     async def _wikidata(self, query: str) -> list[dict]:
         search = await self._json(
@@ -194,7 +406,7 @@ class Pflanzensuche:
         query = _WS.sub(" ", query.strip())
         if not 2 <= len(query) <= 80:
             raise ValueError("Der Suchbegriff muss 2 bis 80 Zeichen enthalten")
-        key = query.casefold()
+        key = _norm(query)
         cached = self._cache.get(key)
         if cached and monotonic() - cached[0] < _TTL:
             return dict(cached[1])
@@ -206,35 +418,69 @@ class Pflanzensuche:
 
             results = await asyncio.gather(
                 self._i_nat(query), self._wikidata(query),
+                self._gbif_vernacular(query), self._gbif(query),
                 return_exceptions=True
             )
             notes = []
-            inat, wikidata = [], []
-            for label, data in zip(("iNaturalist", "Wikidata"), results):
+            inat, wikidata, vernacular, gbif = [], [], [], []
+            for label, data in zip(
+                ("iNaturalist", "Wikidata", "GBIF-Trivialnamen", "GBIF"),
+                results,
+            ):
                 if isinstance(data, BaseException):
                     _LOGGER.debug("Gartenpflanzensuche: Quelle %s nicht erreichbar", label)
                     notes.append(label + " vorübergehend nicht verfügbar")
                 elif label == "iNaturalist":
                     inat = data
-                else:
+                elif label == "Wikidata":
                     wikidata = data
+                elif label == "GBIF-Trivialnamen":
+                    vernacular = data
+                else:
+                    gbif = data
             if wikidata:
                 wikidata = await self._verify_wikidata(wikidata)
-            all_items = _dedupe(inat + wikidata)
+            netz_treffer = _dedupe(inat + wikidata + vernacular + gbif)
+            offline_treffer = self._lokale_treffer(query)
+            if not netz_treffer and not offline_treffer and len(notes) < 4:
+                # Eine einzige, streng gefilterte Schreibvarianten-Rückfallsuche
+                # nur, wenn weder Online- noch lokale Treffer vorliegen.
+                varianten = await self._varianten(query)
+                if varianten:
+                    notes.append("Alternative deutsche Schreibweise – genaue Art bitte prüfen")
+                    netz_treffer = varianten
+            all_items = _dedupe(netz_treffer + offline_treffer)
+            if offline_treffer and notes:
+                notes.append("Vorhandene Pflanzennamen aus lokalem Cache ergänzt")
             # Botanisch validierte Kandidaten und treffende deutsche Namen zuerst.
+            # Botanisch verifizierte gebräuchliche Namen vor Treffern aus
+            # bloßem wissenschaftlichem String-Autocomplete zeigen. Exakte
+            # deutsche/botanische Namen bleiben dennoch an erster Stelle.
+            # Ein Trivialname kann zu mehreren *korrekten* Arten führen;
+            # die Nutzerin wählt ausdrücklich die passende Art.
             all_items.sort(key=lambda x: (
                 not x["bestaetigt"],
-                x["deutsch"].casefold() != key,
-                x["wissenschaftlich"].casefold() != key,
-                x["wissenschaftlich"].casefold(),
+                _norm(x["deutsch"]) != key,
+                _norm(x["wissenschaftlich"]) != key,
+                not ("Schreibvariante" in x["quellen"] and
+                     _deutscher_namenkern(x["deutsch"]) ==
+                     _deutscher_namenkern(query.split()[-1])),
+                not _relevanter_deutscher_name(query, x["deutsch"]),
+                "GBIF-Trivialnamen" not in x["quellen"],
             ))
             result = {
                 "suchbegriff": query,
                 "pflanzen": all_items[:15],
                 "quellenstatus": notes,
-                "hinweis": "Die Art vor dem Übernehmen prüfen; ähnliche Arten können andere Pflege benötigen.",
+                "hinweis": (
+                    "Die botanische Art vor dem Übernehmen prüfen. "
+                    "Deutsche Sammelnamen können mehrere unterschiedliche Arten bezeichnen."
+                ),
             }
-            self._cache[key] = (monotonic(), result)
-            if len(self._cache) > _MAX_CACHE:
-                self._cache.pop(next(iter(self._cache)))
+            if all_items or not notes:
+                self._cache[key] = (monotonic(), result)
+                if len(self._cache) > _MAX_CACHE:
+                    self._cache.pop(next(iter(self._cache)))
+            if netz_treffer:
+                await self._sichere_treffer(key, all_items)
             return dict(result)

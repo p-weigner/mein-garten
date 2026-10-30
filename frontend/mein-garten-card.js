@@ -24,6 +24,30 @@
     return year + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   };
   const byDate = (a, b) => (a.faellig_am || "9999-99-99").localeCompare(b.faellig_am || "9999-99-99");
+  const zeitpunktLabel = (raw) => {
+    if (typeof raw !== "string" ||
+        !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(raw))
+      return "Zeitpunkt nicht gespeichert";
+    const value = new Date(raw);
+    return Number.isFinite(value.getTime()) ?
+      value.toLocaleString("de-DE", {
+        day: "2-digit", month: "2-digit", year: "numeric",
+        hour: "2-digit", minute: "2-digit"
+      }) : "Zeitpunkt nicht gespeichert";
+  };
+  const ENTWICKLUNGSPHASEN = [
+    { value: "austrieb", label: "Austrieb" },
+    { value: "knospenbildung", label: "Knospenbildung" },
+    { value: "bluete_beginn", label: "Blütebeginn" },
+    { value: "fruchtansatz", label: "Fruchtansatz" },
+    { value: "fruchtreife", label: "Fruchtreife" },
+    { value: "laubfaerbung", label: "Laubfärbung" },
+    { value: "blattfall", label: "Blattfall" }
+  ];
+  const phaseLabel = (key) => ENTWICKLUNGSPHASEN.find((p) => p.value === key)?.label || "Unbekannte Phase";
+  const neuesteBeobachtungen = (list) => [...list].sort((a, b) =>
+    (b.beobachtet_am || "").localeCompare(a.beobachtet_am || "") ||
+    (b.erstellt_utc || "").localeCompare(a.erstellt_utc || ""));
   const CSS = [
     ":host{display:block;--garten-bg:#15231b;--garten-card:#203329;--garten-card2:#263c2e;--garten-border:#3c5946;--garten-text:#eaf2e8;--garten-muted:#a6bca9;--garten-accent:#b0d0a8;--garten-shadow:0 14px 34px #08150c50}",
     "*{box-sizing:border-box}button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{opacity:.5;cursor:default}",
@@ -43,6 +67,7 @@
     ".modal-backdrop{position:fixed;inset:0;z-index:1000;background:#020804aa;display:flex;justify-content:center;align-items:center;padding:18px}",
     ".dialog{width:min(620px,100%);max-height:min(85vh,900px);overflow-y:auto;background:#1d3025;border:1px solid #67846a;border-radius:22px;padding:24px;box-shadow:0 22px 90px #0009;color:var(--garten-text)}.dialog h2{margin:0 0 17px;font-size:22px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}.field.full{grid-column:1/-1}",
     ".field label{font-size:12px;color:var(--garten-muted);font-weight:700}.field input,.field select,.field textarea{width:100%;padding:11px 12px;outline:none;background:#17271e;border:1px solid #4c6952;border-radius:11px;color:var(--garten-text);min-height:42px}.field textarea{min-height:82px;resize:vertical}.field input:focus,.field select:focus,.field textarea:focus{border-color:#b2d6aa;box-shadow:0 0 0 2px #82b47c30}",
+    ".field.check-field label{display:flex;align-items:center;gap:10px;flex-direction:row;font-weight:600}.field.check-field input[type=checkbox]{width:18px;height:18px;min-height:18px;flex:none;margin:0;accent-color:#91b68c}",
     ".dialog-foot{display:flex;gap:9px;justify-content:flex-end;margin-top:13px;flex-wrap:wrap}.suggestions{max-height:185px;overflow-y:auto;border:1px solid var(--garten-border);background:#17271e;border-radius:11px;margin-bottom:15px}.suggestion{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:9px 12px;width:100%;text-align:left;border:0;border-bottom:1px solid #344b39;background:transparent;color:var(--garten-text)}.suggestion:hover{background:#2d4634}.suggestion:last-child{border-bottom:0}.small{font-size:12px;color:var(--garten-muted)}",
     "@media(max-width:700px){.garden{padding:15px}.hero-icon{display:none}.stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.stat{padding:13px}.stat .count{font-size:25px}.tabs{gap:2px}.tab{padding:11px 8px;min-width:78px;font-size:12px}.grid{grid-template-columns:1fr}.dialog{padding:17px}.form-grid{grid-template-columns:1fr}}",
     "@media(prefers-reduced-motion:reduce){*{transition:none!important}}"
@@ -55,11 +80,23 @@
       this._tab = "start";
       this._data = null;
       this._groups = [];
+      this._automatik = null;
+      this._saison = null;
+      this._dwd = null;
+      this._standort = null;
+      this._eive = null;
+      // Die regionale Auswahl ist ein sichtbarer Vergleichsausschnitt,
+      // keine erkannte Hausadresse und keine Standortfreigabe.
+      this._dwdRegion = "nordost";
       this._modal = null;
       this._query = "";
       this._suggestions = [];
       this._searchMessage = "";
       this._searchGeneration = 0;
+      this._care = null;
+      this._careLoading = false;
+      this._carePlant = null;
+      this._verlaufLimit = 20;
       this._working = false;
       this._error = "";
       this._connection = null;
@@ -73,6 +110,8 @@
       this.shadowRoot.addEventListener("click", this._onClick);
       this.shadowRoot.addEventListener("submit", this._onSubmit);
       this.shadowRoot.addEventListener("input", this._onInput);
+      // Insbesondere iOS-Safari feuert bei Auswahllisten zuverlässig "change".
+      this.shadowRoot.addEventListener("change", this._onInput);
       this.shadowRoot.addEventListener("keydown", this._onKeydown);
     }
 
@@ -119,6 +158,11 @@
             if (this._connected && this._connection === connection) {
               this._data = event.daten;
               this._groups = event.gruppen || [];
+              this._automatik = event.automatik || null;
+              this._saison = event.saison || null;
+              this._dwd = event.dwd_phaenologie || null;
+              this._standort = event.standort || null;
+              this._eive = event.eive || null;
               this._error = "";
               this._render();
             }
@@ -158,6 +202,11 @@
         if (result && result.daten) {
           this._data = result.daten;
           this._groups = result.gruppen || [];
+          this._automatik = result.automatik || null;
+          this._saison = result.saison || null;
+          this._dwd = result.dwd_phaenologie || null;
+          this._standort = result.standort || null;
+          this._eive = result.eive || null;
         }
         this._modal = null;
         this._render();
@@ -179,6 +228,14 @@
 
     _onInput(ev) {
       const target = ev.target;
+      // Ein Suchfeld meldet beim Verlassen zusätzlich "change". Das darf
+      // nicht erneut denselben externen Pflanzensuchlauf auslösen.
+      if (ev.type === "change" && target?.dataset?.role === "plant-search") return;
+      if (target?.dataset && ["pflegekontext-pflanze", "pflegekontext-typ"].includes(target.dataset.role)) {
+        const form = target.closest?.('form[data-form="aufgabe"], form[data-form="regel"]');
+        if (form) this._pflegekontextAktualisieren(form);
+        return;
+      }
       if (target && target.dataset && target.dataset.role === "plant-search") {
         this._query = target.value;
         this._searchGeneration++;
@@ -228,17 +285,23 @@
           escapeHtml(this._searchMessage || "Suche einen deutschen oder botanischen Namen.") +
           "</div>";
       }
-      return this._suggestions.map((plant, index) =>
-        '<button type="button" class="suggestion" data-action="suggestion" data-index="' +
-        index + '"><span><strong>' +
-        escapeHtml(plant.deutsch || plant.wissenschaftlich) +
-        '</strong><span class="small" style="display:block">' +
-        escapeHtml(plant.wissenschaftlich) +
-        '</span></span><span class="chip ' +
-        (plant.bestaetigt ? '' : 'warning') + '">' +
-        (plant.bestaetigt ? "Art bestätigt" : "Bitte Art prüfen") +
-        "</span></button>"
-      ).join("");
+      return this._suggestions.map((plant, index) => {
+        const alternativeSchreibweise =
+          (plant.quellen || []).includes("Schreibvariante");
+        const mehrdeutigerName = alternativeSchreibweise ||
+          (!plant.deutsch && (plant.quellen || []).includes("GBIF-Trivialnamen"));
+        return '<button type="button" class="suggestion" data-action="suggestion" data-index="' +
+          index + '"><span><strong>' +
+          escapeHtml(plant.deutsch || plant.wissenschaftlich) +
+          '</strong><span class="small" style="display:block">' +
+          escapeHtml(plant.wissenschaftlich) +
+          '</span></span><span class="chip ' +
+          (plant.bestaetigt && !mehrdeutigerName ? '' : 'warning') + '">' +
+          (alternativeSchreibweise ? "Namensvariante – Art prüfen" :
+            mehrdeutigerName ? "Trivialname – Art prüfen" :
+            plant.bestaetigt ? "Art bestätigt" : "Bitte Art prüfen") +
+          "</span></button>";
+      }).join("");
     }
 
     _onClick(ev) {
@@ -260,12 +323,129 @@
         this._searchMessage = "";
         this._query = "";
         this._render();
+      } else if (action === "care-plan") {
+        const plant = this._getPlant(id);
+        const key = btn.dataset.field || "";
+        const field = this._care?.felder?.[key];
+        // Historische, nicht erneut geprüfte Freitexte sind keine Grundlage
+        // für eine neue wiederkehrende Pflegekontrolle.
+        if (!plant || !field || !field.text ||
+            field.status === "zwischengespeichert" || this._care?.aktualisierung) return;
+        const titel = {
+          watering: "Gießbedarf prüfen",
+          sunlight: "Standort prüfen",
+          soil: "Boden prüfen",
+          pruning: "Schnittbedarf prüfen",
+          fertilization: "Düngebedarf prüfen",
+        }[key];
+        if (!titel) return;
+        this._modal = {
+          type: "regel",
+          prefill: {
+            name: titel + " – " + plant.name,
+            pflanzen_id: plant.id,
+            bereich_id: plant.bereich_id,
+            rhythmus: "jaehrlich",
+            pflegefeld: key,
+            aufgabentyp: key === "watering" ? "giesskontrolle" : "einfach",
+          },
+          careInfo: "Dieser Termin wird von dir festgelegt. Die Quelle " +
+            "OpenPlantbook und ihre Übersetzung sind nicht fachlich geprüft.",
+        };
+        this._render();
+      } else if (action === "giesskontrolle-neu") {
+        const plant = this._getPlant(id);
+        if (!plant) return;
+        // Nur vorausgefülltes Formular: keine Aufgabe und kein Datum ohne Bestätigung.
+        this._modal = {
+          type: "aufgabe",
+          prefill: {
+            name: "Gießbedarf prüfen – " + plant.name,
+            pflanzen_id: plant.id,
+            bereich_id: plant.bereich_id || null,
+            aufgabentyp: "giesskontrolle",
+          },
+        };
+        this._render();
+      } else if (action === "pflegeverlauf-open") {
+        const plant = this._getPlant(id);
+        if (!plant) return;
+        this._verlaufLimit = 20;
+        this._modal = { type: "pflegeverlauf", existing: plant };
+        this._render();
+      } else if (action === "pflegeverlauf-mehr") {
+        if (this._modal?.type !== "pflegeverlauf" ||
+            this._modal.existing?.id !== id || !this._getPlant(id)) return;
+        this._verlaufLimit = Math.min(this._verlaufLimit + 20, 2000);
+        this._render();
+      } else if (action === "entwicklung-open") {
+        const plant = this._getPlant(id);
+        if (!plant) return;
+        this._modal = { type: "entwicklung", existing: plant };
+        this._render();
+      } else if (action === "beobachtung-remove") {
+        const item = (this._data?.beobachtungen || []).find((b) => b.id === id);
+        if (!item) return;
+        if (!window.confirm("Diese eigene Entwicklungsbeobachtung löschen?")) return;
+        this._mutate("beobachtung_entfernen", { beobachtung_id: id });
+      } else if (action === "care-open") {
+        const plant = this._getPlant(id);
+        if (!plant) return;
+        this._modal = { type: "pflege", existing: plant };
+        this._care = null;
+        this._carePlant = id;
+        this._careLoading = true;
+        this._render();
+        this._loadCare(id);
+      } else if (action === "care-refresh") {
+        if (this._careLoading || this._modal?.type !== "pflege"
+            || this._carePlant !== id || !this._getPlant(id)) return;
+        this._careLoading = true;
+        this._render();
+        this._loadCare(id, true);
       } else if (action === "area-new") {
         this._modal = { type: "bereich" };
         this._render();
+      } else if (action === "dwd-region") {
+        if (!["nordost", "deutschland"].includes(btn.dataset.region)) return;
+        this._dwdRegion = btn.dataset.region;
+        this._render();
+      } else if (action === "saisonanker-open") {
+        this._modal = { type: "saisonanker" };
+        this._render();
+      } else if (action === "saison-plan") {
+        const hit = (this._saison?.vorschlaege || []).find((r) =>
+          r.pflanzen_id === id && r.katalog_id === btn.dataset.katalog);
+        if (!hit || hit.vorgemerkt || hit.abgelaufen ||
+            !hit.fenster_von || !hit.fenster_bis) return;
+        this._modal = { type: "saison", eintrag: hit };
+        this._render();
+      } else if (action === "automatik-open") {
+        this._modal = { type: "automatik" };
+        this._render();
+      } else if (action === "rule-new") {
+        this._modal = { type: "regel" };
+        this._render();
+      } else if (action === "rule-toggle" || action === "rule-remove") {
+        const rule = (this._data.regeln || []).find((r) => r.id === id);
+        if (!rule) return;
+        if (action === "rule-remove" && !window.confirm("Diese Wiederholung entfernen? Erledigte Aufgaben bleiben erhalten.")) return;
+        this._mutate(action === "rule-remove" ? "regel_entfernen" : "regel_aktiv_setzen",
+          action === "rule-remove" ? { regel_id: id } : { regel_id: id, aktiv: !rule.aktiv });
       } else if (action === "task-new") {
         this._modal = { type: "aufgabe" };
         this._render();
+      } else if (action === "task-result") {
+        const task = (this._data.aufgaben || []).find((t) => t.id === id);
+        if (!task || task.status !== "offen" || task.aufgabentyp !== "giesskontrolle") return;
+        this._modal = { type: "giessen", existing: task };
+        this._render();
+      } else if (action === "task-water-choice") {
+        const task = this._modal && this._modal.type === "giessen" && this._modal.existing;
+        if (!task || task.id !== id || task.status !== "offen") return;
+        const ergebnis = btn.dataset.result;
+        if (!["gegossen", "kontrolliert_kein_wasser"].includes(ergebnis)) return;
+        this._mutate("aufgabe_erledigen", { aufgaben_id: id, ergebnis });
       } else if (action === "suggestion") {
         const candidate = this._suggestions[Number(btn.dataset.index)];
         if (!candidate) return;
@@ -275,9 +455,15 @@
         const name = form.elements.namedItem("name");
         if (!name.value.trim()) name.value = candidate.deutsch || candidate.wissenschaftlich;
         const note = this.shadowRoot.querySelector("#garten-artenhinweis");
-        if (note) note.textContent = candidate.bestaetigt
-          ? "Botanische Art bestätigt: " + candidate.wissenschaftlich
-          : "Die Zuordnung ist noch nicht bestätigt. Für diese Pflanze werden keine artspezifischen Pflegemaßnahmen abgeleitet.";
+        const quellen = candidate.quellen || [];
+        const istVariante = quellen.includes("Schreibvariante");
+        const aliasMehrdeutig = istVariante ||
+          (!candidate.deutsch && quellen.includes("GBIF-Trivialnamen"));
+        if (note) note.textContent = aliasMehrdeutig
+          ? "Botanisches Taxon bestätigt. Die Zuordnung einer alternativen Schreibweise oder eines deutschen Sammelnamens ist nicht eindeutig: bitte die tatsächliche Art prüfen."
+          : candidate.bestaetigt
+            ? "Botanische Art bestätigt: " + candidate.wissenschaftlich
+            : "Die Zuordnung ist noch nicht bestätigt. Für diese Pflanze werden keine artspezifischen Pflegemaßnahmen abgeleitet.";
       } else if (action === "plant-remove" || action === "area-remove" || action === "task-remove") {
         const question = action === "plant-remove"
           ? "Diese Pflanze und ihre verknüpften Aufgaben wirklich entfernen?"
@@ -302,6 +488,261 @@
           { aufgaben_id: id }
         );
       }
+    }
+
+    async _loadCare(id, aktualisieren = false) {
+      try {
+        const result = await this._call("pflegeprofil", aktualisieren
+          ? { pflanzen_id: id, aktualisieren: true }
+          : { pflanzen_id: id });
+        if (this._carePlant !== id || !this._modal || this._modal.type !== "pflege") return;
+        this._care = result;
+      } catch (err) {
+        if (this._carePlant !== id || !this._modal || this._modal.type !== "pflege") return;
+        const hatHinweise = Object.values(this._care?.felder || {}).some((f) =>
+          f && typeof f.text === "string" && f.text.trim());
+        this._care = hatHinweise ? { ...this._care, aktualisierung: "fehler" } :
+          { status: "fehler", meldung: this._errorText(err, "Pflegeprofil nicht verfügbar") };
+      } finally {
+        if (this._carePlant === id && this._modal && this._modal.type === "pflege") {
+          this._careLoading = false;
+          this._render();
+        }
+      }
+    }
+
+    _standortHTML() {
+      const base = this._standort;
+      if (!base || !this._carePlant) return "";
+      const row = base.profile?.[this._carePlant];
+      const existing = this._getPlant(this._carePlant);
+      if (!row || !existing ||
+          row.wissenschaftlich !== existing.wissenschaftlich) {
+        return '<section class="card" style="margin:9px 0;padding:13px">' +
+          '<h3>Standort-Steckbrief</h3><p class="small">' +
+          'Für diese botanische Art gibt es in der lokalen CC0-Datenquelle ' +
+          'noch keine eindeutig verwendbaren Standortmerkmale.</p></section>';
+      }
+      const labels = {
+        sun: {
+          title: "Lichtbedarf laut Quelle",
+          values: { full: "Sonnig", partial: "Halbschattig", shade: "Schattig" }
+        },
+        water: {
+          title: "Wasserbedarf laut Quelle",
+          values: { low: "Eher gering", moderate: "Mittel", high: "Hoch" }
+        },
+        frost_tolerance: {
+          title: "Frostkategorie der Quelle",
+          values: {
+            hardy: "Allgemein als frosttolerant eingeordnet",
+            "half-hardy": "Eingeschränkt frosttolerant",
+            tender: "Als frostempfindlich eingeordnet",
+          }
+        },
+        season: {
+          title: "Wachstumsgruppe der Quelle",
+          values: {
+            cool: "Kühle Wachstumszeit", warm: "Warme Wachstumszeit",
+            perennial: "Mehrjährig",
+          }
+        },
+      };
+      const items = Object.entries(labels).map(([field, config]) => {
+        const value = row.merkmale?.[field];
+        if (!value || !config.values[value]) return "";
+        return '<div class="task"><div><div class="task-name">' +
+          escapeHtml(config.title) + '</div>' +
+          '<div class="task-meta">' + escapeHtml(config.values[value]) +
+          '</div></div></div>';
+      }).filter(Boolean).join("");
+      return '<section class="card" style="margin:9px 0;padding:13px">' +
+        '<h3>Standort-Steckbrief</h3>' +
+        '<p class="small">Strukturierte Basisangaben für <em>' +
+        escapeHtml(row.wissenschaftlich) + '</em>.</p>' +
+        items +
+        '<div class="notice">Allgemeine, nicht für Brandenburg geprüfte ' +
+        'CC0-Quellkategorien. Der Wasserbedarf ist kein Gießintervall; ' +
+        'die Frostkategorie ist keine sichere Winterhärte. ' +
+        'Daraus werden keine automatischen Pflegeaufgaben erzeugt.</div>' +
+        '<p class="small">Quelle: <a href="https://github.com/cwfrazier1/openplantdb" ' +
+        'target="_blank" rel="noopener noreferrer">OpenPlantDB</a> · CC0 1.0 · ' +
+        'Artzuordnung ohne Sortenübertragung · ' +
+        escapeHtml(base.quell_commit?.slice(0, 10) || "Version unbekannt") +
+        '</p></section>';
+    }
+
+    _eiveHTML() {
+      const base = this._eive;
+      if (!base || !this._carePlant) return "";
+      const plant = this._getPlant(this._carePlant);
+      const row = base.profile?.[this._carePlant];
+      if (!plant || !row || row.wissenschaftlich !== plant.wissenschaftlich)
+        return "";
+      const fields = [
+        ["L", "Licht"],
+        ["M", "Bodenfeuchtigkeit"],
+        ["N", "Nährstoffverfügbarkeit"],
+        ["R", "Bodenreaktion"],
+        ["T", "Temperatur"]
+      ];
+      const items = fields.map(([key, label]) => {
+        const field = row.indikatoren?.[key];
+        if (!field || typeof field.wert !== "number" ||
+            !Number.isFinite(field.wert) || field.wert < 0 || field.wert > 10 ||
+            !Number.isInteger(field.quellsysteme) ||
+            field.quellsysteme < 1 || field.quellsysteme > 31) return "";
+        const amount = field.wert.toFixed(1).replace(".", ",");
+        const evidence = field.quellsysteme === 1 ?
+          '<span class="chip warning">Nur 1 Quellsystem</span>' :
+          escapeHtml(field.quellsysteme) + ' Quellsysteme';
+        return '<div class="task"><div><div class="task-name">' +
+          escapeHtml(label) + '</div><div class="task-meta">' +
+          'Europäischer Zeigerwert · ' + evidence +
+          '</div></div><strong>' + escapeHtml(amount) + ' / 10</strong></div>';
+      }).filter(Boolean).join("");
+      if (!items) return "";
+      return '<section class="card" style="margin:9px 0;padding:13px">' +
+        '<h3>Europäische Standortindikatoren</h3>' +
+        '<p class="small">Wissenschaftliche Referenzwerte für <em>' +
+        escapeHtml(row.wissenschaftlich) + '</em>.</p>' + items +
+        '<div class="notice">Ökologische Nischenwerte auf einer relativen ' +
+        'Skala von 0 bis 10. Keine Messung der Gartenerde, keine Gießmenge, ' +
+        'keine Dünge-, Schnitt- oder Frostempfehlung. Nicht für Brandenburg ' +
+        'als individuelle Gartenpflege geprüft. Die Anzahl der Quellsysteme ' +
+        'zeigt Datenabdeckung, keine Garantie für die Kulturpraxis.</div>' +
+        '<p class="small">Quelle: <a href="https://doi.org/10.5281/zenodo.7534792" ' +
+        'target="_blank" rel="noopener noreferrer">Dengler et al. (2023), ' +
+        'EIVE 1.0</a> · <a href="https://creativecommons.org/licenses/by/4.0/" ' +
+        'target="_blank" rel="noopener noreferrer">CC BY 4.0</a> · ' +
+        'gerundete Werte, exakte Artenzuordnung</p>' +
+        '</section>';
+    }
+
+    _eigenePflegeNotizenHTML() {
+      const plant = this._getPlant(this._carePlant);
+      if (!plant || typeof plant.notizen !== "string" || !plant.notizen.trim())
+        return "";
+      return '<section class="card" style="margin:9px 0;padding:13px">' +
+        '<h3>Deine Pflanzennotizen</h3>' +
+        '<p style="white-space:pre-wrap">' + escapeHtml(plant.notizen) + '</p>' +
+        '<p class="small">Deine eigenen, nur in Home Assistant gespeicherten Angaben. ' +
+        'Keine externe Pflegequelle.</p>' +
+        '<button type="button" class="btn tiny" data-action="plant-edit" data-id="' +
+        escapeHtml(plant.id) + '">Notizen bearbeiten</button></section>';
+    }
+
+    _careHTML() {
+      const grundlagen = this._standortHTML() + this._eiveHTML() +
+        this._eigenePflegeNotizenHTML();
+      if (this._careLoading && !this._care)
+        return grundlagen + '<p class="small">Deutsche Pflegeinformationen werden geladen …</p>';
+      const profile = this._care;
+      if (!profile)
+        return grundlagen + '<p class="small">Kein zusätzliches Pflegeprofil verfügbar.</p>';
+      const labels = {
+        quelle_nicht_eingerichtet: "OpenPlantbook ist nicht eingerichtet.",
+        quelle_nicht_erreichbar: "OpenPlantbook ist momentan nicht erreichbar.",
+        art_nicht_gefunden: "Für diese botanische Art sind noch keine Pflegeinformationen vorhanden.",
+        art_nicht_bestaetigt: "Die botanische Art konnte nicht eindeutig bestätigt werden.",
+        art_unbekannt: "Bitte zuerst einen gültigen botanischen Artnamen auswählen.",
+        kein_deutscher_text: "OpenPlantbook hat aktuell keinen verwendbaren deutschen Pflegehinweis geliefert.",
+        teilweise: "Einige Pflegeinformationen konnten nicht erneut geladen oder übersetzt werden.",
+        quellenantwort_ungueltig: "Unerwartete Antwort der Pflegequelle.",
+        fehler: "Pflegeprofil konnte nicht geladen werden.",
+        aktualisierung_zu_frueh: "Die letzte Quellenprüfung liegt noch keine fünf Minuten zurück."
+      };
+      const fields = Object.entries(profile.felder || {});
+      const vorhanden = fields.filter(([, f]) =>
+        f && typeof f.text === "string" && f.text.trim());
+      const fehlende = fields.length - vorhanden.length;
+      const status = profile.status !== "ok" ?
+        '<p class="small">' +
+        escapeHtml(profile.meldung || labels[profile.status] || "Keine Angaben verfügbar.") +
+        '</p>' : "";
+      const heading = vorhanden.length ?
+        '<div class="notice">Quelle: <a href="https://open.plantbook.io/" ' +
+        'target="_blank" rel="noopener noreferrer">OpenPlantbook</a> · ' +
+        'Nicht fachlich geprüft. Fremdsprachige Inhalte werden automatisch ' +
+        'übersetzt; daraus entstehen keine automatischen Pflegeaufgaben.</div>' : "";
+      const body = vorhanden.map(([key, f]) => {
+        const istAlt = f.status === "zwischengespeichert";
+        const sprache = istAlt ?
+          "Älterer gespeicherter Hinweis – nicht erneut aus der Quelle bestätigt und nicht fachlich geprüft" :
+          f.status === "maschinenuebersetzt" ?
+          "Maschinell übersetzt – nicht fachlich geprüft" :
+          f.status === "original_deutsch" ?
+          "Deutscher Quelltext – nicht fachlich geprüft" :
+          "Ungeprüfter Pflegehinweis";
+        const datum = istAlt && typeof f.zuletzt_bestaetigt_utc === "string" &&
+          /^\d{4}-\d{2}-\d{2}/.test(f.zuletzt_bestaetigt_utc) ?
+          '<p class="small">Text zuletzt aus der Quelle abgerufen am ' +
+          escapeHtml(dateLabel(f.zuletzt_bestaetigt_utc.slice(0, 10))) + '.</p>' : '';
+        return '<section class="card" style="margin:9px 0;padding:13px">' +
+          '<h3>' + escapeHtml(f.titel || key) +
+          (istAlt ? ' <span class="chip warning">Ältere Information</span>' : '') +
+          '</h3>' +
+          '<p style="white-space:pre-wrap">' + escapeHtml(f.text) + '</p>' +
+          '<p class="small">' + escapeHtml(sprache) + '</p>' + datum +
+          (this._carePlant && !istAlt && !profile.aktualisierung ?
+            '<button type="button" class="btn tiny" data-action="care-plan" data-id="' +
+            escapeHtml(this._carePlant) + '" data-field="' + escapeHtml(key) +
+            '">Jährliche Kontrolle dazu planen</button>' : '') +
+          '</section>';
+      }).join("");
+      const veraltete = vorhanden.filter(([, f]) => f.status === "zwischengespeichert").length;
+      const veraltetHinweis = veraltete ?
+        '<div class="notice">' + veraltete +
+        (veraltete === 1 ? ' Pflegefeld stammt' : ' Pflegefelder stammen') +
+        ' nur aus älteren gespeicherten Übersetzungen. ' +
+        (veraltete === 1 ? 'Es wurde' : 'Sie wurden') +
+        ' beim letzten Abruf nicht neu bestätigt und ' +
+        (veraltete === 1 ? 'kann' : 'können') +
+        ' nicht für neue Jahreskontrollen übernommen werden. ' +
+        'Die übrigen neu verfügbaren Angaben bleiben separat sichtbar.</div>' : "";
+      const luecken = fehlende > 0 && fields.length ?
+        '<p class="small">' + fehlende + ' von ' + fields.length +
+        ' Pflegefeldern haben derzeit keinen deutschen Hinweis. ' +
+        'Es werden keine fehlenden Angaben ergänzt oder geraten.</p>' : "";
+      const plant = this._getPlant(this._carePlant);
+      const ohneFreitext = !vorhanden.length ?
+        '<section class="card" style="margin:9px 0;padding:13px">' +
+        '<h3>Keine weiteren deutschen Pflegehinweise</h3>' +
+        '<p class="small">Du kannst vorhandene Standort-Grunddaten oben nutzen, ' +
+        'eigene Notizen pflegen oder eine individuelle Erinnerung im Kalender anlegen. ' +
+        'Fehlende Fachinformationen werden nicht erfunden.</p>' +
+        (plant ? '<button type="button" class="btn tiny" data-action="plant-edit" data-id="' +
+          escapeHtml(plant.id) + '">Pflanzennotizen bearbeiten</button>' : '') +
+        '</section>' : "";
+      const hinweiseZumStand = {
+        quelle_nicht_erreichbar: "OpenPlantbook ist momentan nicht erreichbar.",
+        quelle_nicht_eingerichtet: "OpenPlantbook ist derzeit nicht eingerichtet.",
+        quellenantwort_ungueltig: "Die Quelle hat unerwartete Daten geliefert.",
+        art_nicht_gefunden: "Die botanische Art wurde beim erneuten Prüfen nicht gefunden.",
+        art_nicht_bestaetigt: "Die botanische Art konnte beim erneuten Prüfen nicht bestätigt werden.",
+        kein_deutscher_text: "Beim erneuten Prüfen waren keine deutschen Pflegehinweise verfügbar.",
+        wartezeit: "Ein erneuter Abruf ist erst nach fünf Minuten möglich.",
+        fehler: "Der erneute Abruf ist fehlgeschlagen."
+      };
+      const meldung = profile.aktualisierung ? (
+        hinweiseZumStand[profile.aktualisierung] || "Pflegequelle konnte nicht aktualisiert werden."
+      ) : "";
+      const cacheHinweis = meldung ?
+        '<div class="notice">' + escapeHtml(meldung) +
+        ' Vorhandene Pflegehinweise stammen aus dem letzten gespeicherten Abruf' +
+        (typeof profile.abgerufen_utc === "string" && /^\d{4}-\d{2}-\d{2}/.test(profile.abgerufen_utc)
+          ? ' vom ' + escapeHtml(dateLabel(profile.abgerufen_utc.slice(0, 10)))
+          : '') + ' und wurden nicht neu bestätigt.</div>' : "";
+      const refresh = this._carePlant && plant ?
+        '<div class="buttons" style="margin-top:12px"><button type="button" ' +
+        'class="btn tiny" data-action="care-refresh" data-id="' +
+        escapeHtml(plant.id) + '"' + (this._careLoading ? ' disabled' : '') +
+        '>Pflegequelle erneut prüfen</button><span class="small">' +
+        (this._careLoading ? 'Aktualisierung läuft …' :
+          'Bei Datenlücken oder Quellenausfällen. Höchstens alle fünf Minuten.') +
+        '</span></div>' : "";
+      return grundlagen + status + cacheHinweis + heading + veraltetHinweis +
+        body + luecken + ohneFreitext + refresh;
     }
 
     _getPlant(id) {
@@ -331,14 +772,54 @@
         } else {
           this._mutate("pflanze_anlegen", data);
         }
+      } else if (form.dataset.form === "entwicklung") {
+        if (!this._modal?.existing || this._modal.type !== "entwicklung") return;
+        this._mutate("beobachtung_anlegen", {
+          pflanzen_id: this._modal.existing.id,
+          phase: val("phase"),
+          beobachtet_am: val("beobachtet_am"),
+          notiz: val("notiz"),
+        });
       } else if (form.dataset.form === "bereich") {
         this._mutate("bereich_anlegen", { name: val("name") });
+      } else if (form.dataset.form === "saisonanker") {
+        this._mutate("saisonanker_speichern", {
+          last_frost: val("last_frost"),
+          first_frost: val("first_frost"),
+        });
+      } else if (form.dataset.form === "saison") {
+        const item = this._modal?.eintrag;
+        if (!item || this._modal.type !== "saison") return;
+        this._mutate("saison_vormerken", {
+          pflanzen_id: item.pflanzen_id,
+          katalog_id: item.katalog_id,
+          datum: val("datum"),
+        });
+      } else if (form.dataset.form === "automatik") {
+        const isChecked = (key) => form.elements.namedItem(key).checked;
+        this._mutate("automatik_speichern", {
+          weather_entity: val("weather_entity"),
+          notify_target: val("notify_target"),
+          freitag_aktiv: isChecked("freitag_aktiv"),
+          frost_aktiv: isChecked("frost_aktiv"),
+          frost_grenze_c: Number(val("frost_grenze_c")),
+        });
+      } else if (form.dataset.form === "regel") {
+        this._mutate("regel_anlegen", {
+          name: val("name"), startdatum: val("startdatum"), rhythmus: val("rhythmus"),
+          intervall_tage: val("rhythmus") === "tage" ? Number(val("intervall_tage")) : null,
+          pflanzen_id: val("pflanzen_id") || null,
+          bereich_id: val("bereich_id") || null,
+          pflegefeld: this._modal?.prefill?.pflegefeld || null,
+          aufgabentyp: val("aufgabentyp") || "einfach",
+        });
       } else if (form.dataset.form === "aufgabe") {
         this._mutate("aufgabe_anlegen", {
           name: val("name"),
           faellig_am: val("faellig_am") || null,
           pflanzen_id: val("pflanzen_id") || null,
           bereich_id: val("bereich_id") || null,
+          aufgabentyp: val("aufgabentyp") || "einfach",
         });
       }
     }
@@ -385,7 +866,178 @@
         "</button></div></form>";
     }
 
+    _saisonankerForm() {
+      const a = this._saison?.anker || { last_frost: "", first_frost: "" };
+      return '<form data-form="saisonanker"><div class="notice">' +
+        'Die Vorhersage für einzelne Nächte ist kein zuverlässiger letzter Frostag. ' +
+        'Trage für die gewünschte Gartensaison selbst geschätzte Referenztage ein. ' +
+        'Eine US-Klimazone wird nicht auf deinen Garten übertragen.</div>' +
+        '<div class="field"><label>Letzter erwarteter Frühjahrsfrost (optional)</label>' +
+        '<input type="date" name="last_frost" min="2020-01-01" max="2100-12-31" value="' +
+        escapeHtml(a.last_frost || "") + '"></div>' +
+        '<div class="field"><label>Erster erwarteter Herbstfrost (optional)</label>' +
+        '<input type="date" name="first_frost" min="2020-01-01" max="2100-12-31" value="' +
+        escapeHtml(a.first_frost || "") + '"></div>' +
+        '<div class="small">Nur Planungshilfen aus OpenPlantDB (CC0); ' +
+        'es werden weder Aussaat noch Schnitt oder Düngung automatisch angeordnet. ' +
+        'Für das nächste Gartenjahr müssen die Referenztage neu festgelegt werden.</div>' +
+        '<div class="dialog-foot"><button type="button" class="btn ghost" data-action="close">Abbrechen</button>' +
+        '<button type="submit" class="btn primary">Frost-Referenzdaten speichern</button></div></form>';
+    }
+
+    _saisonForm() {
+      const r = this._modal.eintrag;
+      return '<form data-form="saison"><div class="notice">' +
+        'Unverbindlicher Aussaat-/Pflanzzeitraum aus US-Planungsdaten. ' +
+        'Prüfe Art, Sorte, Standort und örtliche Witterung selbst. ' +
+        'Es wird nur eine Erinnerungsaufgabe erzeugt, keine Aussaat ausgelöst.</div>' +
+        '<p><strong>' + escapeHtml(r.pflanze) + '</strong> · <em>' +
+        escapeHtml(r.wissenschaftlich) + '</em></p>' +
+        '<p>' + escapeHtml(r.titel) + ' · ' +
+        escapeHtml(dateLabel(r.fenster_von)) + ' – ' +
+        escapeHtml(dateLabel(r.fenster_bis)) + '</p>' +
+        '<div class="field"><label>Datum für deine Kontrollaufgabe *</label>' +
+        '<input type="date" name="datum" required min="' +
+        escapeHtml(r.fenster_von) + '" max="' + escapeHtml(r.fenster_bis) +
+        '" value="' + escapeHtml(r.fenster_von) + '"></div>' +
+        '<p class="small">Quelle: OpenPlantDB · CC0 1.0 · nicht regional fachlich geprüft</p>' +
+        '<div class="dialog-foot"><button class="btn ghost" type="button" data-action="close">Abbrechen</button>' +
+        '<button class="btn primary" type="submit">Als Kontrolle vormerken</button></div></form>';
+    }
+
+    _automatikForm() {
+      const a = this._automatik || {
+        weather_entity: "", notify_target: "", freitag_aktiv: false,
+        frost_aktiv: false, frost_grenze_c: 2,
+      };
+      const weatherOptions = Object.keys(this._hass?.states || {})
+        .filter((id) => /^weather\.[a-z0-9_]+$/.test(id)).sort();
+      const notifyEntities = Object.keys(this._hass?.states || {})
+        .filter((id) => /^notify\.[a-z0-9_]+$/.test(id));
+      const notifyServices = Object.keys(this._hass?.services?.notify || {})
+        .filter((id) => /^[a-z0-9_]+$/.test(id) && !["send_message", "notify"].includes(id))
+        .map((id) => "notify." + id);
+      const options = (items) => [...new Set(items)].sort().map((id) =>
+        '<option value="' + escapeHtml(id) + '"></option>').join("");
+      return '<form data-form="automatik"><div class="notice">' +
+        'Beide Benachrichtigungen sind freiwillig und zunächst ausgeschaltet. ' +
+        'Es wird ausschließlich die vorhandene Home-Assistant-Wettervorhersage genutzt; ' +
+        'keine eigenen Pflanzennotizen werden versendet.</div>' +
+        '<div class="field"><label>iPhone-Empfänger *</label>' +
+        '<input name="notify_target" list="garten-notify-liste" maxlength="97" value="' +
+        escapeHtml(a.notify_target) + '" placeholder="notify.angelinas_iphone_15_pro">' +
+        '<datalist id="garten-notify-liste">' +
+        options([...notifyEntities, ...notifyServices]) + '</datalist>' +
+        '<div class="small">Eine vorhandene Notify-Entität oder ein Notify-Dienst. ' +
+        'Der tatsächliche Name muss in Home Assistant existieren.</div></div>' +
+        '<div class="field"><label>Wetterentität für die Frostprognose *</label>' +
+        '<input name="weather_entity" list="garten-weather-liste" maxlength="98" value="' +
+        escapeHtml(a.weather_entity) + '" placeholder="weather.home">' +
+        '<datalist id="garten-weather-liste">' +
+        options(weatherOptions) + '</datalist></div>' +
+        '<div class="field check-field"><label><input type="checkbox" name="freitag_aktiv"' +
+        (a.freitag_aktiv ? ' checked' : '') +
+        '> Freitags 16:00 Uhr eine Pflegeübersicht schicken</label></div>' +
+        '<div class="field check-field"><label><input type="checkbox" name="frost_aktiv"' +
+        (a.frost_aktiv ? ' checked' : '') +
+        '> Bei möglicher Frostgefahr eine Warnung schicken</label></div>' +
+        '<div class="field"><label>Warnschwelle (°C, -5 bis +8)</label>' +
+        '<input type="number" name="frost_grenze_c" min="-5" max="8" step="0.5" required value="' +
+        escapeHtml(a.frost_grenze_c) + '"></div>' +
+        '<div class="small">Frostprüfung täglich um 06:15 und 18:15 Uhr. ' +
+        'Jede Vorhersage ist unsicher; es werden keine Schnitt- oder Düngeaufträge automatisch erzeugt.</div>' +
+        '<div class="dialog-foot"><button class="btn ghost" type="button" data-action="close">Abbrechen</button>' +
+        '<button class="btn primary" type="submit">Einstellungen speichern</button></div></form>';
+    }
+
+    _giessKontextHTML(pflanzenId, aufgabentyp, aufgabeId = null) {
+      if (aufgabentyp !== "giesskontrolle") return "";
+      if (!pflanzenId) return '<div class="notice">Wähle eine Pflanze, um ihre ' +
+        'letzten dokumentierten Gießentscheidungen zu sehen. Der Termin wird ' +
+        'nicht automatisch vorgeschlagen.</div>';
+      const plant = this._getPlant(pflanzenId);
+      if (!plant) return '<div class="notice">Für diese Pflanze liegen keine ' +
+        'zugeordneten Pflegeinformationen vor.</div>';
+      const info = this._pflegeverlaufDaten(plant.id);
+      const letzte = info.letzteKontrolle;
+      const gegossen = info.zuletztGegossen;
+      const letzteInfo = letzte ?
+        'Letzte Kontrolle: ' + escapeHtml(zeitpunktLabel(letzte.erledigt_utc)) +
+        ' · ' + (letzte.ergebnis === "gegossen" ? "Gegossen" :
+          letzte.ergebnis === "kontrolliert_kein_wasser" ?
+          "Kontrolliert – kein Wasser nötig" : "Ergebnis nicht dokumentiert") :
+        'Noch keine Gießkontrolle dokumentiert.';
+      const gegossenInfo = gegossen ?
+        'Zuletzt tatsächlich gegossen: ' +
+        escapeHtml(zeitpunktLabel(gegossen.erledigt_utc)) :
+        'Noch kein tatsächliches Gießen dokumentiert.';
+      const offen = (this._data?.aufgaben || []).filter((item) =>
+        item?.pflanzen_id === plant.id && item.status === "offen" &&
+        item.id !== aufgabeId && (item.aufgabentyp === "giesskontrolle" ||
+          ["gegossen", "kontrolliert_kein_wasser"].includes(item.ergebnis)));
+      const offeneInfo = offen.length ?
+        '<p class="small"><span class="chip warning">' +
+        (offen.length === 1 ? "1 Gießkontrolle ist bereits offen" :
+          offen.length + " Gießkontrollen sind bereits offen") +
+        '</span> Prüfe vorhandene Aufgaben, bevor du eine weitere anlegst.</p>' : "";
+      return '<section class="card" style="margin:12px 0;padding:13px">' +
+        '<h3>Dein bisheriger Gießverlauf · ' + escapeHtml(plant.name) + '</h3>' +
+        '<p class="small">' + letzteInfo + '</p>' +
+        '<p class="small">' + gegossenInfo + '</p>' + offeneInfo +
+        '<p class="small">Nur eigene Erledigungen aus diesem Garten. ' +
+        'Keine Aussage darüber, ob jetzt Wasser nötig ist. ' +
+        'Du legst einen Termin ausschließlich selbst fest.</p></section>';
+    }
+
+    _pflegekontextAktualisieren(form) {
+      if (!form || !["aufgabe", "regel"].includes(form.dataset?.form)) return;
+      const panel = form.querySelector?.('[data-role="pflegekontext"]');
+      if (!panel) return;
+      const plant = form.elements?.namedItem("pflanzen_id")?.value || "";
+      const typ = form.elements?.namedItem("aufgabentyp")?.value || "einfach";
+      // Nur die Lesehilfe ändern; Datum, Name und andere Formulareingaben
+      // werden weder zurückgesetzt noch automatisch befüllt.
+      panel.innerHTML = this._giessKontextHTML(plant, typ);
+    }
+
+    _ruleForm() {
+      const plants = (this._data.pflanzen || []).map((p) => ({ value: p.id, label: p.name }));
+      const areas = (this._data.bereiche || []).map((a) => ({ value: a.id, label: a.name }));
+      const prefill = this._modal?.prefill || {};
+      const selectedRhythm = prefill.rhythmus || "tage";
+      return '<form data-form="regel"><div class="form-grid">' +
+        '<div class="field full"><label>Wiederkehrende Aufgabe *</label><input name="name" maxlength="200" required value="' +
+        escapeHtml(prefill.name || "") + '" placeholder="z. B. Pflanzen kontrollieren"></div>' +
+        '<div class="field"><label>Erste Fälligkeit *</label><input name="startdatum" type="date" required></div>' +
+        '<div class="field"><label>Rhythmus</label><select name="rhythmus">' +
+        '<option value="tage"' + (selectedRhythm === "tage" ? ' selected' : '') +
+        '>Alle X Tage</option><option value="jaehrlich"' + (selectedRhythm === "jaehrlich" ? ' selected' : '') +
+        '>Jedes Jahr</option></select></div>' +
+        '<div class="field"><label>Intervall in Tagen</label><input name="intervall_tage" type="number" min="1" max="365" value="14"></div>' +
+        '<div class="field"><label>Pflanze</label><select name="pflanzen_id" data-role="pflegekontext-pflanze">' +
+        this._options(plants, prefill.pflanzen_id || null, true) + '</select></div>' +
+        '<div class="field full"><label>Gartenbereich</label><select name="bereich_id">' +
+        this._options(areas, prefill.bereich_id || null, true) + '</select></div>' +
+        (prefill.pflegefeld ?
+          '<input type="hidden" name="aufgabentyp" value="' +
+          escapeHtml(prefill.aufgabentyp || "einfach") + '">' :
+          '<div class="field full"><label>Wie soll die Aufgabe erledigt werden?</label>' +
+          '<select name="aufgabentyp" data-role="pflegekontext-typ">' +
+          '<option value="einfach">Ein Klick – erledigt</option>' +
+          '<option value="giesskontrolle">Gießkontrolle – gegossen / kein Wasser nötig</option>' +
+          '</select></div>') + '</div>' +
+        '<div data-role="pflegekontext" aria-live="polite">' +
+        this._giessKontextHTML(prefill.pflanzen_id || "", prefill.aufgabentyp || "einfach") +
+        '</div>' +
+        '<div class="notice">' + escapeHtml(this._modal?.careInfo ||
+          "Diese Wiederholung wird von dir angelegt. Es werden keine ungeprüften Empfehlungen übernommen.") +
+        '</div>' +
+        '<div class="dialog-foot"><button type="button" class="btn ghost" data-action="close">Abbrechen</button>' +
+        '<button type="submit" class="btn primary">Wiederholung speichern</button></div></form>';
+    }
+
     _taskForm() {
+      const prefill = this._modal?.prefill || {};
       const plants = (this._data.pflanzen || []).map((p) => ({
         value: p.id, label: p.name
       }));
@@ -394,26 +1046,201 @@
       }));
       return '<form data-form="aufgabe"><div class="form-grid">' +
         '<div class="field full"><label>Was muss erledigt werden? *</label>' +
-        '<input name="name" required maxlength="200" placeholder="z. B. Kübelpflanzen gießen"></div>' +
+        '<input name="name" required maxlength="200" value="' +
+        escapeHtml(prefill.name || "") + '" placeholder="z. B. Kübelpflanzen gießen"></div>' +
         '<div class="field"><label>Fällig am (optional)</label><input type="date" name="faellig_am"></div>' +
-        '<div class="field"><label>Pflanze</label><select name="pflanzen_id">' +
-        this._options(plants, null, true) + '</select></div>' +
+        '<div class="field"><label>Pflanze</label><select name="pflanzen_id" data-role="pflegekontext-pflanze">' +
+        this._options(plants, prefill.pflanzen_id || null, true) + '</select></div>' +
         '<div class="field full"><label>Gartenbereich</label><select name="bereich_id">' +
-        this._options(areas, null, true) + '</select></div></div>' +
-        '<div class="notice">Diese Aufgabe wird manuell angelegt. Automatische artspezifische Pflegepläne folgen nach der Fachprüfung.</div>' +
+        this._options(areas, prefill.bereich_id || null, true) + '</select></div>' +
+        '<div class="field full"><label>Wie soll die Aufgabe erledigt werden?</label>' +
+        '<select name="aufgabentyp" data-role="pflegekontext-typ">' +
+        '<option value="einfach"' + (prefill.aufgabentyp === "giesskontrolle" ? '' : ' selected') +
+        '>Ein Klick – erledigt</option>' +
+        '<option value="giesskontrolle"' + (prefill.aufgabentyp === "giesskontrolle" ? ' selected' : '') +
+        '>Gießkontrolle – gegossen / kein Wasser nötig</option>' +
+        '</select></div></div>' +
+        '<div data-role="pflegekontext" aria-live="polite">' +
+        this._giessKontextHTML(prefill.pflanzen_id || "", prefill.aufgabentyp || "einfach") +
+        '</div>' +
+        '<div class="notice">Diese Aufgabe wird nur nach deiner Bestätigung angelegt. Der Verlauf ' +
+        'liefert keine automatischen Gießintervalle oder konkreten Wasserempfehlungen.</div>' +
         '<div class="dialog-foot"><button class="btn ghost" type="button" data-action="close">Abbrechen</button>' +
         '<button type="submit" class="btn primary">Aufgabe speichern</button></div></form>';
+    }
+
+    _waterForm() {
+      const task = this._modal.existing;
+      return '<div class="notice">Wie wurde die Gießkontrolle abgeschlossen? Das Ergebnis wird mit Datum in der Pflegehistorie gespeichert.</div>' +
+        '<p class="task-name">' + escapeHtml(task.name) + '</p>' +
+        this._giessKontextHTML(task.pflanzen_id || "", "giesskontrolle", task.id) +
+        '<div class="dialog-foot"><button type="button" class="btn ghost" data-action="close">Abbrechen</button>' +
+        '<button type="button" class="btn" data-action="task-water-choice" data-result="kontrolliert_kein_wasser" data-id="' +
+        escapeHtml(task.id) + '">Kontrolliert – kein Wasser nötig</button>' +
+        '<button type="button" class="btn primary" data-action="task-water-choice" data-result="gegossen" data-id="' +
+        escapeHtml(task.id) + '">Gegossen</button></div>';
+    }
+
+    _entwicklungHTML() {
+      const plant = this._modal.existing;
+      const records = neuesteBeobachtungen(
+        (this._data?.beobachtungen || []).filter((r) => r.pflanzen_id === plant.id)
+      );
+      const firstFlower = new Map();
+      for (const r of records) {
+        if (r.phase !== "bluete_beginn") continue;
+        const year = String(r.beobachtet_am).slice(0, 4);
+        if (!firstFlower.has(year) || r.beobachtet_am < firstFlower.get(year))
+          firstFlower.set(year, r.beobachtet_am);
+      }
+      const years = [...firstFlower.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+      const comparison = years.length > 1
+        ? '<div class="notice">Frühester von dir dokumentierter Blütebeginn: ' +
+          years.slice(0, 3).map(([year, date]) =>
+            escapeHtml(year) + ' · ' + escapeHtml(dateLabel(date))
+          ).join(' / ') +
+          '. Das sind Beobachtungen, keine Vorhersagen für kommende Jahre.</div>'
+        : '';
+      return '<div class="small">Beobachte Entwicklungsphasen deiner eigenen Pflanzen. ' +
+        'Die Daten bleiben lokal in Home Assistant und sind keine automatischen ' +
+        'Pflege- oder Schnittanweisungen.</div>' +
+        '<form data-form="entwicklung"><div class="form-grid">' +
+        '<div class="field"><label>Entwicklungsphase *</label><select name="phase" required>' +
+        this._options(ENTWICKLUNGSPHASEN, "", false) + '</select></div>' +
+        '<div class="field"><label>Beobachtet am *</label><input type="date" ' +
+        'name="beobachtet_am" required max="' + escapeHtml(dateToday()) +
+        '" value="' + escapeHtml(dateToday()) + '"></div>' +
+        '<div class="field full"><label>Eigene Notiz (optional)</label>' +
+        '<textarea name="notiz" maxlength="500" placeholder="z. B. erste Blüten am Südbeet"></textarea>' +
+        '</div></div><div class="dialog-foot"><button type="button" class="btn ghost" ' +
+        'data-action="close">Schließen</button><button type="submit" class="btn primary">' +
+        'Beobachtung speichern</button></div></form>' +
+        '<hr class="line"><h3>Eigener Entwicklungsverlauf (' + records.length + ')</h3>' +
+        comparison +
+        (records.length ? records.map((r) =>
+          '<div class="task"><div><div class="task-name">' +
+          escapeHtml(phaseLabel(r.phase)) + ' · ' +
+          escapeHtml(dateLabel(r.beobachtet_am)) + '</div>' +
+          '<div class="task-meta">Eigene Beobachtung' +
+          (r.person ? ' · ' + escapeHtml(r.person) : '') +
+          (r.notiz ? ' · ' + escapeHtml(r.notiz) : '') +
+          (r.wissenschaftlich && r.wissenschaftlich !== plant.wissenschaftlich
+            ? ' · Damalige Art: ' + escapeHtml(r.wissenschaftlich) : '') +
+          '</div></div><button type="button" class="btn ghost tiny danger" ' +
+          'data-action="beobachtung-remove" data-id="' + escapeHtml(r.id) +
+          '">Löschen</button></div>'
+        ).join('') :
+          '<p class="small">Noch keine Entwicklungsphase erfasst.</p>');
+    }
+
+    _pflegeverlaufDaten(pflanzenId) {
+      const relevant = (this._data?.aufgaben || []).filter((task) =>
+        task && task.pflanzen_id === pflanzenId && task.status === "erledigt");
+      relevant.sort((a, b) => String(b.erledigt_utc || "").localeCompare(
+        String(a.erledigt_utc || "")) ||
+        String(b.faellig_am || "").localeCompare(String(a.faellig_am || "")));
+      const ereignisse = new Map();
+      for (const item of this._data?.historie || []) {
+        if (item && item.art === "aufgabe_erledigt" &&
+            typeof item.objekt_id === "string") {
+          ereignisse.set(item.objekt_id, item);
+        }
+      }
+      const giesskontrollen = relevant.filter((x) =>
+        x.aufgabentyp === "giesskontrolle" ||
+        ["gegossen", "kontrolliert_kein_wasser"].includes(x.ergebnis));
+      const gegossen = giesskontrollen.filter((x) => x.ergebnis === "gegossen");
+      const keinWasser = giesskontrollen.filter((x) =>
+        x.ergebnis === "kontrolliert_kein_wasser");
+      return {
+        erledigt: relevant,
+        ereignisse,
+        giesskontrollen: giesskontrollen.length,
+        gegossen: gegossen.length,
+        keinWasser: keinWasser.length,
+        letzteKontrolle: giesskontrollen[0] || null,
+        zuletztGegossen: gegossen[0] || null,
+      };
+    }
+
+    _pflegeverlaufHTML() {
+      const plant = this._modal?.existing;
+      if (!plant || !this._getPlant(plant.id)) return "";
+      const info = this._pflegeverlaufDaten(plant.id);
+      const total = info.erledigt.length;
+      const max = Math.max(20, this._verlaufLimit || 20);
+      const items = info.erledigt.slice(0, max);
+      const zahlen = [
+        ["Erledigt", total],
+        ["Gegossen", info.gegossen],
+        ["Kein Wasser nötig", info.keinWasser],
+      ];
+      const stats = '<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">' +
+        zahlen.map(([name, value]) => '<div class="stat"><div class="count">' +
+          value + '</div><div class="label">' + escapeHtml(name) + '</div></div>'
+        ).join("") + '</div>';
+      const letzteKontrolle = info.letzteKontrolle ?
+        '<p class="small">Letzte Gießkontrolle: ' +
+        escapeHtml(zeitpunktLabel(info.letzteKontrolle.erledigt_utc)) +
+        ' · ' + (info.letzteKontrolle.ergebnis === "gegossen" ? "Gegossen" :
+          info.letzteKontrolle.ergebnis === "kontrolliert_kein_wasser" ?
+          "Kontrolliert – kein Wasser nötig" : "Ergebnis nicht dokumentiert") + '</p>' :
+        '<p class="small">Noch keine Gießkontrolle dokumentiert.</p>';
+      const letztesGiessen = info.zuletztGegossen ?
+        '<p class="small">Zuletzt tatsächlich gegossen: ' +
+        escapeHtml(zeitpunktLabel(info.zuletztGegossen.erledigt_utc)) + '</p>' :
+        '<p class="small">Noch kein tatsächliches Gießen dokumentiert.</p>';
+      const zeilen = items.map((task) => {
+        const event = info.ereignisse.get(task.id);
+        const ergebnis = task.ergebnis === "gegossen" ?
+          '<span class="chip">Gegossen</span>' :
+          task.ergebnis === "kontrolliert_kein_wasser" ?
+          '<span class="chip muted">Kein Wasser nötig</span>' :
+          '<span class="chip muted">Erledigt</span>';
+        return '<div class="task"><div><div class="task-name">' +
+          escapeHtml(task.name) + '</div>' +
+          '<div class="task-meta">Erledigt: ' +
+          escapeHtml(zeitpunktLabel(task.erledigt_utc)) +
+          (task.faellig_am ? ' · Geplant: ' + escapeHtml(dateLabel(task.faellig_am)) : '') +
+          (event?.person ? ' · ' + escapeHtml(event.person) : '') +
+          '</div></div>' + ergebnis + '</div>';
+      }).join("");
+      const more = total > items.length ?
+        '<button class="btn tiny ghost" type="button" data-action="pflegeverlauf-mehr" ' +
+        'data-id="' + escapeHtml(plant.id) + '">Weitere 20 anzeigen (' +
+        (total - items.length) + ' verbleibend)</button>' : '';
+      return '<div class="notice">Deine tatsächlich dokumentierten Arbeiten. ' +
+        'Eine Gießkontrolle ohne Wasser zählt nicht als Gießen. Die Historie ' +
+        'erstellt keine neuen Termine oder Pflegeempfehlungen.</div>' +
+        stats + '<div style="margin-top:14px">' + letzteKontrolle +
+        letztesGiessen + '</div>' +
+        '<div class="buttons" style="margin:14px 0">' +
+        '<button class="btn primary tiny" type="button" data-action="giesskontrolle-neu" ' +
+        'data-id="' + escapeHtml(plant.id) + '">＋ Gießkontrolle anlegen</button></div>' +
+        '<h3 style="margin-top:18px">Erledigte Arbeiten (' + total + ')</h3>' +
+        (zeilen || '<p class="small">Für diese Pflanze wurden noch keine ' +
+          'Pflegearbeiten als erledigt gespeichert.</p>') + more;
     }
 
     _modalHTML() {
       if (!this._modal) return "";
       const type = this._modal.type;
-      const title = type === "pflanze"
+      const title = type === "pflege" ? "Pflegewissen: " + (this._modal.existing?.name || "") : type === "pflanze"
         ? (this._modal.existing ? "Pflanze bearbeiten" : "Neue Pflanze")
-        : type === "aufgabe" ? "Neue Pflegeaufgabe" : "Neuer Gartenbereich";
+        : type === "entwicklung" ? "Pflanzenentwicklung: " + (this._modal.existing?.name || "")
+        : type === "pflegeverlauf" ? "Pflegeverlauf: " + (this._modal.existing?.name || "")
+        : type === "saisonanker" ? "Frost-Referenzdaten" : type === "saison" ? "Saisonfenster vormerken" : type === "automatik" ? "Automatische Benachrichtigungen" : type === "giessen" ? "Gießkontrolle abschließen" : type === "regel" ? "Neue Wiederholung" : type === "aufgabe" ? "Neue Pflegeaufgabe" : "Neuer Gartenbereich";
       let body = "";
-      if (type === "pflanze") body = this._plantForm();
+      if (type === "pflege") body = this._careHTML();
+      else if (type === "pflanze") body = this._plantForm();
+      else if (type === "entwicklung") body = this._entwicklungHTML();
+      else if (type === "pflegeverlauf") body = this._pflegeverlaufHTML();
+      else if (type === "automatik") body = this._automatikForm();
+      else if (type === "saisonanker") body = this._saisonankerForm();
+      else if (type === "saison") body = this._saisonForm();
+      else if (type === "regel") body = this._ruleForm();
       else if (type === "aufgabe") body = this._taskForm();
+      else if (type === "giessen") body = this._waterForm();
       else body = '<form data-form="bereich"><div class="field"><label>Bereichsname *</label>' +
         '<input name="name" required maxlength="120" placeholder="z. B. Hochbeet, Terrasse, Vorgarten"></div>' +
         '<div class="dialog-foot"><button type="button" data-action="close" class="btn ghost">Abbrechen</button>' +
@@ -433,11 +1260,27 @@
         '<div class="task-name">' + escapeHtml(task.name) + "</div>" +
         '<div class="task-meta">' + escapeHtml(dateLabel(due)) +
         (linked ? " · " + escapeHtml(linked.name) : "") +
+        (task.herkunft === "wetterprognose" ?
+          ' <span class="tag">Wetterprognose, keine bestätigte Frostwarnung</span>' : "") +
+        (task.pflegebezug ?
+          ' <span class="tag">Quellenhinweis: ' +
+          escapeHtml(task.pflegebezug.quelle || "unbekannt") +
+          ' · nicht fachlich geprüft</span>' : "") +
+        (task.saisonbezug ?
+          ' <span class="tag">Saisonkontrolle · ' +
+          escapeHtml(task.saisonbezug.quelle || "unbekannt") +
+          ' · unverbindlicher Planungstermin</span>' : "") +
         (overdue ? ' <span class="tag">Überfällig</span>' : "") +
+        (isDone && task.ergebnis === "gegossen" ? ' <span class="chip">Gegossen</span>' : "") +
+        (isDone && task.ergebnis === "kontrolliert_kein_wasser" ?
+          ' <span class="chip">Kontrolliert – kein Wasser nötig</span>' : "") +
         '</div></div><div class="buttons">' +
         '<button class="btn tiny" type="button" data-action="' +
-        (isDone ? "task-reopen" : "task-done") + '" data-id="' + escapeHtml(task.id) + '">' +
-        (isDone ? "Wieder öffnen" : "Erledigt") + "</button>" +
+        (isDone ? "task-reopen" :
+          task.aufgabentyp === "giesskontrolle" ? "task-result" : "task-done") +
+        '" data-id="' + escapeHtml(task.id) + '">' +
+        (isDone ? "Wieder öffnen" : task.aufgabentyp === "giesskontrolle" ? "Kontrollieren" : "Erledigt") +
+        "</button>" +
         '<button class="btn ghost tiny danger" type="button" aria-label="Aufgabe entfernen" data-action="task-remove" data-id="' +
         escapeHtml(task.id) + '">✕</button></div></div>';
     }
@@ -463,7 +1306,8 @@
         '<section class="card"><h3>🍃 Zuletzt erledigt</h3>' +
         (done.length ? done.map((t) => this._taskHTML(t)).join("")
           : '<p>Deine erledigten Gartenaufgaben werden hier angezeigt.</p>') +
-        '<hr class="line"><h3>Pflegewissen</h3><p>Deutsche Pflanzeninformationen mit Quellenangabe werden in der nächsten Ausbaustufe eingebunden.</p>' +
+        '<hr class="line"><h3>Pflegewissen</h3><p>Deutsche Pflegeinformationen kannst du bei jeder erfassten Pflanze öffnen. ' +
+        'Soweit verfügbar stammen sie aus OpenPlantbook und sind als nicht fachlich geprüft gekennzeichnet.</p>' +
         '<span class="chip muted">Fachprüfung noch offen</span></section></div>';
     }
 
@@ -479,11 +1323,27 @@
         html += '<div class="section"><h3 class="section-title">' + escapeHtml(group) +
           '</h3><div class="grid">' + entries.map((p) => {
             const area = this._getArea(p.bereich_id);
+            const current = neuesteBeobachtungen(
+              (this._data.beobachtungen || []).filter((r) => r.pflanzen_id === p.id)
+            )[0];
+            const vergangen = this._pflegeverlaufDaten(p.id);
+            const letzteKontrolle = vergangen.letzteKontrolle;
             return '<section class="card"><h3>🌿 ' + escapeHtml(p.name) + '</h3>' +
               (p.wissenschaftlich ? '<p><em>' + escapeHtml(p.wissenschaftlich) + '</em></p>' : "") +
               '<span class="chip">' + escapeHtml(area ? area.name : "Nicht zugeordnet") + '</span>' +
               (p.notizen ? '<p style="margin-top:12px;white-space:pre-wrap">' + escapeHtml(p.notizen) + '</p>' : "") +
-              '<div class="footer"><button class="btn tiny" data-action="plant-edit" data-id="' +
+              (current ? '<p class="small" style="margin-top:11px">Zuletzt beobachtet: ' +
+                escapeHtml(phaseLabel(current.phase)) + ' · ' +
+                escapeHtml(dateLabel(current.beobachtet_am)) + '</p>' : "") +
+              (letzteKontrolle ? '<p class="small" style="margin-top:8px">Letzte Gießkontrolle: ' +
+                escapeHtml(zeitpunktLabel(letzteKontrolle.erledigt_utc)) +
+                ' · ' + (letzteKontrolle.ergebnis === "gegossen" ? "Gegossen" :
+                  letzteKontrolle.ergebnis === "kontrolliert_kein_wasser" ?
+                  "Kein Wasser nötig" : "Ergebnis nicht dokumentiert") + '</p>' : "") +
+              '<div class="footer"><button class="btn tiny" data-action="care-open" data-id="' +
+              escapeHtml(p.id) + '">Pflegewissen</button><button class="btn tiny" data-action="pflegeverlauf-open" data-id="' +
+              escapeHtml(p.id) + '">Verlauf</button><button class="btn tiny" data-action="entwicklung-open" data-id="' +
+              escapeHtml(p.id) + '">Entwicklung</button><button class="btn tiny" data-action="plant-edit" data-id="' +
               escapeHtml(p.id) + '">Bearbeiten</button>' +
               '<button class="btn ghost tiny danger" data-action="plant-remove" data-id="' +
               escapeHtml(p.id) + '">Entfernen</button></div></section>';
@@ -492,19 +1352,164 @@
       return html;
     }
 
+    _saisonHTML() {
+      const saison = this._saison;
+      if (!saison) return "";
+      const hits = saison.vorschlaege || [];
+      const active = hits.filter((r) => r.fenster_von);
+      const noDates = hits.filter((r) => !r.fenster_von);
+      const expired = hits.filter((r) => r.abgelaufen && !r.vorgemerkt);
+      const plants = this._data?.pflanzen || [];
+      const supported = new Set(hits.map((r) => r.pflanzen_id));
+      const notCovered = plants.filter((p) => !supported.has(p.id));
+      const coverage = plants.length
+        ? '<p class="small">Für ' + hits.length + ' von ' + plants.length +
+          ' erfassten Pflanzen (' + escapeHtml(saison.katalog_arten || 0) +
+          ' botanische Arten im Offline-Katalog) liegen strukturierte Saisonangaben vor.</p>'
+        : '';
+      const gaps = notCovered.length
+        ? '<div class="small">Ohne eindeutiges Saisonfenster: ' +
+          notCovered.slice(0, 8).map((p) => escapeHtml(p.name)).join(' · ') +
+          (notCovered.length > 8 ? ' · und ' + (notCovered.length - 8) + ' weitere' : '') +
+          '. Du kannst diese Pflanzen weiterhin mit eigenen Aufgaben und Pflegewissen verwalten.</div>'
+        : '';
+      return '<section class="card" style="margin:0 0 14px"><div class="heading">' +
+        '<h3>🌾 Saisonfenster (' + active.length + ')</h3>' +
+        '<button type="button" class="btn tiny" data-action="saisonanker-open">⚙ Frost-Referenzdaten</button>' +
+        '</div><p class="small">OpenPlantDB · CC0 1.0 · aus botanisch exakt zugeordneten Pflanzen. ' +
+        'Die US-Ausgangsdaten sind für deinen Garten nicht regional geprüft. ' +
+        'Keine Tätigkeit wird ohne Bestätigung angelegt.</p>' +
+        coverage + gaps +
+        (expired.length ?
+          '<div class="notice">Für ' + expired.length +
+          ' Saisonfenster liegt der Zeitraum bereits in der Vergangenheit. ' +
+          'Bitte die Frost-Referenzdaten für die neue Saison eintragen.</div>' : "") +
+        (hits.length === 0 ?
+          '<div class="small">Für die erfassten Pflanzen liegen noch keine eindeutig passenden, strukturierten Saisonfenster vor. ' +
+          'Alle Pflanzen bleiben manuell verwaltbar.</div>' : "") +
+        (noDates.length ?
+          '<div class="notice">Für ' + noDates.length +
+          ' Pflanze(n) fehlt das passende Frost-Referenzdatum. ' +
+          'Bitte die Referenztage für das gewünschte Jahr selbst festlegen.</div>' : "") +
+        (active.length ? active.slice(0, 40).map((r) =>
+          '<div class="task"><div><div class="task-name">' +
+          escapeHtml(r.titel) + ' – ' + escapeHtml(r.pflanze) + '</div>' +
+          '<div class="task-meta"><em>' + escapeHtml(r.wissenschaftlich) + '</em> · ' +
+          escapeHtml(dateLabel(r.fenster_von)) + ' – ' +
+          escapeHtml(dateLabel(r.fenster_bis)) +
+          ' · Quelle: OpenPlantDB (CC0), nicht regional geprüft</div></div>' +
+          '<button class="btn tiny" type="button" data-action="saison-plan" data-id="' +
+          escapeHtml(r.pflanzen_id) + '" data-katalog="' +
+          escapeHtml(r.katalog_id) + '"' +
+          (r.vorgemerkt || r.abgelaufen ? ' disabled' : '') + '>' +
+          (r.vorgemerkt ? 'Vorgemerkt' :
+            r.abgelaufen ? 'Vergangen' : 'Kontrolle planen') +
+          '</button></div>'
+        ).join("") : "") + '</section>';
+    }
+
+    _beobachtungenKalenderHTML() {
+      const items = neuesteBeobachtungen(this._data?.beobachtungen || []);
+      if (!items.length) return "";
+      return '<section class="card" style="margin:14px 0"><h3>🍃 Eigene Pflanzenbeobachtungen</h3>' +
+        '<p class="small">Beobachtete Entwicklungsphasen aus deinem Garten. ' +
+        'Keine Vorhersagen und keine automatisch abgeleiteten Pflegearbeiten.</p>' +
+        items.slice(0, 6).map((b) => {
+          const plant = this._getPlant(b.pflanzen_id);
+          return '<div class="task"><div><div class="task-name">' +
+            escapeHtml(plant ? plant.name : "Pflanze") + ' · ' +
+            escapeHtml(phaseLabel(b.phase)) + '</div><div class="task-meta">' +
+            escapeHtml(dateLabel(b.beobachtet_am)) +
+            (b.notiz ? ' · ' + escapeHtml(b.notiz) : '') +
+            '</div></div>' +
+            (plant ? '<button class="btn tiny" data-action="entwicklung-open" data-id="' +
+              escapeHtml(plant.id) + '">Verlauf</button>' : '') + '</div>';
+        }).join('') + '</section>';
+    }
+
+    _dwdHTML() {
+      const dataset = this._dwd;
+      if (!dataset || !Array.isArray(dataset.werte) || !dataset.werte.length) return "";
+      const region = this._dwdRegion === "deutschland" ? "deutschland" : "nordost";
+      const records = dataset.werte.filter((r) => r.region === region);
+      const keys = ["hasel_bluete", "forsythie_bluete", "rotbuche_blatt"];
+      const items = keys.map((key) => {
+        const values = records.filter((r) => r.indikator === key)
+          .sort((a, b) => b.jahr - a.jahr);
+        if (!values.length) return "";
+        return '<div class="task"><div><div class="task-name">' +
+          escapeHtml(values[0].pflanze) + ' · ' + escapeHtml(values[0].phase) +
+          '</div>' + values.map((r) =>
+            '<div class="task-meta" style="margin-top:6px">' +
+            escapeHtml(r.jahr) + ': ' +
+            '<strong>Median ' + escapeHtml(dateLabel(r.median)) + '</strong>' +
+            ' · mittlere 50 %: ' + escapeHtml(dateLabel(r.quartil_von)) +
+            ' – ' + escapeHtml(dateLabel(r.quartil_bis)) +
+            ' · ' + escapeHtml(r.stationen) + ' Stationen</div>'
+          ).join("") + '</div></div>';
+      }).filter(Boolean).join("");
+      return '<section class="card" style="margin:14px 0">' +
+        '<div class="heading"><h3>🌱 DWD: Jahreszeiten im Vergleich</h3>' +
+        '<div class="buttons">' +
+        '<button type="button" class="btn tiny' +
+        (region === "nordost" ? ' primary' : '') +
+        '" data-action="dwd-region" data-region="nordost" ' +
+        'aria-pressed="' + (region === "nordost" ? 'true' : 'false') +
+        '">Nordost</button>' +
+        '<button type="button" class="btn tiny' +
+        (region === "deutschland" ? ' primary' : '') +
+        '" data-action="dwd-region" data-region="deutschland" ' +
+        'aria-pressed="' + (region === "deutschland" ? 'true' : 'false') +
+        '">Deutschland</button></div></div>' +
+        '<p class="small">' +
+        escapeHtml(dataset.regionen?.[region]?.label || region) +
+        '. Das ist ein großräumiger Vergleich, keine Messung in deinem Garten.</p>' +
+        '<p class="small">DWD Sofortmelder · tatsächliche Stationsmeldungen · ' +
+        'Median und mittlere 50 % der gemeldeten Termine. ' +
+        'Die jüngsten Meldungen sind teilweise nur formal geprüft. ' +
+        'Keine Vorhersage und keine automatische Pflegeempfehlung.</p>' +
+        (items || '<p class="small">Für diese Region liegen derzeit nicht genügend ' +
+          'gültige Stationsmeldungen vor.</p>') +
+        '<p class="small" style="margin-top:12px">DWD-Daten abgerufen am: ' +
+        escapeHtml(dateLabel(dataset.abgerufen_am)) +
+        ' · Quelle: Deutscher Wetterdienst (DWD), Climate Data Center · ' +
+        'Statistisch aufbereitet durch Mein Garten · ' +
+        '<a href="https://creativecommons.org/licenses/by/4.0/deed.de" ' +
+        'target="_blank" rel="noopener noreferrer" style="color:var(--garten-accent)">' +
+        'CC BY 4.0</a> · ' +
+        '<a href="https://opendata.dwd.de/climate_environment/CDC/observations_germany/phenology/immediate_reporters/wild/recent/" ' +
+        'target="_blank" rel="noopener noreferrer" style="color:var(--garten-accent)">' +
+        'Originaldaten</a></p></section>';
+    }
+
     _calendarHTML() {
       const tasks = [...(this._data.aufgaben || [])].sort(byDate);
       const pending = tasks.filter((t) => t.status !== "erledigt");
       const done = tasks.filter((t) => t.status === "erledigt");
+      const rules = this._data.regeln || [];
       return '<div class="heading"><h2>Pflegekalender</h2>' +
-        '<button class="btn primary" data-action="task-new">＋ Aufgabe anlegen</button></div>' +
-        '<div class="notice">Aktuell zeigt der Kalender manuelle Aufgaben. Automatisch geprüfte Saison- und Wetteraufgaben folgen.</div>' +
+        '<div class="buttons"><button class="btn ghost" data-action="automatik-open">⚙ Benachrichtigungen</button><button class="btn" data-action="rule-new">＋ Wiederholung anlegen</button><button class="btn primary" data-action="task-new">＋ Aufgabe anlegen</button></div></div>' +
+        '<div class="notice">Manuelle Aufgaben und deine Wiederholungen werden angezeigt. ' +
+        'Frostprognosen und Freitagsberichte lassen sich über Benachrichtigungen einschalten. ' +
+        'Artspezifische Schnitt- und Düngeaufgaben bleiben bis zur Fachprüfung gesperrt.</div>' +
+        this._saisonHTML() +
+        this._beobachtungenKalenderHTML() +
+        this._dwdHTML() +
         '<div class="grid"><section class="card"><h3>Offene Aufgaben (' + pending.length + ')</h3>' +
         (pending.length ? pending.map((t) => this._taskHTML(t)).join("")
           : '<p>Keine offenen Aufgaben.</p>') + '</section>' +
         '<section class="card"><h3>Erledigte Aufgaben (' + done.length + ')</h3>' +
         (done.length ? done.slice().reverse().map((t) => this._taskHTML(t)).join("")
-          : '<p>Hier erscheint später die Pflegehistorie.</p>') + '</section></div>';
+          : '<p>Hier erscheint später die Pflegehistorie.</p>') + '</section></div>' +
+        '<section class="card" style="margin-top:14px"><h3>Meine Wiederholungen (' + rules.length + ')</h3>' +
+        (rules.length ? rules.map((r) => '<div class="task"><div><div class="task-name">' + escapeHtml(r.name) +
+          '</div><div class="task-meta">' + escapeHtml(r.rhythmus === 'tage' ? 'Alle ' + r.intervall_tage + ' Tage' : 'Jährlich') +
+          ' · Start ' + escapeHtml(dateLabel(r.startdatum)) +
+          (r.pflegebezug ? ' · Aus Pflegewissen (nicht fachlich geprüft)' : '') +
+          (r.aktiv ? '' : ' · Pausiert') +
+          '</div></div><div class="buttons"><button class="btn tiny" data-action="rule-toggle" data-id="' + escapeHtml(r.id) + '">' +
+          (r.aktiv ? 'Pausieren' : 'Aktivieren') + '</button><button class="btn ghost tiny danger" data-action="rule-remove" data-id="' +
+          escapeHtml(r.id) + '">Entfernen</button></div></div>').join('') : '<p>Keine Wiederholungen vorhanden.</p>') + '</section>';
     }
 
     _areasHTML() {

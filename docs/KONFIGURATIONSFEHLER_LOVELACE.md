@@ -19,10 +19,10 @@ Die ursprüngliche V1-Alpha-Integration verwendete denselben Custom-Element-Name
 
 ## Sichere Schritte
 
-1. **Aktualisieren:** HACS → Mein Garten → Neueste Version vom Branch `main` herunterladen/erneut herunterladen, Versionsstand `1.0.0b2` oder neuer.
+1. **Exakte Version prüfen:** Diese Anleitung gilt für die V1-Alpha. Die **neuen** Funktionen liegen noch im [Draft-PR #1](https://github.com/p-weigner/mein-garten/pull/1) und **nicht automatisch auf `main`**. Für einen später bewusst freigegebenen Livetest nur das **grüne Alpha-Artefakt mit übereinstimmender PR-HEAD-SHA und `ABNAHME.json`** verwenden. Davor kein beliebiges HACS-`main`-Update auslösen. [Aktuelle Vorbereitung](ALPHA_INSTALLATION.md).
 2. **Neustart:** Home Assistant vollständig neu starten. Das ist nötig, damit der neue statische Frontend-Pfad registriert wird.
 3. **Integration:** Unter Einstellungen → Geräte & Dienste → **Mein Garten** muss die Integration eingerichtet und geladen sein. Nur das HACS-Repository hinzuzufügen genügt nicht.
-4. **Ressourcen:** Unter Einstellungen → Dashboards → Menü `⋮` → Ressourcen die neue JavaScript-Modul-Ressource **zusätzlich** eintragen: `/api/mein_garten/mein-garten-v1-card.js?v=1.0.0b2`. Die Versionsangabe kann einen alten Frontend-Cache umgehen. Bei Änderung der Version in der URL nach dem Speichern die Seite neu laden.
+4. **Ressourcen:** Unter Einstellungen → Dashboards → Menü `⋮` → Ressourcen die neue JavaScript-Modul-Ressource **zusätzlich** eintragen: `/api/mein_garten/mein-garten-v1-card.js`. Um einen alten Frontend-Cache zu umgehen, kann die URL eine Query-Version aus dem **tatsächlich installierten Test-Commit** bekommen (z. B. `?v=<commit-kurzsha>`). Die frühere Garten-Ressource zunächst erhalten und die Seite nach dem Speichern neu laden.
 5. **Nur Garten-Dashboard:** Die **vollständige** [V1-Dashboard-YAML](../frontend/dashboard-mein-garten.yaml) dort einsetzen. Sie verwendet `custom:mein-garten-v1-card`. Die Rohkonfiguration von „Zuhause“ niemals ändern.
 6. **Frontend-Cache:** In der iOS-Companion-App die Ansicht neu laden (herunterziehen); falls nötig in den App-Einstellungen den Frontend-Cache zurücksetzen. Ein Test im Safari-Browser kann zwischen App-Cache und Backend unterscheiden.
 

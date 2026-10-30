@@ -1,0 +1,1378 @@
+{
+  "schema": 1,
+  "quelle": "OpenPlantDB",
+  "lizenz": "CC0 1.0",
+  "ausgangs_commit": "99393ea2dbe8da6973434974f92863beff3bbb32",
+  "quelle_datei": "data/plants.json",
+  "status": "unverbindliche_Planungshilfe",
+  "regeln": [
+    {
+      "id": "buckwheat",
+      "wissenschaftlich": "Fagopyrum esculentum",
+      "gruppe": "cover-crop",
+      "anker": "last_frost",
+      "wochen_von": 1,
+      "wochen_bis": 8,
+      "methode": "direct"
+    },
+    {
+      "id": "crimson-clover",
+      "wissenschaftlich": "Trifolium incarnatum",
+      "gruppe": "cover-crop",
+      "anker": "first_frost",
+      "wochen_von": -8,
+      "wochen_bis": -4,
+      "methode": "direct"
+    },
+    {
+      "id": "hairy-vetch",
+      "wissenschaftlich": "Vicia villosa",
+      "gruppe": "cover-crop",
+      "anker": "first_frost",
+      "wochen_von": -8,
+      "wochen_bis": -4,
+      "methode": "direct"
+    },
+    {
+      "id": "winter-rye",
+      "wissenschaftlich": "Secale cereale",
+      "gruppe": "cover-crop",
+      "anker": "first_frost",
+      "wochen_von": -6,
+      "wochen_bis": 2,
+      "methode": "direct"
+    },
+    {
+      "id": "marigold-african",
+      "wissenschaftlich": "Tagetes erecta",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "ageratum",
+      "wissenschaftlich": "Ageratum houstonianum",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "annual-phlox",
+      "wissenschaftlich": "Phlox drummondii",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "direct"
+    },
+    {
+      "id": "annual-salvia",
+      "wissenschaftlich": "Salvia splendens",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -10,
+      "wochen_bis": -8,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "annual-vinca",
+      "wissenschaftlich": "Catharanthus roseus",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -12,
+      "wochen_bis": -10,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "bachelor-button",
+      "wissenschaftlich": "Centaurea cyanus",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -6,
+      "wochen_bis": -4,
+      "methode": "direct"
+    },
+    {
+      "id": "black-eyed-susan",
+      "wissenschaftlich": "Rudbeckia hirta",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -2,
+      "wochen_bis": 2,
+      "methode": "direct"
+    },
+    {
+      "id": "breadseed-poppy",
+      "wissenschaftlich": "Papaver somniferum",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -4,
+      "methode": "direct"
+    },
+    {
+      "id": "calendula",
+      "wissenschaftlich": "Calendula officinalis",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -6,
+      "wochen_bis": -4,
+      "methode": "direct"
+    },
+    {
+      "id": "california-poppy",
+      "wissenschaftlich": "Eschscholzia californica",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -4,
+      "methode": "direct"
+    },
+    {
+      "id": "celosia",
+      "wissenschaftlich": "Celosia argentea",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -6,
+      "wochen_bis": -4,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "china-aster",
+      "wissenschaftlich": "Callistephus chinensis",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -6,
+      "wochen_bis": -4,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "cleome",
+      "wissenschaftlich": "Cleome hassleriana",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -2,
+      "wochen_bis": 0,
+      "methode": "direct"
+    },
+    {
+      "id": "coreopsis",
+      "wissenschaftlich": "Coreopsis grandiflora",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -2,
+      "wochen_bis": 0,
+      "methode": "direct"
+    },
+    {
+      "id": "cosmos",
+      "wissenschaftlich": "Cosmos bipinnatus",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 2,
+      "methode": "direct"
+    },
+    {
+      "id": "dahlia",
+      "wissenschaftlich": "Dahlia pinnata",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 2,
+      "methode": "tuber"
+    },
+    {
+      "id": "delphinium",
+      "wissenschaftlich": "Delphinium elatum",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -12,
+      "wochen_bis": -10,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "nicotiana",
+      "wissenschaftlich": "Nicotiana alata",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "four-o-clock",
+      "wissenschaftlich": "Mirabilis jalapa",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 2,
+      "methode": "direct"
+    },
+    {
+      "id": "foxglove",
+      "wissenschaftlich": "Digitalis purpurea",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "marigold-french",
+      "wissenschaftlich": "Tagetes patula",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -6,
+      "wochen_bis": -4,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "gomphrena",
+      "wissenschaftlich": "Gomphrena globosa",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -6,
+      "wochen_bis": -4,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "hollyhock",
+      "wissenschaftlich": "Alcea rosea",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -2,
+      "wochen_bis": 2,
+      "methode": "direct"
+    },
+    {
+      "id": "impatiens",
+      "wissenschaftlich": "Impatiens walleriana",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -10,
+      "wochen_bis": -8,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "larkspur",
+      "wissenschaftlich": "Consolida ajacis",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -4,
+      "methode": "direct"
+    },
+    {
+      "id": "love-lies-bleeding",
+      "wissenschaftlich": "Amaranthus caudatus",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 2,
+      "methode": "direct"
+    },
+    {
+      "id": "lupine",
+      "wissenschaftlich": "Lupinus polyphyllus",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": 0,
+      "methode": "direct"
+    },
+    {
+      "id": "moonflower",
+      "wissenschaftlich": "Ipomoea alba",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "morning-glory",
+      "wissenschaftlich": "Ipomoea purpurea",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 1,
+      "methode": "direct"
+    },
+    {
+      "id": "nasturtium",
+      "wissenschaftlich": "Tropaeolum majus",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -2,
+      "wochen_bis": 0,
+      "methode": "direct"
+    },
+    {
+      "id": "new-england-aster",
+      "wissenschaftlich": "Symphyotrichum novae-angliae",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "penstemon",
+      "wissenschaftlich": "Penstemon digitalis",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "portulaca",
+      "wissenschaftlich": "Portulaca grandiflora",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 2,
+      "methode": "direct"
+    },
+    {
+      "id": "snapdragon",
+      "wissenschaftlich": "Antirrhinum majus",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -10,
+      "wochen_bis": -8,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "statice",
+      "wissenschaftlich": "Limonium sinuatum",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -10,
+      "wochen_bis": -8,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "stock",
+      "wissenschaftlich": "Matthiola incana",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "strawflower",
+      "wissenschaftlich": "Xerochrysum bracteatum",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -6,
+      "wochen_bis": -4,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "sunflower",
+      "wissenschaftlich": "Helianthus annuus",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 2,
+      "methode": "direct"
+    },
+    {
+      "id": "sweet-alyssum",
+      "wissenschaftlich": "Lobularia maritima",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "direct"
+    },
+    {
+      "id": "sweet-pea",
+      "wissenschaftlich": "Lathyrus odoratus",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -4,
+      "methode": "direct"
+    },
+    {
+      "id": "viola",
+      "wissenschaftlich": "Viola tricolor",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": -12,
+      "wochen_bis": -10,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "zinnia",
+      "wissenschaftlich": "Zinnia elegans",
+      "gruppe": "flower",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 1,
+      "methode": "direct"
+    },
+    {
+      "id": "avocado",
+      "wissenschaftlich": "Persea americana",
+      "gruppe": "fruit",
+      "anker": "last_frost",
+      "wochen_von": 2,
+      "wochen_bis": 8,
+      "methode": "transplant"
+    },
+    {
+      "id": "fig",
+      "wissenschaftlich": "Ficus carica",
+      "gruppe": "fruit",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 4,
+      "methode": "transplant"
+    },
+    {
+      "id": "grapefruit",
+      "wissenschaftlich": "Citrus paradisi",
+      "gruppe": "fruit",
+      "anker": "last_frost",
+      "wochen_von": 2,
+      "wochen_bis": 8,
+      "methode": "transplant"
+    },
+    {
+      "id": "jujube",
+      "wissenschaftlich": "Ziziphus jujuba",
+      "gruppe": "fruit",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 4,
+      "methode": "transplant"
+    },
+    {
+      "id": "kumquat",
+      "wissenschaftlich": "Fortunella margarita",
+      "gruppe": "fruit",
+      "anker": "last_frost",
+      "wochen_von": 2,
+      "wochen_bis": 8,
+      "methode": "transplant"
+    },
+    {
+      "id": "lemon",
+      "wissenschaftlich": "Citrus limon",
+      "gruppe": "fruit",
+      "anker": "last_frost",
+      "wochen_von": 2,
+      "wochen_bis": 8,
+      "methode": "transplant"
+    },
+    {
+      "id": "lime",
+      "wissenschaftlich": "Citrus aurantiifolia",
+      "gruppe": "fruit",
+      "anker": "last_frost",
+      "wochen_von": 2,
+      "wochen_bis": 8,
+      "methode": "transplant"
+    },
+    {
+      "id": "loquat",
+      "wissenschaftlich": "Eriobotrya japonica",
+      "gruppe": "fruit",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 4,
+      "methode": "transplant"
+    },
+    {
+      "id": "mandarin",
+      "wissenschaftlich": "Citrus reticulata",
+      "gruppe": "fruit",
+      "anker": "last_frost",
+      "wochen_von": 2,
+      "wochen_bis": 8,
+      "methode": "transplant"
+    },
+    {
+      "id": "olive",
+      "wissenschaftlich": "Olea europaea",
+      "gruppe": "fruit",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 4,
+      "methode": "transplant"
+    },
+    {
+      "id": "orange",
+      "wissenschaftlich": "Citrus sinensis",
+      "gruppe": "fruit",
+      "anker": "last_frost",
+      "wochen_von": 2,
+      "wochen_bis": 8,
+      "methode": "transplant"
+    },
+    {
+      "id": "pawpaw",
+      "wissenschaftlich": "Asimina triloba",
+      "gruppe": "fruit",
+      "anker": "last_frost",
+      "wochen_von": 2,
+      "wochen_bis": 6,
+      "methode": "transplant"
+    },
+    {
+      "id": "pistachio",
+      "wissenschaftlich": "Pistacia vera",
+      "gruppe": "fruit",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 4,
+      "methode": "transplant"
+    },
+    {
+      "id": "pomegranate",
+      "wissenschaftlich": "Punica granatum",
+      "gruppe": "fruit",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 4,
+      "methode": "transplant"
+    },
+    {
+      "id": "anise",
+      "wissenschaftlich": "Pimpinella anisum",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 2,
+      "methode": "direct"
+    },
+    {
+      "id": "anise-hyssop",
+      "wissenschaftlich": "Agastache foeniculum",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "ashwagandha",
+      "wissenschaftlich": "Withania somnifera",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "basil",
+      "wissenschaftlich": "Ocimum basilicum",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -6,
+      "wochen_bis": -4,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "bay-laurel",
+      "wissenschaftlich": "Laurus nobilis",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 4,
+      "methode": "cutting"
+    },
+    {
+      "id": "blue-vervain",
+      "wissenschaftlich": "Verbena hastata",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "borage",
+      "wissenschaftlich": "Borago officinalis",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -2,
+      "wochen_bis": 2,
+      "methode": "direct"
+    },
+    {
+      "id": "caraway",
+      "wissenschaftlich": "Carum carvi",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "direct"
+    },
+    {
+      "id": "catnip",
+      "wissenschaftlich": "Nepeta cataria",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -2,
+      "wochen_bis": 2,
+      "methode": "direct"
+    },
+    {
+      "id": "chamomile-german",
+      "wissenschaftlich": "Matricaria chamomilla",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "direct"
+    },
+    {
+      "id": "chervil",
+      "wissenschaftlich": "Anthriscus cerefolium",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -6,
+      "wochen_bis": -4,
+      "methode": "direct"
+    },
+    {
+      "id": "chives",
+      "wissenschaftlich": "Allium schoenoprasum",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -6,
+      "wochen_bis": -4,
+      "methode": "direct"
+    },
+    {
+      "id": "cilantro",
+      "wissenschaftlich": "Coriandrum sativum",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "direct"
+    },
+    {
+      "id": "comfrey",
+      "wissenschaftlich": "Symphytum officinale",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": 2,
+      "methode": "division"
+    },
+    {
+      "id": "mullein",
+      "wissenschaftlich": "Verbascum thapsus",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": 0,
+      "methode": "direct"
+    },
+    {
+      "id": "cumin",
+      "wissenschaftlich": "Cuminum cyminum",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "dill",
+      "wissenschaftlich": "Anethum graveolens",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "direct"
+    },
+    {
+      "id": "elecampane",
+      "wissenschaftlich": "Inula helenium",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "lavender-english",
+      "wissenschaftlich": "Lavandula angustifolia",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -10,
+      "wochen_bis": -8,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "epazote",
+      "wissenschaftlich": "Dysphania ambrosioides",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 2,
+      "methode": "direct"
+    },
+    {
+      "id": "fenugreek",
+      "wissenschaftlich": "Trigonella foenum-graecum",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "direct"
+    },
+    {
+      "id": "feverfew",
+      "wissenschaftlich": "Tanacetum parthenium",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "french-sorrel",
+      "wissenschaftlich": "Rumex scutatus",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "direct"
+    },
+    {
+      "id": "garlic-chives",
+      "wissenschaftlich": "Allium tuberosum",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -6,
+      "wochen_bis": -4,
+      "methode": "direct"
+    },
+    {
+      "id": "holy-basil-tulsi",
+      "wissenschaftlich": "Ocimum tenuiflorum",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -6,
+      "wochen_bis": -4,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "horehound",
+      "wissenschaftlich": "Marrubium vulgare",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "hyssop",
+      "wissenschaftlich": "Hyssopus officinalis",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "lemon-balm",
+      "wissenschaftlich": "Melissa officinalis",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "lemon-verbena",
+      "wissenschaftlich": "Aloysia citrodora",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 2,
+      "methode": "cutting"
+    },
+    {
+      "id": "lemongrass",
+      "wissenschaftlich": "Cymbopogon citratus",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 2,
+      "methode": "transplant"
+    },
+    {
+      "id": "lovage",
+      "wissenschaftlich": "Levisticum officinale",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "direct"
+    },
+    {
+      "id": "marjoram",
+      "wissenschaftlich": "Origanum majorana",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "marshmallow",
+      "wissenschaftlich": "Althaea officinalis",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "milk-thistle",
+      "wissenschaftlich": "Silybum marianum",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "direct"
+    },
+    {
+      "id": "motherwort",
+      "wissenschaftlich": "Leonurus cardiaca",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": 0,
+      "methode": "direct"
+    },
+    {
+      "id": "oregano",
+      "wissenschaftlich": "Origanum vulgare",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "parsley",
+      "wissenschaftlich": "Petroselinum crispum",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "direct"
+    },
+    {
+      "id": "pennyroyal",
+      "wissenschaftlich": "Mentha pulegium",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "rosemary",
+      "wissenschaftlich": "Salvia rosmarinus",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -2,
+      "wochen_bis": 2,
+      "methode": "cutting"
+    },
+    {
+      "id": "rue",
+      "wissenschaftlich": "Ruta graveolens",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "self-heal",
+      "wissenschaftlich": "Prunella vulgaris",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": 0,
+      "methode": "direct"
+    },
+    {
+      "id": "shiso",
+      "wissenschaftlich": "Perilla frutescens",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 2,
+      "methode": "direct"
+    },
+    {
+      "id": "skullcap",
+      "wissenschaftlich": "Scutellaria lateriflora",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -10,
+      "wochen_bis": -8,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "spearmint",
+      "wissenschaftlich": "Mentha spicata",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -2,
+      "wochen_bis": 2,
+      "methode": "division"
+    },
+    {
+      "id": "st-johns-wort",
+      "wissenschaftlich": "Hypericum perforatum",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "stevia",
+      "wissenschaftlich": "Stevia rebaudiana",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "stinging-nettle",
+      "wissenschaftlich": "Urtica dioica",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": 0,
+      "methode": "direct"
+    },
+    {
+      "id": "summer-savory",
+      "wissenschaftlich": "Satureja hortensis",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 2,
+      "methode": "direct"
+    },
+    {
+      "id": "valerian",
+      "wissenschaftlich": "Valeriana officinalis",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "winter-savory",
+      "wissenschaftlich": "Satureja montana",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "wormwood",
+      "wissenschaftlich": "Artemisia absinthium",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "yarrow",
+      "wissenschaftlich": "Achillea millefolium",
+      "gruppe": "herb",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "beet",
+      "wissenschaftlich": "Beta vulgaris",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "direct"
+    },
+    {
+      "id": "black-eyed-pea",
+      "wissenschaftlich": "Vigna unguiculata",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": 2,
+      "wochen_bis": 4,
+      "methode": "direct"
+    },
+    {
+      "id": "bulb-onion",
+      "wissenschaftlich": "Allium cepa",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "bulb"
+    },
+    {
+      "id": "butternut-squash",
+      "wissenschaftlich": "Cucurbita moschata",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": 1,
+      "wochen_bis": 2,
+      "methode": "direct"
+    },
+    {
+      "id": "chickpea",
+      "wissenschaftlich": "Cicer arietinum",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -2,
+      "wochen_bis": 0,
+      "methode": "direct"
+    },
+    {
+      "id": "cucumber",
+      "wissenschaftlich": "Cucumis sativus",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": 1,
+      "wochen_bis": 2,
+      "methode": "direct"
+    },
+    {
+      "id": "edamame",
+      "wissenschaftlich": "Glycine max",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": 1,
+      "wochen_bis": 3,
+      "methode": "direct"
+    },
+    {
+      "id": "eggplant",
+      "wissenschaftlich": "Solanum melongena",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -10,
+      "wochen_bis": -8,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "endive",
+      "wissenschaftlich": "Cichorium endivia",
+      "gruppe": "vegetable",
+      "anker": "first_frost",
+      "wochen_von": -14,
+      "wochen_bis": -12,
+      "methode": "direct"
+    },
+    {
+      "id": "fava-bean",
+      "wissenschaftlich": "Vicia faba",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -6,
+      "wochen_bis": -4,
+      "methode": "direct"
+    },
+    {
+      "id": "sorrel",
+      "wissenschaftlich": "Rumex acetosa",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -2,
+      "wochen_bis": 2,
+      "methode": "direct"
+    },
+    {
+      "id": "garlic",
+      "wissenschaftlich": "Allium sativum",
+      "gruppe": "vegetable",
+      "anker": "first_frost",
+      "wochen_von": -6,
+      "wochen_bis": -4,
+      "methode": "bulb"
+    },
+    {
+      "id": "ginger",
+      "wissenschaftlich": "Zingiber officinale",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "tuber"
+    },
+    {
+      "id": "globe-artichoke",
+      "wissenschaftlich": "Cynara scolymus",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "transplant"
+    },
+    {
+      "id": "green-onion",
+      "wissenschaftlich": "Allium fistulosum",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": 0,
+      "methode": "direct"
+    },
+    {
+      "id": "ground-cherry",
+      "wissenschaftlich": "Physalis pruinosa",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "habanero",
+      "wissenschaftlich": "Capsicum chinense",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -12,
+      "wochen_bis": -10,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "horseradish",
+      "wissenschaftlich": "Armoracia rusticana",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "division"
+    },
+    {
+      "id": "jerusalem-artichoke",
+      "wissenschaftlich": "Helianthus tuberosus",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "tuber"
+    },
+    {
+      "id": "yam-bean",
+      "wissenschaftlich": "Pachyrhizus erosus",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": 2,
+      "wochen_bis": 4,
+      "methode": "direct"
+    },
+    {
+      "id": "lentil",
+      "wissenschaftlich": "Lens culinaris",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "direct"
+    },
+    {
+      "id": "lima-bean",
+      "wissenschaftlich": "Phaseolus lunatus",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": 2,
+      "wochen_bis": 3,
+      "methode": "direct"
+    },
+    {
+      "id": "luffa",
+      "wissenschaftlich": "Luffa aegyptiaca",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -3,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "mache",
+      "wissenschaftlich": "Valerianella locusta",
+      "gruppe": "vegetable",
+      "anker": "first_frost",
+      "wochen_von": -6,
+      "wochen_bis": -4,
+      "methode": "direct"
+    },
+    {
+      "id": "mustard-greens",
+      "wissenschaftlich": "Brassica juncea",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "direct"
+    },
+    {
+      "id": "new-zealand-spinach",
+      "wissenschaftlich": "Tetragonia tetragonioides",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 2,
+      "methode": "direct"
+    },
+    {
+      "id": "okra",
+      "wissenschaftlich": "Abelmoschus esculentus",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": 2,
+      "wochen_bis": 4,
+      "methode": "direct"
+    },
+    {
+      "id": "parsnip",
+      "wissenschaftlich": "Pastinaca sativa",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "direct"
+    },
+    {
+      "id": "peanut",
+      "wissenschaftlich": "Arachis hypogaea",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": 2,
+      "wochen_bis": 4,
+      "methode": "direct"
+    },
+    {
+      "id": "potato",
+      "wissenschaftlich": "Solanum tuberosum",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "tuber"
+    },
+    {
+      "id": "radish",
+      "wissenschaftlich": "Raphanus sativus",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "direct"
+    },
+    {
+      "id": "runner-bean",
+      "wissenschaftlich": "Phaseolus coccineus",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": 0,
+      "wochen_bis": 2,
+      "methode": "direct"
+    },
+    {
+      "id": "shelling-pea",
+      "wissenschaftlich": "Pisum sativum",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -6,
+      "wochen_bis": -4,
+      "methode": "direct"
+    },
+    {
+      "id": "skirret",
+      "wissenschaftlich": "Sium sisarum",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "direct"
+    },
+    {
+      "id": "spinach",
+      "wissenschaftlich": "Spinacia oleracea",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -6,
+      "wochen_bis": -4,
+      "methode": "direct"
+    },
+    {
+      "id": "sweet-potato",
+      "wissenschaftlich": "Ipomoea batatas",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": 2,
+      "wochen_bis": 4,
+      "methode": "transplant"
+    },
+    {
+      "id": "tomatillo",
+      "wissenschaftlich": "Physalis philadelphica",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "tomato",
+      "wissenschaftlich": "Solanum lycopersicum",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -8,
+      "wochen_bis": -6,
+      "methode": "indoor-start"
+    },
+    {
+      "id": "watercress",
+      "wissenschaftlich": "Nasturtium officinale",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": -4,
+      "wochen_bis": -2,
+      "methode": "direct"
+    },
+    {
+      "id": "watermelon",
+      "wissenschaftlich": "Citrullus lanatus",
+      "gruppe": "vegetable",
+      "anker": "last_frost",
+      "wochen_von": 1,
+      "wochen_bis": 3,
+      "methode": "direct"
+    }
+  ]
+}

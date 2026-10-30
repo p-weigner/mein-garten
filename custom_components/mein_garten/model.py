@@ -7,9 +7,19 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import date, datetime, timezone
+import math
 from uuid import uuid4
 
+from .recurrence import regel_faellig
+
 SCHEMA_VERSION = 1
+AUFGABENTYPEN = ("einfach", "giesskontrolle")
+GIESSERGEBNISSE = ("gegossen", "kontrolliert_kein_wasser")
+# Eigene Beobachtungen, keine vom DWD gemessenen oder fachlich freigegebenen Phasen.
+BEOBACHTUNGSPHASEN = (
+    "austrieb", "knospenbildung", "bluete_beginn",
+    "fruchtansatz", "fruchtreife", "laubfaerbung", "blattfall",
+)
 PFLANZENGRUPPEN = (
     "Blumen, Stauden und Rosen",
     "Sträucher, Hecken und Bäume",
@@ -76,10 +86,21 @@ class GartenDaten:
                 "pflanzen": [],
                 "aufgaben": [],
                 "historie": [],
+                "regeln": [],
+                "beobachtungen": [],
             }
         if not isinstance(data, dict) or data.get("version") != SCHEMA_VERSION:
             raise DatensatzFehler("Unbekanntes Garten-Datenformat. Daten nicht überschreiben.")
-        for key in ("bereiche", "pflanzen", "aufgaben", "historie"):
+        # Alte V1-Alpha-Speicher ohne Wiederholungsregeln bleiben kompatibel.
+        if "regeln" not in data:
+            data = {**data, "regeln": []}
+        # Die ersten Alpha-Versionen haben noch keine Entwicklungsbeobachtungen.
+        if "beobachtungen" not in data:
+            data = {**data, "beobachtungen": []}
+        for key in (
+            "bereiche", "pflanzen", "aufgaben", "historie", "regeln",
+            "beobachtungen",
+        ):
             if not isinstance(data.get(key), list):
                 raise DatensatzFehler(f"Garten-Datenfehler: {key}")
             if any(not isinstance(v, dict) or not isinstance(v.get("id"), str)
@@ -132,6 +153,9 @@ class GartenDaten:
         for task in self._data["aufgaben"]:
             if task["bereich_id"] == bereich_id:
                 task["bereich_id"] = None
+        for regel in self._data["regeln"]:
+            if regel["bereich_id"] == bereich_id:
+                regel["bereich_id"] = None
         self._event("bereich_entfernt", bereich_id)
         return deepcopy(area)
 
@@ -186,8 +210,20 @@ class GartenDaten:
         self._data["pflanzen"] = [
             p for p in self._data["pflanzen"] if p["id"] != pflanzen_id
         ]
+        self._data["regeln"] = [
+            regel for regel in self._data["regeln"]
+            if regel["pflanzen_id"] != pflanzen_id
+        ]
         entfernte_tasks = [
             t["id"] for t in self._data["aufgaben"] if t["pflanzen_id"] == pflanzen_id
+        ]
+        entfernte_beobachtungen = [
+            o["id"] for o in self._data["beobachtungen"]
+            if o["pflanzen_id"] == pflanzen_id
+        ]
+        self._data["beobachtungen"] = [
+            o for o in self._data["beobachtungen"]
+            if o["pflanzen_id"] != pflanzen_id
         ]
         self._data["aufgaben"] = [
             t for t in self._data["aufgaben"] if t["pflanzen_id"] != pflanzen_id
@@ -196,15 +232,318 @@ class GartenDaten:
         # der entfernten Pflanze ebenfalls löschen.
         self._data["historie"] = [
             e for e in self._data["historie"]
-            if e["objekt_id"] != pflanzen_id and e["objekt_id"] not in entfernte_tasks
+            if e["objekt_id"] != pflanzen_id
+            and e["objekt_id"] not in entfernte_tasks
+            and e["objekt_id"] not in entfernte_beobachtungen
         ]
         return deepcopy(plant)
+
+    def beobachtung_anlegen(
+        self, pflanzen_id: str, phase: str, beobachtet_am: str,
+        notiz: str = "", person: str | None = None,
+        heute: date | None = None,
+    ) -> dict:
+        """Eigene Entwicklungsphase: Tatsachenbeobachtung, keine Pflegeanweisung.
+
+        DWD-Phänologie und Wetterprognosen werden hier NICHT als persönlich
+        beobachtete Tatsache eingetragen. Datum und Phase müssen bestätigt
+        sein; fremde API-Daten können diese Operation nicht automatisch auslösen.
+        """
+        plant = _existiert(self._data["pflanzen"], pflanzen_id, "Pflanze")
+        if not isinstance(phase, str) or phase not in BEOBACHTUNGSPHASEN:
+            raise DatensatzFehler("Unbekannte Entwicklungsphase")
+        beobachtet_am = _datum(beobachtet_am)
+        if beobachtet_am is None:
+            raise DatensatzFehler("Bitte das Beobachtungsdatum auswählen")
+        heute = heute or date.today()
+        if not isinstance(heute, date):
+            raise DatensatzFehler("Ungültiges heutiges Datum")
+        day = date.fromisoformat(beobachtet_am)
+        if day > heute:
+            raise DatensatzFehler("Eine Beobachtung kann nicht in der Zukunft liegen")
+        if day.year < 1900:
+            raise DatensatzFehler("Beobachtungsdatum außerhalb des unterstützten Bereichs")
+        notiz = _text(notiz, "Notizen", 500, leer_erlaubt=True)
+        if person is not None:
+            person = _text(person, "Beobachtende Person", 200)
+        existing = next((
+            b for b in self._data["beobachtungen"]
+            if b["pflanzen_id"] == pflanzen_id
+            and b["phase"] == phase
+            and b["beobachtet_am"] == beobachtet_am
+        ), None)
+        if existing:
+            # Idempotenter erneut gesendeter Formular-Submit.
+            # Andere Notizen dürfen nicht still überschrieben werden.
+            if existing["notiz"] != notiz:
+                raise DatensatzFehler(
+                    "Diese Entwicklungsphase wurde am selben Tag bereits dokumentiert"
+                )
+            return deepcopy(existing)
+        if len(self._data["beobachtungen"]) >= 2000:
+            raise DatensatzFehler("Maximale Anzahl an Entwicklungsbeobachtungen erreicht")
+        record = {
+            "id": _id(),
+            "pflanzen_id": pflanzen_id,
+            "phase": phase,
+            "beobachtet_am": beobachtet_am,
+            "notiz": notiz,
+            "person": person,
+            "wissenschaftlich": plant["wissenschaftlich"],
+            "quelle": "eigene_beobachtung",
+            "erstellt_utc": _jetzt(),
+        }
+        self._data["beobachtungen"].append(record)
+        self._event("pflanzenphase_beobachtet", record["id"], person)
+        return deepcopy(record)
+
+    def beobachtung_entfernen(self, beobachtung_id: str) -> dict:
+        """Korrigierbare Beobachtung einschließlich Aktivitätsbezug löschen."""
+        obj = _existiert(self._data["beobachtungen"], beobachtung_id, "Beobachtung")
+        self._data["beobachtungen"] = [
+            o for o in self._data["beobachtungen"] if o["id"] != beobachtung_id
+        ]
+        # Privacy: gelöschte lokale Beobachtungen nicht im Ereignisprotokoll behalten.
+        self._data["historie"] = [
+            h for h in self._data["historie"] if h["objekt_id"] != beobachtung_id
+        ]
+        return deepcopy(obj)
+
+    def regel_anlegen(
+        self, name: str, startdatum: str, rhythmus: str,
+        intervall_tage: int | None = None,
+        pflanzen_id: str | None = None, bereich_id: str | None = None,
+        pflegefeld: str | None = None, aufgabentyp: str = "einfach",
+    ) -> dict:
+        """Nur explizit bestätigte Benutzerregeln, nie aus externen Freitexten."""
+        name = _text(name, "Regelname", 200)
+        startdatum = _datum(startdatum)
+        if startdatum is None:
+            raise DatensatzFehler("Die erste Fälligkeit ist erforderlich")
+        if rhythmus not in ("tage", "jaehrlich"):
+            raise DatensatzFehler("Unbekannter Wiederholungsrhythmus")
+        if rhythmus == "tage":
+            if type(intervall_tage) is not int or not 1 <= intervall_tage <= 365:
+                raise DatensatzFehler("Wiederholungsintervall muss 1 bis 365 Tage betragen")
+        else:
+            if startdatum.endswith("-02-29"):
+                raise DatensatzFehler("Jährliche Aufgaben am 29. Februar sind nicht unterstützt")
+            intervall_tage = None
+        if pflanzen_id is not None:
+            _existiert(self._data["pflanzen"], pflanzen_id, "Pflanze")
+        if bereich_id is not None:
+            _existiert(self._data["bereiche"], bereich_id, "Bereich")
+        if pflegefeld is not None:
+            if pflegefeld not in {"watering", "sunlight", "soil", "pruning", "fertilization"}:
+                raise DatensatzFehler("Unbekanntes Pflegefeld")
+            if pflanzen_id is None:
+                raise DatensatzFehler("Ein Pflegehinweis muss einer Pflanze zugeordnet sein")
+        if not isinstance(aufgabentyp, str) or aufgabentyp not in AUFGABENTYPEN:
+            raise DatensatzFehler("Unbekannter Aufgabentyp")
+        if pflegefeld == "watering" and aufgabentyp != "giesskontrolle":
+            raise DatensatzFehler("Gießhinweis braucht die differenzierte Erledigung")
+        if pflegefeld is not None and pflegefeld != "watering" and aufgabentyp == "giesskontrolle":
+            raise DatensatzFehler("Gießkontrolle ist nur für das Pflegefeld Wasser zulässig")
+        if len(self._data["regeln"]) >= 200:
+            raise DatensatzFehler("Maximale Anzahl an Pflegewiederholungen erreicht")
+        regel = {
+            "id": _id(),
+            "name": name,
+            "startdatum": startdatum,
+            "rhythmus": rhythmus,
+            "intervall_tage": intervall_tage,
+            "pflanzen_id": pflanzen_id,
+            "bereich_id": bereich_id,
+            "aktiv": True,
+            "uebersprungen": [],
+            "erstellt_utc": _jetzt(),
+            "herkunft": "benutzerregel",
+            "aufgabentyp": aufgabentyp,
+            "pflegebezug": ({
+                "quelle": "OpenPlantbook",
+                "feld": pflegefeld,
+                "pruefstatus": "nicht_fachlich_geprueft",
+                "freigabe": "manuell_durch_benutzer",
+            } if pflegefeld else None),
+        }
+        self._data["regeln"].append(regel)
+        return deepcopy(regel)
+
+    def regel_aktiv_setzen(self, regel_id: str, aktiv: bool) -> dict:
+        regel = _existiert(self._data["regeln"], regel_id, "Regel")
+        if type(aktiv) is not bool:
+            raise DatensatzFehler("Regelstatus muss wahr oder falsch sein")
+        regel["aktiv"] = aktiv
+        if not aktiv:
+            # Beim Pausieren offene automatisch erzeugte Aufgaben zurücknehmen;
+            # Erledigungen bleiben nachvollziehbar erhalten.
+            self._data["aufgaben"] = [
+                aufgabe for aufgabe in self._data["aufgaben"]
+                if aufgabe.get("regel_id") != regel_id
+                or aufgabe["status"] == "erledigt"
+            ]
+        return deepcopy(regel)
+
+    def regel_entfernen(self, regel_id: str) -> dict:
+        regel = _existiert(self._data["regeln"], regel_id, "Regel")
+        self._data["regeln"] = [
+            r for r in self._data["regeln"] if r["id"] != regel_id
+        ]
+        self._data["aufgaben"] = [
+            aufgabe for aufgabe in self._data["aufgaben"]
+            if aufgabe.get("regel_id") != regel_id
+            or aufgabe["status"] == "erledigt"
+        ]
+        return deepcopy(regel)
+
+    def pflegeplan_aktualisieren(self, heute: date | None = None) -> int:
+        """Generiert maximal eine offene Instanz pro aktiver Benutzerregel."""
+        heute = heute or date.today()
+        if not isinstance(heute, date):
+            raise DatensatzFehler("Ungültiges Tagesdatum")
+        neu = 0
+        for regel in self._data["regeln"]:
+            faellig = regel_faellig(regel, self._data["aufgaben"], heute)
+            if faellig is None:
+                continue
+            self._data["aufgaben"].append({
+                "id": _id(),
+                "name": regel["name"],
+                "faellig_am": faellig.isoformat(),
+                "pflanzen_id": regel["pflanzen_id"],
+                "bereich_id": regel["bereich_id"],
+                "status": "offen",
+                "erledigt_utc": None,
+                "erstellt_utc": _jetzt(),
+                "herkunft": "benutzerregel",
+                "aufgabentyp": regel.get("aufgabentyp", "einfach"),
+                "ergebnis": None,
+                # Herkunft am Fälligkeitsexemplar erhalten, auch wenn später
+                # die Wiederholungsregel gelöscht wird.
+                "pflegebezug": deepcopy(regel.get("pflegebezug")),
+                "regel_id": regel["id"],
+            })
+            neu += 1
+        return neu
+
+    def saisonpruefung_anlegen(
+        self, pflanzen_id: str, saison_id: str, anker_jahr: int,
+        name: str, faellig_am: str, fenster_von: str, fenster_bis: str,
+        quell_commit: str, wissenschaftlich: str,
+    ) -> dict:
+        """Erst nach eigener Terminwahl – keine automatische Aussaatanweisung.
+
+        Nicht als frei konfigurierbarer WebSocket-Befehl registrieren.
+        SaisonService liefert nur kataloggeprüfte Parameter.
+        """
+        plant = _existiert(self._data["pflanzen"], pflanzen_id, "Pflanze")
+        # Die Art kann sich während einer parallelen Bearbeitung ändern:
+        # vor dem tatsächlichen Speichern erneut im transaktionalen
+        # Modell prüfen, statt eine fremde Saisonregel zu übernehmen.
+        if (not isinstance(wissenschaftlich, str)
+                or " ".join(plant.get("wissenschaftlich", "").split()).casefold()
+                != " ".join(wissenschaftlich.split()).casefold()):
+            raise DatensatzFehler("Die botanische Pflanzenart wurde inzwischen geändert")
+        if (not isinstance(saison_id, str) or not saison_id
+                or len(saison_id) > 100 or any(
+                    c not in "abcdefghijklmnopqrstuvwxyz0123456789-" for c in saison_id
+                )):
+            raise DatensatzFehler("Unbekannte Saisonvorlage")
+        if type(anker_jahr) is not int or not 2020 <= anker_jahr <= 2100:
+            raise DatensatzFehler("Ungültiges Referenzjahr")
+        if (not isinstance(quell_commit, str) or len(quell_commit) != 40
+                or any(c not in "0123456789abcdef" for c in quell_commit)):
+            raise DatensatzFehler("Ungültige Quellenversion")
+        faellig_am, fenster_von, fenster_bis = (
+            _datum(faellig_am), _datum(fenster_von), _datum(fenster_bis)
+        )
+        if any(x is None for x in (faellig_am, fenster_von, fenster_bis)):
+            raise DatensatzFehler("Für das Saisonfenster fehlen Datumsangaben")
+        if not fenster_von <= faellig_am <= fenster_bis:
+            raise DatensatzFehler("Termin außerhalb des Saisonfensters")
+        # Vollständige, auch erledigte Jahresereignisse bleiben eindeutig.
+        if any(
+            t.get("pflanzen_id") == pflanzen_id
+            and isinstance(t.get("saisonbezug"), dict)
+            and t["saisonbezug"].get("katalog_id") == saison_id
+            and t["saisonbezug"].get("anker_jahr") == anker_jahr
+            for t in self._data["aufgaben"]
+        ):
+            raise DatensatzFehler("Diese Saisonkontrolle ist bereits vorgemerkt")
+        if len(self._data["aufgaben"]) >= 3000:
+            raise DatensatzFehler("Maximale Anzahl an Gartenaufgaben erreicht")
+        obj = {
+            "id": _id(),
+            "name": _text(name, "Saisonkontrolle", 200),
+            "faellig_am": faellig_am,
+            "pflanzen_id": pflanzen_id,
+            "bereich_id": plant["bereich_id"],
+            "status": "offen",
+            "erledigt_utc": None,
+            "erstellt_utc": _jetzt(),
+            "herkunft": "saisonpruefung",
+            "aufgabentyp": "einfach",
+            "ergebnis": None,
+            "saisonbezug": {
+                "quelle": "OpenPlantDB",
+                "lizenz": "CC0 1.0",
+                "quell_commit": quell_commit,
+                "wissenschaftlich": wissenschaftlich,
+                "katalog_id": saison_id,
+                "anker_jahr": anker_jahr,
+                "fenster_von": fenster_von,
+                "fenster_bis": fenster_bis,
+                "pruefstatus": "unverbindliche_Planungshilfe",
+                "freigabe": "manuell_durch_benutzer",
+            },
+        }
+        self._data["aufgaben"].append(obj)
+        return deepcopy(obj)
+
+    def frostpruefung_anlegen(
+        self, datum: str, temperatur_c: float, schwelle_c: float,
+    ) -> dict | None:
+        """Nur eine unverbindliche Wetterkontrolle, niemals eine Pflegeanweisung.
+
+        Dieser interne Aufruf ist kein generischer WS-Befehl. Externe
+        Pflegefreitexte dürfen darüber keine Aufgabennamen einschleusen.
+        """
+        datum = _datum(datum)
+        if datum is None:
+            raise DatensatzFehler("Frostprüfung braucht ein Datum")
+        for wert in (temperatur_c, schwelle_c):
+            if type(wert) not in (int, float) or not math.isfinite(wert):
+                raise DatensatzFehler("Ungültige Frosttemperatur")
+        if not -60 <= temperatur_c <= 40 or not -5 <= schwelle_c <= 8:
+            raise DatensatzFehler("Unplausible Frosttemperatur")
+        if temperatur_c > schwelle_c:
+            raise DatensatzFehler("Frostschwelle nicht unterschritten")
+        kennung = "frost:" + datum
+        if any(t.get("warnung_id") == kennung for t in self._data["aufgaben"]):
+            return None
+        aufgabe = {
+            "id": _id(),
+            "name": "Mögliche Frostgefahr – empfindliche Pflanzen kontrollieren",
+            "faellig_am": datum,
+            "pflanzen_id": None, "bereich_id": None,
+            "status": "offen", "erledigt_utc": None,
+            "erstellt_utc": _jetzt(),
+            "herkunft": "wetterprognose",
+            "warnung_id": kennung,
+            "quelle": "Home Assistant Wettervorhersage",
+            "hinweis": "Prognose, keine bestätigte Frostwarnung.",
+        }
+        self._data["aufgaben"].append(aufgabe)
+        return deepcopy(aufgabe)
 
     def aufgabe_anlegen(
         self, name: str, faellig_am: str | None = None,
         pflanzen_id: str | None = None, bereich_id: str | None = None,
+        aufgabentyp: str = "einfach",
     ) -> dict:
         name = _text(name, "Aufgabenname", 200)
+        if not isinstance(aufgabentyp, str) or aufgabentyp not in AUFGABENTYPEN:
+            raise DatensatzFehler("Unbekannter Aufgabentyp")
         faellig_am = _datum(faellig_am)
         if pflanzen_id is not None:
             _existiert(self._data["pflanzen"], pflanzen_id, "Pflanze")
@@ -215,28 +554,65 @@ class GartenDaten:
             "pflanzen_id": pflanzen_id, "bereich_id": bereich_id,
             "status": "offen", "erledigt_utc": None,
             "erstellt_utc": _jetzt(), "herkunft": "manuell",
+            "aufgabentyp": aufgabentyp, "ergebnis": None,
         }
         self._data["aufgaben"].append(obj)
         return deepcopy(obj)
 
-    def aufgabe_erledigen(self, aufgaben_id: str, person: str | None = None) -> dict:
+    def aufgabe_erledigen(
+        self, aufgaben_id: str, person: str | None = None, ergebnis: str | None = None,
+    ) -> dict:
         task = _existiert(self._data["aufgaben"], aufgaben_id, "Aufgabe")
-        if task["status"] != "erledigt":
-            task["status"] = "erledigt"
-            task["erledigt_utc"] = _jetzt()
-            self._event("aufgabe_erledigt", aufgaben_id, person)
+        aufgabentyp = task.get("aufgabentyp", "einfach")
+        if task["status"] == "erledigt":
+            # Ein zweiter Klick oder WebSocket-Retry darf nichts überschreiben.
+            if ergebnis is not None and ergebnis != task.get("ergebnis", "erledigt"):
+                raise DatensatzFehler("Bereits erledigte Aufgabe zuerst wieder öffnen")
+            return deepcopy(task)
+        if aufgabentyp == "giesskontrolle":
+            if ergebnis not in GIESSERGEBNISSE:
+                raise DatensatzFehler(
+                    "Bei Gießkontrollen „gegossen“ oder „kein Wasser nötig“ wählen"
+                )
+        else:
+            if ergebnis not in (None, "erledigt"):
+                raise DatensatzFehler("Dieses Ergebnis ist nur für Gießkontrollen zulässig")
+            ergebnis = "erledigt"
+        task["status"] = "erledigt"
+        task["erledigt_utc"] = _jetzt()
+        task["ergebnis"] = ergebnis
+        self._event("aufgabe_erledigt", aufgaben_id, person)
+        self._data["historie"][-1]["ergebnis"] = ergebnis
         return deepcopy(task)
 
     def aufgabe_wieder_oeffnen(self, aufgaben_id: str, person: str | None = None) -> dict:
         task = _existiert(self._data["aufgaben"], aufgaben_id, "Aufgabe")
         if task["status"] != "offen":
+            if task.get("regel_id") and any(
+                t["id"] != task["id"]
+                and t.get("regel_id") == task["regel_id"]
+                and t["status"] == "offen"
+                for t in self._data["aufgaben"]
+            ):
+                raise DatensatzFehler(
+                    "Für diese Wiederholung ist bereits eine andere Aufgabe offen"
+                )
             task["status"] = "offen"
             task["erledigt_utc"] = None
+            task["ergebnis"] = None
             self._event("aufgabe_wieder_geoeffnet", aufgaben_id, person)
         return deepcopy(task)
 
     def aufgabe_entfernen(self, aufgaben_id: str) -> dict:
         task = _existiert(self._data["aufgaben"], aufgaben_id, "Aufgabe")
+        if task.get("regel_id") and task.get("faellig_am"):
+            for regel in self._data["regeln"]:
+                if regel["id"] == task["regel_id"]:
+                    skipped = regel.setdefault("uebersprungen", [])
+                    if task["faellig_am"] not in skipped:
+                        skipped.append(task["faellig_am"])
+                        regel["uebersprungen"] = skipped[-200:]
+                    break
         self._data["aufgaben"] = [
             t for t in self._data["aufgaben"] if t["id"] != aufgaben_id
         ]

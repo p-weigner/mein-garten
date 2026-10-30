@@ -1,0 +1,39 @@
+name: Mein Garten – 50 Pflanzen Live-Breitenprüfung
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/garten-pflegewissen-und-suche-20261030
+    paths:
+      - ".github/workflows/garten-pflanzensuche-50.yml"
+      - "tools/pflanzensuche_50_live.py"
+      - "daten/pflanzensuche_50_de.json"
+      - "custom_components/mein_garten/search.py"
+
+permissions:
+  contents: read
+
+jobs:
+  pflanzensuche-50:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Repository laden
+        uses: actions/checkout@v4
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 50 deutsche Pflanzennamen mit echten Suchquellen messen
+        run: python -m tools.pflanzensuche_50_live
+      - name: Öffentliche Metriken ohne geheime Garteninformationen bereitstellen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mein_Garten_50_Pflanzen_Suche
+          path: |
+            berichte/pflanzensuche_50_de.json
+            berichte/pflanzensuche_50_de.md
+          retention-days: 14
+          if-no-files-found: warn
