@@ -116,6 +116,7 @@ async def ws_pflanzen_suchen(hass, connection, msg):
 @websocket_api.websocket_command({
     probatio.Required("type"): "mein_garten/pflegeprofil",
     probatio.Required("pflanzen_id"): str,
+    probatio.Optional("aktualisieren"): bool,
 })
 @websocket_api.async_response
 async def ws_pflegeprofil(hass, connection, msg):
@@ -131,7 +132,9 @@ async def ws_pflegeprofil(hass, connection, msg):
         connection.send_error(msg["id"], "pflanze_nicht_gefunden", "Pflanze nicht gefunden")
         return
     try:
-        result = await pflege.async_profil(plant)
+        result = await pflege.async_profil(
+            plant, aktualisieren=msg.get("aktualisieren", False)
+        )
     except Exception:
         _LOGGER.exception("Mein Garten: Pflegeprofil konnte nicht geladen werden")
         connection.send_error(msg["id"], "pflegefehler", "Pflegeprofil derzeit nicht verfügbar")
