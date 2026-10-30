@@ -56,8 +56,8 @@ class TestWiederholungen(unittest.TestCase):
 
     def test_jaehrliche_wiederholung(self):
         rule = self.model.regel_anlegen("Winterkontrolle", "2026-12-01", "jaehrlich")
-        self.assertEqual(regel_faellig(rule, [], date(2026, 10, 30)).isoformat(), "2026-12-01")
-        self.assertEqual(regel_faellig(rule, [], date(2027, 1, 1)).isoformat(), "2027-12-01")
+        self.assertEqual(regel_faellig(rule, [], date(2026, 11, 1)).isoformat(), "2026-12-01")
+        self.assertEqual(regel_faellig(rule, [], date(2027, 11, 1)).isoformat(), "2027-12-01")
 
     def test_februar_29_nicht_jahresregel(self):
         with self.assertRaises(DatensatzFehler):
