@@ -74,5 +74,29 @@ class TestWiederholungen(unittest.TestCase):
         self.assertFalse(self.model.snapshot()["regeln"])
 
 
+    def test_manuel_aus_pflegewissen_mit_quellstatus(self):
+        plant = self.model.pflanze_anlegen("Echter Lavendel", "Lavandula angustifolia")
+        regel = self.model.regel_anlegen(
+            "Schnittbedarf prüfen", "2027-03-15", "jaehrlich",
+            pflanzen_id=plant["id"], pflegefeld="pruning",
+        )
+        self.assertEqual(regel["pflegebezug"]["quelle"], "OpenPlantbook")
+        self.assertEqual(regel["pflegebezug"]["feld"], "pruning")
+        self.assertEqual(regel["pflegebezug"]["freigabe"], "manuell_durch_benutzer")
+        self.assertEqual(self.model.pflegeplan_aktualisieren(date(2027, 3, 1)), 1)
+
+    def test_ungepruefte_quelle_darf_ohne_pflanze_keine_regel_erzeugen(self):
+        with self.assertRaises(DatensatzFehler):
+            self.model.regel_anlegen(
+                "Schnitt", "2027-03-15", "jaehrlich", pflegefeld="pruning"
+            )
+        plant = self.model.pflanze_anlegen("Hortensie")
+        with self.assertRaises(DatensatzFehler):
+            self.model.regel_anlegen(
+                "Schnitt", "2027-03-15", "jaehrlich",
+                pflanzen_id=plant["id"], pflegefeld="shell",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
