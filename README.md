@@ -4,15 +4,16 @@
 
 Eigenständiges Gartendashboard für Pflanzen, Gartenbereiche, Pflegeaufgaben und später automatisch übersetzte artspezifische Pflegeinformationen.
 
-**Status: V1 Alpha – erste zusammenhängende Oberfläche und lokales Backend entwickelt.** Die Benutzerinstallation auf einem echten Home Assistant Green ist noch nicht durchgeführt. Automatische Pflegepläne und deutsche API-Pflegeprofile sind noch nicht freigegeben.
+**Status:** Die ältere Garten-Alpha wurde laut Nutzerrückmeldung auf Home Assistant Green geladen. **Die neuen Funktionen des Entwicklungsbranches wurden dort noch nicht installiert oder live abgenommen.** Fachlich geprüfte automatische Schnitt- und Düngepläne sind weiterhin nicht freigegeben.
 
 ## Zusätzliche Funktionen nur im Entwicklungsbranch
 
 - [50 deutsche Pflanzennamen erfolgreich im Live-Test gesucht](https://github.com/p-weigner/mein-garten/actions/runs/41047293989), weitere Abdeckung nicht garantiert.
 - **Saisonfenster für 1.292 botanische Arten** aus zwei fest versionierten OpenPlantDB-Datensätzen (CC0); bei unserer 50-Pflanzen-Testliste sind 15 Arten vertreten. Benutzer wählen ihre Frühjahrs-/Herbstfrost-Referenzdaten selbst, bestätigen jede neue Erinnerungsaufgabe einzeln. Keine automatische Schnitt-/Düngearbeit.
 - Kombinierte Gießaufgaben mit dokumentiertem „Gegossen“ oder „Kontrolliert – kein Wasser nötig“, eigene Pflegehistorie, Benutzer-Wiederholungen und Frostprüfungen.
-- [Nachvollziehbare Datenbasis und fachliche Grenzen](docs/SAISONFENSTER_CC0_2026-10-30.md). Aktuelle Testreihe: [240 Python-Tests und 27 Node-Tests erfolgreich](https://github.com/p-weigner/mein-garten/actions/runs/41049157546).
-- Die aktuell installierte ältere Garten-Alpha ist davon zu unterscheiden. **Diese neuen Änderungen sind noch nicht auf Home Assistant Green getestet oder installiert.**
+- **Pflanzenentwicklung selbst beobachten:** Austrieb, Knospenbildung, Blütebeginn, Fruchtansatz, Fruchtreife, Laubfärbung und Blattfall bei jeder Pflanze mit Datum und optionaler Notiz erfassen. Eigene Jahresvergleiche und ein separater Beobachtungsbereich im Kalender; optionale Freitagsübersicht enthält nur Pflanze, Phase und Datum. Keine zusätzlichen Dienste oder DWD-Abfragen.
+- [Nachvollziehbare Saison-Datenbasis](docs/SAISONFENSTER_CC0_2026-10-30.md) und [eigene phänologische Beobachtungen](docs/PHAENOLOGIE_EIGENE_BEOBACHTUNGEN_2026-10-30.md). Aktuelle CI-Testreihe: [275 Python-Tests und 36 Node-Tests erfolgreich](https://github.com/p-weigner/mein-garten/actions/runs/41057130049).
+- Die zuvor installierte Garten-Alpha ist davon zu unterscheiden. **Diese neuen Änderungen sind noch nicht auf Home Assistant Green getestet oder installiert.**
 
 ## Aktueller Funktionsumfang
 
