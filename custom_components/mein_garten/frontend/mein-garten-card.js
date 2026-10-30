@@ -73,6 +73,7 @@
       this._saison = null;
       this._dwd = null;
       this._standort = null;
+      this._eive = null;
       // Die regionale Auswahl ist ein sichtbarer Vergleichsausschnitt,
       // keine erkannte Hausadresse und keine Standortfreigabe.
       this._dwdRegion = "nordost";
@@ -147,6 +148,7 @@
               this._saison = event.saison || null;
               this._dwd = event.dwd_phaenologie || null;
               this._standort = event.standort || null;
+              this._eive = event.eive || null;
               this._error = "";
               this._render();
             }
@@ -190,6 +192,7 @@
           this._saison = result.saison || null;
           this._dwd = result.dwd_phaenologie || null;
           this._standort = result.standort || null;
+          this._eive = result.eive || null;
         }
         this._modal = null;
         this._render();
@@ -522,6 +525,51 @@
         '</p></section>';
     }
 
+    _eiveHTML() {
+      const base = this._eive;
+      if (!base || !this._carePlant) return "";
+      const plant = this._getPlant(this._carePlant);
+      const row = base.profile?.[this._carePlant];
+      if (!plant || !row || row.wissenschaftlich !== plant.wissenschaftlich)
+        return "";
+      const fields = [
+        ["L", "Licht"],
+        ["M", "Bodenfeuchtigkeit"],
+        ["N", "Nährstoffverfügbarkeit"],
+        ["R", "Bodenreaktion"],
+        ["T", "Temperatur"]
+      ];
+      const items = fields.map(([key, label]) => {
+        const field = row.indikatoren?.[key];
+        if (!field || typeof field.wert !== "number" ||
+            !Number.isFinite(field.wert) || field.wert < 0 || field.wert > 10 ||
+            !Number.isInteger(field.quellsysteme) ||
+            field.quellsysteme < 1 || field.quellsysteme > 31) return "";
+        const amount = field.wert.toFixed(1).replace(".", ",");
+        const evidence = field.quellsysteme === 1 ?
+          '<span class="chip warning">Nur 1 Quellsystem</span>' :
+          escapeHtml(field.quellsysteme) + ' Quellsysteme';
+        return '<div class="task"><div><div class="task-name">' +
+          escapeHtml(label) + '</div><div class="task-meta">' +
+          'Europäischer Zeigerwert · ' + evidence +
+          '</div></div><strong>' + escapeHtml(amount) + ' / 10</strong></div>';
+      }).filter(Boolean).join("");
+      if (!items) return "";
+      return '<section class="card" style="margin:9px 0;padding:13px">' +
+        '<h3>Europäische Standortindikatoren</h3>' +
+        '<p class="small">Wissenschaftliche Referenzwerte für <em>' +
+        escapeHtml(row.wissenschaftlich) + '</em>.</p>' + items +
+        '<div class="notice">Ökologische Nischenwerte auf einer relativen ' +
+        'Skala von 0 bis 10. Keine Messung der Gartenerde, keine Gießmenge, ' +
+        'keine Dünge-, Schnitt- oder Frostempfehlung. Nicht für Brandenburg ' +
+        'als individuelle Gartenpflege geprüft. Die Anzahl der Quellsysteme ' +
+        'zeigt Datenabdeckung, keine Garantie für die Kulturpraxis.</div>' +
+        '<p class="small">Quelle: <a href="https://doi.org/10.5281/zenodo.7534792" ' +
+        'target="_blank" rel="noopener noreferrer">Dengler et al. (2023), ' +
+        'EIVE 1.0</a> · CC BY 4.0 · gerundete Werte, exakte Artenzuordnung</p>' +
+        '</section>';
+    }
+
     _eigenePflegeNotizenHTML() {
       const plant = this._getPlant(this._carePlant);
       if (!plant || typeof plant.notizen !== "string" || !plant.notizen.trim())
@@ -536,7 +584,8 @@
     }
 
     _careHTML() {
-      const grundlagen = this._standortHTML() + this._eigenePflegeNotizenHTML();
+      const grundlagen = this._standortHTML() + this._eiveHTML() +
+        this._eigenePflegeNotizenHTML();
       if (this._careLoading && !this._care)
         return grundlagen + '<p class="small">Deutsche Pflegeinformationen werden geladen …</p>';
       const profile = this._care;
