@@ -63,6 +63,8 @@ class TestAlphaPaket(unittest.TestCase):
         self.assertEqual(report["manifest_version"], "1.0.0b3")
         self.assertEqual(report["status"], "ci_validiert_live_abnahme_ausstehend")
         self.assertFalse(report["home_assistant_green_installiert"])
+        self.assertFalse(report["zuhause_dashboard_im_paket"])
+        self.assertFalse(report["zuhause_live_zustand_geprueft"])
         self.assertGreaterEqual(report["integration_dateien"], 7)
         self.assertEqual(len(report["frontend_sha256"]), 64)
 
