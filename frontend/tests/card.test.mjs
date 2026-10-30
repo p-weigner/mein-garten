@@ -350,3 +350,35 @@ test("Pflegeprofil-Wasser übernimmt die differenzierte Aufgabenart", () => {
   assert.equal(card._modal.prefill.aufgabentyp, "giesskontrolle");
   assert.ok(card.shadowRoot.innerHTML.includes('name="aufgabentyp" value="giesskontrolle"'));
 });
+
+
+test("GBIF-Trivialnamen werden als mehrdeutige Artwahl angezeigt", () => {
+  const card = buildCard();
+  const plant = {
+    wissenschaftlich: "Prunus avium",
+    deutsch: "",
+    bestaetigt: true,
+    quellen: ["GBIF-Trivialnamen"],
+  };
+  card._modal = { type: "pflanze", existing: null };
+  card._suggestions = [plant];
+  card._render();
+  assert.ok(card.shadowRoot.innerHTML.includes("Trivialname – Art prüfen"));
+  assert.ok(!card._suggestionHTML().includes(">Art bestätigt</span>"));
+  assert.ok(card.shadowRoot.innerHTML.includes("Prunus avium"));
+});
+
+test("Exakter deutscher Artname bleibt gegenüber dem GBIF-Sammelvorschlag klar bezeichnet", () => {
+  const card = buildCard();
+  card._modal = { type: "pflanze", existing: null };
+  card._suggestions = [
+    { wissenschaftlich: "Hydrangea paniculata", deutsch: "Rispenhortensie",
+      bestaetigt: true, quellen: ["iNaturalist"] },
+    { wissenschaftlich: "Hydrangea arborescens", deutsch: "",
+      bestaetigt: true, quellen: ["GBIF-Trivialnamen"] },
+  ];
+  card._render();
+  const html = card._suggestionHTML();
+  assert.ok(html.includes("Art bestätigt"));
+  assert.ok(html.includes("Trivialname – Art prüfen"));
+});
