@@ -22,10 +22,12 @@ def _backend(hass):
     return hass.data.get(DOMAIN, {}).get("backend")
 
 
-def _snapshot(backend) -> dict:
+def _snapshot(backend, hass=None) -> dict:
+    hinweise = hass.data.get(DOMAIN, {}).get("hinweise") if hass is not None else None
     return {
         "daten": backend.snapshot(),
         "gruppen": list(PFLANZENGRUPPEN),
+        "automatik": hinweise.einstellungen() if hinweise is not None else None,
         "version": 1,
     }
 
@@ -44,7 +46,7 @@ async def _aendern(hass, connection, msg, methode, parameter):
         _LOGGER.exception("Mein Garten: Speichern fehlgeschlagen")
         connection.send_error(msg["id"], "speicherfehler", "Gartendaten konnten nicht gespeichert werden")
         return
-    connection.send_result(msg["id"], {"objekt": objekt, **_snapshot(backend)})
+    connection.send_result(msg["id"], {"objekt": objekt, **_snapshot(backend, hass)})
 
 
 @websocket_api.websocket_command({probatio.Required("type"): "mein_garten/get"})
@@ -54,7 +56,7 @@ def ws_get(hass, connection, msg):
     if backend is None:
         connection.send_error(msg["id"], "nicht_eingerichtet", "Mein Garten ist nicht eingerichtet")
         return
-    connection.send_result(msg["id"], _snapshot(backend))
+    connection.send_result(msg["id"], _snapshot(backend, hass))
 
 
 @websocket_api.websocket_command({probatio.Required("type"): "mein_garten/subscribe"})
@@ -70,7 +72,7 @@ def ws_subscribe(hass, connection, msg):
     def _updated():
         current = _backend(hass)
         if current is not None:
-            connection.send_event(msg["id"], _snapshot(current))
+            connection.send_event(msg["id"], _snapshot(current, hass))
 
     unsubscriber = async_dispatcher_connect(hass, SIGNAL_UPDATED, _updated)
     connection.subscriptions[msg["id"]] = unsubscriber
@@ -131,6 +133,41 @@ async def ws_pflegeprofil(hass, connection, msg):
 
 
 @websocket_api.websocket_command({
+    probatio.Required("type"): "mein_garten/automatik_speichern",
+    probatio.Required("weather_entity"): str,
+    probatio.Required("notify_target"): str,
+    probatio.Required("freitag_aktiv"): bool,
+    probatio.Required("frost_aktiv"): bool,
+    probatio.Required("frost_grenze_c"): probatio.Any(int, float),
+})
+@websocket_api.async_response
+async def ws_automatik_speichern(hass, connection, msg):
+    """Nur validierte Wetter- und Pushkonfiguration ohne beliebige Actions."""
+    service = hass.data.get(DOMAIN, {}).get("hinweise")
+    backend = _backend(hass)
+    if service is None or backend is None:
+        connection.send_error(msg["id"], "nicht_eingerichtet", "Mein Garten ist nicht eingerichtet")
+        return
+    options = {key: msg[key] for key in (
+        "weather_entity", "notify_target", "freitag_aktiv",
+        "frost_aktiv", "frost_grenze_c",
+    )}
+    try:
+        await service.async_einstellungen_speichern(options)
+    except ValueError as exc:
+        connection.send_error(msg["id"], "ungueltige_eingabe", str(exc))
+        return
+    except Exception:
+        _LOGGER.exception("Mein Garten: Benachrichtigungseinstellungen nicht gespeichert")
+        connection.send_error(msg["id"], "speicherfehler", "Einstellungen konnten nicht gespeichert werden")
+        return
+    from homeassistant.helpers.dispatcher import async_dispatcher_send
+
+    async_dispatcher_send(hass, SIGNAL_UPDATED)
+    connection.send_result(msg["id"], _snapshot(backend, hass))
+
+
+@websocket_api.websocket_command({
     probatio.Required("type"): "mein_garten/regel_anlegen",
     probatio.Required("name"): str,
     probatio.Required("startdatum"): str,
@@ -187,7 +224,7 @@ async def ws_pflegeplan_aktualisieren(hass, connection, msg):
         _LOGGER.exception("Mein Garten: Pflegeplan-Aktualisierung fehlgeschlagen")
         connection.send_error(msg["id"], "pflegeplanfehler", "Pflegeplan konnte nicht aktualisiert werden")
         return
-    connection.send_result(msg["id"], _snapshot(backend))
+    connection.send_result(msg["id"], _snapshot(backend, hass))
 
 
 @websocket_api.websocket_command({
@@ -327,7 +364,7 @@ def registriere_ws_befehle(hass) -> None:
     """Registriert nur lokale Befehle für authentifizierte HA-Nutzer."""
     for handler in (
         ws_get, ws_subscribe, ws_pflanzen_suchen, ws_pflegeprofil,
-        ws_regel_anlegen, ws_regel_aktiv_setzen, ws_regel_entfernen,
+        ws_automatik_speichern, ws_regel_anlegen, ws_regel_aktiv_setzen, ws_regel_entfernen,
         ws_pflegeplan_aktualisieren,
         ws_bereich_anlegen, ws_bereich_umbenennen, ws_bereich_entfernen,
         ws_pflanze_anlegen, ws_pflanze_bearbeiten, ws_pflanze_entfernen,
