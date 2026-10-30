@@ -15,6 +15,12 @@
 | DWD-Phänologie | [Datenbeschreibung](https://wetterdienst.readthedocs.io/en/latest/data/provider/dwd/phenology/index.html) | Beobachtete Wachstumsphasen in Deutschland, potenziell für regionale Saisonindikatoren. Keine artspezifische Pflegeanleitung | Nein. Beobachtung und zu empfehlende Arbeit strikt trennen |
 | MyMemory | [API-Dokumentation](https://mymemory.translated.net/doc/spec.php), [Limit](https://mymemory.translated.net/doc/usagelimits.php) | Freie maschinelle Übersetzung mit max. 500 Byte pro Abschnitt, anonyme Kontingente derzeit 5.000 Zeichen pro Tag. Keine Fachprüfung | Nein |
 
+## Neu: gemessene Qualität freier Anbau- und Pflanzhinweise (30.10.)
+
+Ein isolierter [CC0-Freitext-Audit](ANBAUHINWEISE_QUELLENAUDIT_2026-10-30.md) des exakten OpenPlantDB-Quellstands hat **34.841 Rohdatensätze / 10.645 botanisch eindeutige Arten** untersucht. 9.936 Arten haben einen unter Varianten einheitlichen Anbautext; 650 haben widersprüchliche Texte. Bei 50 für Deutschland typischen Testarten sind **nur 19** Anbautexte innerhalb der Quelle einheitlich. Dies belegt **keine** fachliche Eignung: Texte mit Sortenunterschieden oder US-Bezügen dürfen nicht als verbindliche Brandenburg-Pflegeplanung gelten. [GitHub-Audit erfolgreich, 8/8 Offline-Tests](https://github.com/p-weigner/mein-garten/actions/runs/41074491039).
+
+Die Quellenprüfung ist **keine Produktivfunktion** und schaltet ausdrücklich **keine** zusätzlichen Schnitt-, Dünge-, Gieß- oder Pflanztermine frei. Sie liefert eine begründete Negativauswahl für die nächste fachliche Datenrecherche.
+
 ## Stand der tatsächlichen Saisonabdeckung
 
 Der lokale Katalog besteht nun aus **152 Regeln des CC0-Basisstands** und **1.140 neuen, nicht kollidierenden Regeln** aus dem fest überprüften Datenstand vom 30. Oktober 2026. Die Gegenprobe mit unseren 50 deutschen Gartenarten ergibt **15 Arten mit strukturiertem Saisonfenster**, aber nur jeweils **eine von zehn** aus Gehölzen und Obst. Die weiteren Arten erhalten keine automatisch geratenen Empfehlungen.
