@@ -235,17 +235,20 @@
           escapeHtml(this._searchMessage || "Suche einen deutschen oder botanischen Namen.") +
           "</div>";
       }
-      return this._suggestions.map((plant, index) =>
-        '<button type="button" class="suggestion" data-action="suggestion" data-index="' +
-        index + '"><span><strong>' +
-        escapeHtml(plant.deutsch || plant.wissenschaftlich) +
-        '</strong><span class="small" style="display:block">' +
-        escapeHtml(plant.wissenschaftlich) +
-        '</span></span><span class="chip ' +
-        (plant.bestaetigt ? '' : 'warning') + '">' +
-        (plant.bestaetigt ? "Art bestätigt" : "Bitte Art prüfen") +
-        "</span></button>"
-      ).join("");
+      return this._suggestions.map((plant, index) => {
+        const mehrdeutigerName = !plant.deutsch &&
+          (plant.quellen || []).includes("GBIF-Trivialnamen");
+        return '<button type="button" class="suggestion" data-action="suggestion" data-index="' +
+          index + '"><span><strong>' +
+          escapeHtml(plant.deutsch || plant.wissenschaftlich) +
+          '</strong><span class="small" style="display:block">' +
+          escapeHtml(plant.wissenschaftlich) +
+          '</span></span><span class="chip ' +
+          (plant.bestaetigt && !mehrdeutigerName ? '' : 'warning') + '">' +
+          (mehrdeutigerName ? "Trivialname – Art prüfen" :
+            plant.bestaetigt ? "Art bestätigt" : "Bitte Art prüfen") +
+          "</span></button>";
+      }).join("");
     }
 
     _onClick(ev) {
@@ -341,9 +344,13 @@
         const name = form.elements.namedItem("name");
         if (!name.value.trim()) name.value = candidate.deutsch || candidate.wissenschaftlich;
         const note = this.shadowRoot.querySelector("#garten-artenhinweis");
-        if (note) note.textContent = candidate.bestaetigt
-          ? "Botanische Art bestätigt: " + candidate.wissenschaftlich
-          : "Die Zuordnung ist noch nicht bestätigt. Für diese Pflanze werden keine artspezifischen Pflegemaßnahmen abgeleitet.";
+        const quellen = candidate.quellen || [];
+        const aliasMehrdeutig = !candidate.deutsch && quellen.includes("GBIF-Trivialnamen");
+        if (note) note.textContent = aliasMehrdeutig
+          ? "Botanisches Taxon bestätigt. Dieser deutsche Sammelname kann mehrere Arten bezeichnen: bitte genau prüfen, bevor du diese Pflanze übernimmst."
+          : candidate.bestaetigt
+            ? "Botanische Art bestätigt: " + candidate.wissenschaftlich
+            : "Die Zuordnung ist noch nicht bestätigt. Für diese Pflanze werden keine artspezifischen Pflegemaßnahmen abgeleitet.";
       } else if (action === "plant-remove" || action === "area-remove" || action === "task-remove") {
         const question = action === "plant-remove"
           ? "Diese Pflanze und ihre verknüpften Aufgaben wirklich entfernen?"
