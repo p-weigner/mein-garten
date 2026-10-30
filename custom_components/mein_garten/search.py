@@ -182,9 +182,13 @@ class Pflanzensuche:
                     deepcopy(p) for p in record["pflanzen"][:15]
                     if isinstance(p, dict)
                     and _plant_name(p.get("wissenschaftlich"))
+                    and len(p["wissenschaftlich"]) <= 160
                     and isinstance(p.get("deutsch"), str)
+                    and len(p["deutsch"]) <= 120
                     and isinstance(p.get("bestaetigt"), bool)
                     and isinstance(p.get("quellen"), list)
+                    and len(p["quellen"]) <= 5
+                    and all(isinstance(q, str) and len(q) <= 40 for q in p["quellen"])
                 ]
                 if items:
                     self._lokale_queries[key] = {"zeit": record["zeit"], "pflanzen": items}
