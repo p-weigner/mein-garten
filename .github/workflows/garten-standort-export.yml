@@ -1,0 +1,29 @@
+name: Mein Garten – CC0 Standortkatalog offline erzeugen
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/garten-pflegewissen-und-suche-20261030
+    paths:
+      - ".github/workflows/garten-standort-export.yml"
+      - "tools/openplantdb_standort_export.py"
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Datenquelle per SHA-256 sichern und konsistente Artmerkmale exportieren
+        run: python -m tools.openplantdb_standort_export
+      - name: Kleines CC0-Offlinedatenpaket archivieren
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mein_Garten_CC0_Standortkatalog_Entwurf
+          path: custom_components/mein_garten/data/standort_cc0_v1.json
+          retention-days: 7
+          if-no-files-found: error
