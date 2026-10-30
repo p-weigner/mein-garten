@@ -33,6 +33,11 @@ MAX_FIELD_CHARS = 1600
 MAX_TEXT_CHARS = 12000
 COMPLETE_CACHE_DAYS = 30
 PARTIAL_CACHE_HOURS = 18
+MANUAL_REFRESH_MINUTES = 5
+TRANSIENT_SOURCE_ERRORS = {
+    "quelle_nicht_erreichbar", "quelle_nicht_eingerichtet",
+    "quellenantwort_ungueltig",
+}
 MAX_TRANSLATIONS = 1200
 _NAME = re.compile(r"^[A-Z][A-Za-z-]+(?: [a-z×xA-Z.-]+){1,5}$")
 _HTML_TAG = re.compile(r"<[/!]?[a-z][^>]*>", re.IGNORECASE)
@@ -259,24 +264,78 @@ class PflegeService:
             status = "ok"
         return self._result(species, status, fields)
 
-    async def async_profil(self, plant: dict) -> dict:
+    async def async_profil(self, plant: dict, *, aktualisieren: bool = False) -> dict:
+        """Lädt das Pflegeprofil mit Cache und begrenzter manueller Wiederholungsprüfung.
+
+        Eine Benutzeraktion darf einen unvollständigen 18-Stunden-Cache prüfen,
+        aber keinesfalls den Übersetzungs-Tagesschutz umgehen oder die
+        OpenPlantbook-Quelle durch wiederholtes Klicken überlasten.
+        Vorhandene deutsche Profile bleiben bei vorübergehendem Ausfall sichtbar.
+        """
+        if type(aktualisieren) is not bool:
+            raise ValueError("Aktualisieren muss wahr oder falsch sein")
         species = plant.get("wissenschaftlich", "")
         if not _valid_species(species):
             return self._result(str(species), "art_unbekannt")
         cache_key = species.replace("×", "x").casefold()
         async with self._lock:
             stored = self._data["profile"].get(cache_key)
-            if isinstance(stored, dict):
+            cached = (
+                isinstance(stored, dict)
+                and _same_species(species, stored.get("art", ""))
+                and isinstance(stored.get("felder"), dict)
+            )
+            now = _now()
+            if cached:
                 try:
                     updated = datetime.fromisoformat(stored["abgerufen_utc"])
                     days = COMPLETE_CACHE_DAYS if stored["status"] == "ok" else 0
                     ttl = timedelta(days=days) if days else timedelta(hours=PARTIAL_CACHE_HOURS)
-                    if _now() - updated < ttl:
+                    age = now - updated
+                    # Ein vollständig übersetztes Profil ist für die
+                    # normale Gültigkeitsdauer nicht erneut abzufragen.
+                    if timedelta(0) <= age < ttl and (
+                        not aktualisieren or stored["status"] == "ok"
+                    ):
                         return deepcopy(stored)
                 except (ValueError, KeyError, TypeError):
                     pass
+
+            if aktualisieren:
+                # Diese Versuche gelten nur in der laufenden HA-Instanz und
+                # werden nach einem Neustart zurückgesetzt. Das tägliche
+                # Übersetzungskontingent bleibt dauerhaft im Store geschützt.
+                attempts = getattr(self, "_auffrischungen", None)
+                if attempts is None:
+                    attempts = {}
+                    self._auffrischungen = attempts
+                last = attempts.get(cache_key)
+                if last is not None and now - last < timedelta(minutes=MANUAL_REFRESH_MINUTES):
+                    result = deepcopy(stored) if cached else self._result(
+                        species, "aktualisierung_zu_frueh"
+                    )
+                    result["aktualisierung"] = "wartezeit"
+                    return result
+                attempts[cache_key] = now
+                if len(attempts) > 300:
+                    del attempts[min(attempts, key=attempts.get)]
+
             result = await self._fetch(species)
-            if result["status"] in {"ok", "teilweise", "kein_deutscher_text", "art_nicht_gefunden"}:
+            # Ein temporärer Ausfall löscht keine zuvor tatsächlich geladenen
+            # deutschen Texte. Der genaue Ausfallstatus ist für die UI sichtbar.
+            if result["status"] in TRANSIENT_SOURCE_ERRORS and cached:
+                if any(
+                    isinstance(field, dict) and isinstance(field.get("text"), str)
+                    and bool(field["text"].strip())
+                    for field in stored["felder"].values()
+                ):
+                    previous = deepcopy(stored)
+                    previous["aktualisierung"] = result["status"]
+                    return previous
+
+            if result["status"] in {
+                "ok", "teilweise", "kein_deutscher_text", "art_nicht_gefunden"
+            }:
                 self._data["profile"][cache_key] = deepcopy(result)
                 # Maximal 300 Arten im privaten Pflegecache; keine Benutzernotizen.
                 if len(self._data["profile"]) > 300:
