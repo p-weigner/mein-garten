@@ -49,6 +49,16 @@ Keine Codeänderung für neu angelegte Pflanzen. Die persönlichen Gartennotizen
 - Das Wikimedia-/Wikidata-Fallback wurde in einer separaten Live-Diagnose untersucht, lieferte in der GitHub-Runner-Umgebung nur HTTP-Fehler und wird deshalb **nicht** als zusätzliche Abhängigkeit in die Suchlogik integriert.
 - [50 Testarten](../daten/pflanzensuche_50_de.json), [reproduzierbarer Live-Test](../tools/pflanzensuche_50_live.py) und [Quellen-/Lizenzprüfung](FACHQUELLEN_FREIGABE_2026-10-30.md).
 
+## Amtliche DWD-Phänologie als separater, read-only Regionalvergleich
+
+- Neu: Unter **Kalender → DWD: Jahreszeiten im Vergleich** erscheinen drei meteorologisch-phänologische Indikatoren als **historisch beobachtete** Jahresdaten (Haselblüte, Forsythienblüte, Rotbuchen-Blattentfaltung).
+- Aus dem offiziellen DWD-Sofortmelder-Netz wurden für **2024, 2025 und 2026** insgesamt **18** statistische Vergleiche vorverarbeitet: je Indikator die Region **Nordost (grobes Rechteck 52–54,2° N / 12–15° O)** und Deutschland insgesamt. Die Region ist **kein exakter Nutzerstandort, keine amtliche Landesgrenze und keine Grundstücksmessung**.
+- Jeder Eintrag zeigt **Median der tatsächlichen Eintrittsdaten, unteres/oberes Quartil, Anzahl der berücksichtigten Stationen, DWD-Quelle und CC-BY-4.0-Lizenz**. Ausgegeben wird nur bei mindestens fünf widerspruchsfreien Stationsmeldungen. Der jüngere Datenstand ist teilweise lediglich **formal** geprüft.
+- Die 3 offiziellen Quelldateien plus Stationskatalog wurden in einem getrennten GitHub-Actions-Export mit SHA-256-Nachweis zu einem **ca. 7 KB großen statischen Offline-Snapshot** zusammengefasst. Auf Home Assistant Green entstehen **keine DWD-Webzugriffe, keine präzise Standortabfrage und keine Zusatzkosten**.
+- Technische Laufzeit: `custom_components/mein_garten/dwd_reference.py` validiert den Snapshot und gibt ihn nur **lesend** an das Kalender-Dashboard weiter. Falls der optionale Snapshot beschädigt ist, bleiben die vorhandenen Pflanzen, Kalenderaufgaben und Beobachtungen verfügbar.
+- Die DWD-Phasen werden **nicht** als eigene Pflanzenbeobachtungen gespeichert und **nicht** automatisch in Schnitt-, Dünge- oder Aussaattermine übersetzt.
+- [Regionalvergleich: Datenlage, Qualitätsflags, Lizenz, Begrenzungen](PHAENOLOGIE_DWD_REGIONAL_2026-10-30.md).
+
 ## Eigene phänologische Gartenbeobachtungen
 
 - Neu: **Pflanzen → Entwicklung** für jede gespeicherte Pflanze, auch ohne botanischen Datenbanktreffer. Sieben kontrollierte Beobachtungsphasen, tatsächliches Datum und optionale private Notiz. Die beobachtete botanische Art bleibt als Historienreferenz bestehen.
