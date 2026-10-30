@@ -302,5 +302,157 @@ class TestPflegeManuelleAktualisierung(unittest.IsolatedAsyncioTestCase):
         service._fetch.assert_not_awaited()
 
 
+class TestPflegeTeilantworten(TestPflegeManuelleAktualisierung):
+    """Einzelfeld-Historie für teilweise fehlende Pflegeinformationen."""
+
+    def _prepare(self, service):
+        previous = service._result("Rosa canina", "ok", {
+            "watering": {
+                "titel": "Gießen", "text": "Früher sparsam gießen",
+                "status": "maschinenuebersetzt", "quelle": "OpenPlantbook",
+            },
+            "pruning": {
+                "titel": "Schnitt", "text": "Historischer Schnitthinweis",
+                "status": "maschinenuebersetzt", "quelle": "OpenPlantbook",
+            },
+        })
+        previous["abgerufen_utc"] = "2026-10-01T10:00:00+00:00"
+        service._data["profile"]["rosa canina"] = deepcopy(previous)
+        return previous
+
+    async def test_aktuelle_wasserangabe_und_alter_schnitt_separat_markiert(self):
+        service = self.make_service()
+        self._prepare(service)
+        update = service._result("Rosa canina", "teilweise", {
+            "watering": {
+                "titel": "Gießen", "text": "Neue deutsche Bewässerungsinfo",
+                "status": "original_deutsch", "quelle": "OpenPlantbook",
+            },
+            "pruning": {
+                "titel": "Schnitt", "text": None,
+                "status": "uebersetzung_ausstehend", "quelle": "OpenPlantbook",
+            },
+        })
+        service._fetch = AsyncMock(return_value=update)
+        result = await service.async_profil(
+            {"wissenschaftlich": "Rosa canina"}, aktualisieren=True
+        )
+        self.assertEqual(result["status"], "teilweise")
+        self.assertEqual(result["veraltete_felder"], 1)
+        self.assertEqual(result["felder"]["watering"]["text"], "Neue deutsche Bewässerungsinfo")
+        self.assertNotEqual(result["felder"]["watering"]["status"], "zwischengespeichert")
+        self.assertEqual(
+            result["felder"]["watering"]["belegt_utc"], update["abgerufen_utc"]
+        )
+        old = result["felder"]["pruning"]
+        self.assertEqual(old["status"], "zwischengespeichert")
+        self.assertEqual(old["quellstatus"], "uebersetzung_ausstehend")
+        self.assertEqual(old["text"], "Historischer Schnitthinweis")
+        self.assertEqual(old["zuletzt_bestaetigt_utc"], "2026-10-01T10:00:00+00:00")
+        self.assertFalse(result["automatische_aufgaben_erlaubt"])
+        self.assertEqual(service._store.saved[-1]["profile"]["rosa canina"], result)
+
+    async def test_neu_geladener_schnitt_ersetzt_zwischengespeicherten_text(self):
+        service = self.make_service()
+        self._prepare(service)
+        first = service._result("Rosa canina", "teilweise", {
+            "watering": {"titel": "Gießen", "text": "Neu", "status": "maschinenuebersetzt"},
+            "pruning": {"titel": "Schnitt", "text": None, "status": "keine_angabe"},
+        })
+        second = service._result("Rosa canina", "ok", {
+            "watering": {"titel": "Gießen", "text": "Aktueller Wasserhinweis",
+                         "status": "maschinenuebersetzt"},
+            "pruning": {"titel": "Schnitt", "text": "Neuer Schnitthinweis",
+                        "status": "maschinenuebersetzt"},
+        })
+        service._fetch = AsyncMock(side_effect=[first, second])
+        await service.async_profil({"wissenschaftlich": "Rosa canina"}, aktualisieren=True)
+        service._auffrischungen["rosa canina"] = _now() - timedelta(minutes=6)
+        result = await service.async_profil(
+            {"wissenschaftlich": "Rosa canina"}, aktualisieren=True
+        )
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["felder"]["pruning"]["text"], "Neuer Schnitthinweis")
+        self.assertNotIn("zuletzt_bestaetigt_utc", result["felder"]["pruning"])
+        self.assertNotIn("veraltete_felder", result)
+
+    async def test_alter_zeitpunkt_wird_bei_wiederholten_teilantworten_nicht_geaendert(self):
+        service = self.make_service()
+        self._prepare(service)
+        def partial():
+            return service._result("Rosa canina", "teilweise", {
+                "watering": {"titel": "Gießen", "text": "Heute aktuell",
+                             "status": "maschinenuebersetzt"},
+                "pruning": {"titel": "Schnitt", "text": None,
+                            "status": "keine_angabe"},
+            })
+        service._fetch = AsyncMock(side_effect=[partial(), partial()])
+        first = await service.async_profil(
+            {"wissenschaftlich": "Rosa canina"}, aktualisieren=True
+        )
+        service._auffrischungen["rosa canina"] = _now() - timedelta(minutes=6)
+        second = await service.async_profil(
+            {"wissenschaftlich": "Rosa canina"}, aktualisieren=True
+        )
+        for item in (first, second):
+            self.assertEqual(
+                item["felder"]["pruning"]["zuletzt_bestaetigt_utc"],
+                "2026-10-01T10:00:00+00:00"
+            )
+        self.assertEqual(second["veraltete_felder"], 1)
+
+    async def test_fehlen_einzelner_kompletter_felder_wird_als_alt_markiert(self):
+        service = self.make_service()
+        self._prepare(service)
+        service._fetch = AsyncMock(return_value=service._result(
+            "Rosa canina", "ok", {
+                "watering": {"titel": "Gießen", "text": "Aktuell",
+                             "status": "original_deutsch"},
+            }
+        ))
+        result = await service.async_profil(
+            {"wissenschaftlich": "Rosa canina"}, aktualisieren=True
+        )
+        self.assertEqual(result["status"], "teilweise")
+        self.assertEqual(result["felder"]["pruning"]["status"], "zwischengespeichert")
+        self.assertEqual(result["felder"]["pruning"]["quellstatus"], "keine_angabe")
+        self.assertEqual(result["veraltete_felder"], 1)
+
+    async def test_veralteter_fremder_arten_oder_quellentext_wird_nicht_gemischt(self):
+        service = self.make_service()
+        current = service._result("Rosa canina", "teilweise", {
+            "watering": {"titel": "Gießen", "text": "Neu", "status": "original_deutsch"},
+            "pruning": {"titel": "Schnitt", "text": None, "status": "keine_angabe"},
+        })
+        previous = service._result("Rosa rugosa", "ok", {
+            "pruning": {"titel": "Schnitt", "text": "Nur für eine andere Art"},
+        })
+        self.assertEqual(service._alte_teilfelder_sichern(current, previous), 0)
+        self.assertIsNone(current["felder"]["pruning"]["text"])
+        previous["art"] = "Rosa canina"
+        previous["quelle"] = "Andere Quelle"
+        self.assertEqual(service._alte_teilfelder_sichern(current, previous), 0)
+        self.assertIsNone(current["felder"]["pruning"]["text"])
+
+    async def test_feld_mit_fremder_quelle_und_leerem_text_wird_nicht_uebernommen(self):
+        service = self.make_service()
+        current = service._result("Rosa canina", "teilweise", {
+            "watering": {"titel": "Gießen", "text": "Neuer Hinweis"},
+            "pruning": {"titel": "Schnitt", "text": None, "status": "keine_angabe"},
+        })
+        old = service._result("Rosa canina", "ok", {
+            "pruning": {
+                "titel": "Schnitt", "text": "Fremder Hinweis",
+                "quelle": "Andere Quelle",
+            },
+        })
+        self.assertEqual(service._alte_teilfelder_sichern(current, old), 0)
+        self.assertIsNone(current["felder"]["pruning"]["text"])
+        old["felder"]["pruning"]["quelle"] = "OpenPlantbook"
+        old["felder"]["pruning"]["text"] = "x" * 12001
+        self.assertEqual(service._alte_teilfelder_sichern(current, old), 0)
+        self.assertIsNone(current["felder"]["pruning"]["text"])
+
+
 if __name__ == "__main__":
     unittest.main()
