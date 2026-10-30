@@ -37,7 +37,15 @@ def _norm(name: str) -> str:
     return _WS.sub(" ", name.replace("×", " x ").casefold()).strip()
 
 
-def _relevanter_deutscher_name(query: str, name: str) -> bool:
+def _deutscher_namenkern(name: str) -> str:
+    """Leerzeichen, Bindestriche und übliche Umlautumschriften vergleichen."""
+    if not isinstance(name, str):
+        return ""
+    name = name.casefold().replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+    return "".join(c for c in name if c.isalpha())
+
+
+def _relevanter_deutscher_name(query: str, name: str):
     """Z. B. 'Frauenmantel' in 'Weicher Frauenmantel' als echtes Namenssignal.
 
     Keine künstliche botanische Zuordnung: Es wird nur der bereits vom
@@ -319,6 +327,41 @@ class Pflanzensuche:
             datasetKey=_GBIF_BACKBONE, limit=20,
         ))
 
+    async def _varianten(self, query: str) -> list[dict]:
+        """Nur bei sonst leeren Ergebnissen eine gesicherte Schreibvariante suchen.
+
+        Der erste Teil langer Komposita führt bei iNaturalist zu deutschen
+        Aliasen. Wir behalten nur *vollständige* Gleichheit nach
+        Bindestrich-/Leerzeichen-Normalisierung, nie bloße Ähnlichkeit.
+        Bei mehrteiligen Namen ist zusätzlich der letzte lange Wortteil
+        eine bewusst mehrdeutige, manuell zu prüfende Vorschlagsquelle.
+        """
+        words = query.split()
+        last = words[-1]
+        if len(last) < 10 or not last.isalpha():
+            return []
+        # Ein einzelner zusätzlicher Autocomplete-Request statt 10-20
+        # wahlloser Bindestrichversuche, damit öffentliche APIs geschont werden.
+        requests = [self._i_nat(last[:6])]
+        if len(words) > 1:
+            requests.append(self._gbif_vernacular(last))
+        data = await asyncio.gather(*requests, return_exceptions=True)
+        results = []
+        if not isinstance(data[0], BaseException):
+            for item in data[0]:
+                name = item.get("deutsch", "")
+                if _deutscher_namenkern(name) != _deutscher_namenkern(last):
+                    continue
+                candidate = deepcopy(item)
+                candidate["quellen"] = list(candidate["quellen"]) + ["Schreibvariante"]
+                results.append(candidate)
+        if len(words) > 1 and len(data) > 1 and not isinstance(data[1], BaseException):
+            for item in data[1][:8]:
+                candidate = deepcopy(item)
+                candidate["quellen"] = list(candidate["quellen"]) + ["Schreibvariante"]
+                results.append(candidate)
+        return _dedupe(results)
+
     async def _wikidata(self, query: str) -> list[dict]:
         search = await self._json(
             _WIKIDATA, action="wbsearchentities", search=query,
@@ -398,6 +441,13 @@ class Pflanzensuche:
             if wikidata:
                 wikidata = await self._verify_wikidata(wikidata)
             netz_treffer = _dedupe(inat + wikidata + vernacular + gbif)
+            if not netz_treffer and len(notes) < 4:
+                # Keine verdächtige automatische Zuordnung: ausschließlich
+                # die Aliasnamen aus echten botanischen Suchantworten.
+                varianten = await self._varianten(query)
+                if varianten:
+                    notes.append("Alternative deutsche Schreibweise – genaue Art bitte prüfen")
+                    netz_treffer = varianten
             offline_treffer = self._lokale_treffer(query)
             all_items = _dedupe(netz_treffer + offline_treffer)
             if offline_treffer and notes:
@@ -412,6 +462,9 @@ class Pflanzensuche:
                 not x["bestaetigt"],
                 _norm(x["deutsch"]) != key,
                 _norm(x["wissenschaftlich"]) != key,
+                not ("Schreibvariante" in x["quellen"] and
+                     _deutscher_namenkern(x["deutsch"]) ==
+                     _deutscher_namenkern(query.split()[-1])),
                 not _relevanter_deutscher_name(query, x["deutsch"]),
                 "GBIF-Trivialnamen" not in x["quellen"],
             ))
