@@ -57,8 +57,9 @@ class TestEiveAuthentizitaet(unittest.TestCase):
         self.assertEqual(len(benchmark), 50)
         found = [self.index.get(p["wissenschaftlich"].casefold())
                  for p in benchmark]
-        self.assertGreaterEqual(sum(x is not None for x in found), 30)
-        self.assertLessEqual(sum(x is not None for x in found), 36)
+        # Im exakt geprüften, finalen CC-BY-Snapshot sind 36 von 50 Arten
+        # direkt und ohne Synonymerkennung oder Sonderfalllisten enthalten.
+        self.assertEqual(sum(x is not None for x in found), 36)
 
     def test_widerspruechliche_belege_daten_und_lizenzen_werden_abgewiesen(self):
         cases = [
