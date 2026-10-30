@@ -257,6 +257,11 @@ class GartenHinweise:
             tag = dt_util.as_local(zeit).date().isoformat()
             if self._daten["letzter_frost_tag"] == tag:
                 return False
+            # Der Wetterhinweis erscheint unabhängig vom Push-Versand im Kalender.
+            # Die Modellschicht verhindert Dubletten auch über Neustarts hinweg.
+            await self.backend.async_frostpruefung_anlegen(
+                tag, temperatur, optionen["frost_grenze_c"]
+            )
             message = (
                 f"Für {tag} werden innerhalb der nächsten 48 Stunden "
                 f"etwa {temperatur:.1f} °C vorhergesagt "
