@@ -6,7 +6,7 @@
 
 | Bereich | Verhalten |
 |---|---|
-| Pflanzensuche | iNaturalist + Wikidata + GBIF; GBIF-Ergebnisse auf Pflanzenarten gefiltert; deutsche positive Treffer in begrenztem lokalen Namenscache für 365 Tage und als Präfix-Fallback bei API-Ausfall |
+| Pflanzensuche | iNaturalist + Wikidata + wissenschaftliche GBIF-Suche + GBIF-Trivialnamensindex; Trivialnamen ausschließlich für akzeptierte botanische Pflanzenarten aus dem GBIF-Backbone, Mehrdeutigkeiten im Dashboard sichtbar; deutsche positive Treffer in begrenztem lokalen Namenscache für 365 Tage und als Präfix-Fallback bei API-Ausfall |
 | Pflegeprofile | Per Pflanzenkarte abrufbar; bestehende Home-Assistant-OpenPlantbook-Integration, `search` und `get` mit `include: care`; strenger botanischer Artabgleich; fünf Pflegefelder |
 | Deutsch | Automatische Übersetzung der externen Pflegefelder über MyMemory, maximal 5.000 Zeichen pro Tag, lokal begrenzter privater Cache; ausstehende oder nicht vorhandene Angaben werden als solche angezeigt |
 | Wiederholungen | Benutzerdefinierte Regeln alle 1–365 Tage oder jährlich; erster Termin ausdrücklich vom Benutzer angegeben; nicht doppelt bei Neustart; Pause und Löschung |
@@ -18,7 +18,7 @@
 | Kombinierte Erledigung | Einfache Aufgaben bleiben 1-Klick-Aufgaben. Gießkontrollen verlangen die Entscheidung „Gegossen“ oder „Kontrolliert – kein Wasser nötig“. Beide Fälle werden mit Benutzer, Zeitpunkt und Ergebnis in der Historie geführt |
 | Differenzierte Wiederholungen | Neu angelegte Gießkontrollen behalten ihre Art bei Fälligkeit, Neustart und Folgeintervall. Der Quellstatus bleibt auch nach Entfernen einer Wiederholungsregel am erledigten Termin |
 | Pflegeprofil-Cache | Vollständig übersetzte Profile bleiben bis zu 30 Tage zwischengespeichert, teilweise übersetzte nur kurz; bereits übersetzte Felder werden per Quellenfingerabdruck lokal wiederverwendet. Eindeutig als deutsch deklarierte Quellfelder werden nicht durch Englisch-Deutsch-Übersetzung verändert |
-| Such-Breitenprüfung | 50 reale deutsche Gartennamen aus fünf Gruppen mit aktuellem Suchcode geprüft: 42/50 erwartete botanische Art in den ersten 15 Vorschlägen, 38/50 auf Rang 1. Acht Lücken/Mehrdeutigkeiten bleiben offen; keine festen Beispielaliases in der App |
+| Such-Breitenprüfung | 50 reale deutsche Gartennamen aus fünf Gruppen mit aktuellem Suchcode geprüft: 48/50 erwartete botanische Arten in den ersten 15 Vorschlägen, 38/50 auf Rang 1. Zwei Namens-/Schreibvariantenlücken bleiben offen; keine festen Beispielaliases in der App |
 
 **Ausführung (lokale Home-Assistant-Zeitzone):** wiederkehrende Aufgaben jeden Tag um 00:05 Uhr und bei Aktivierung/Erstellung; Frostprüfung täglich 06:15 und 18:15 Uhr; Wochenübersicht freitags um 16:00 Uhr. Nach einem Neustart wird der Pflegeplan erneut geprüft. Ein automatischer Push unmittelbar nach der Installation ist nicht vorgesehen.
 
@@ -41,7 +41,10 @@ Keine Codeänderung für neu angelegte Pflanzen. Die persönlichen Gartennotizen
 
 - [Erster Live-Test](https://github.com/p-weigner/mein-garten/actions/runs/41043378877): 41/50 Art-Treffer in Top 15, 28/50 auf Rang 1.
 - [Zweiter Live-Test nach Sortierkorrektur](https://github.com/p-weigner/mein-garten/actions/runs/41043740909): **42/50 Art-Treffer in Top 15, 38/50 auf Rang 1**.
-- Fehlende exakte Zuordnungen: Rispenhortensie, Gewöhnlicher Flieder, Felsenbirne, Apfelbaum, Süßkirsche, Zwetschge, Engelstrompete, Japanischer Fächerahorn. Ein fehlender Binomial-Treffer ist nicht automatisch ein Beleg, dass keine botanischen Synonyme vorhanden sind.
+- [Dritter Test nach GBIF-Trivialnamensintegration und Relevanzoptimierung](https://github.com/p-weigner/mein-garten/actions/runs/41046617157): **48/50 erwartete Arten in Top 15, 38/50 auf Rang 1**.
+- Offene exakt gemessene Schreibvarianten: **Rispenhortensie** und **Japanischer Fächerahorn**. Diese Namen nicht hartcodieren; unterschiedliche Schreibweisen und botanische Synonyme können Kandidaten liefern, müssen aber eindeutig verifiziert werden.
+- Bei Sammelnamen (z. B. „Felsenbirne“) liefert der Trivialnamensindex mehrere botanisch akzeptierte Arten. Eine akzeptierte Art ist kein Beweis, dass der deutsche Sammelname eindeutig wäre; die Nutzerin wählt die tatsächliche Art.
+- Das Wikimedia-/Wikidata-Fallback wurde in einer separaten Live-Diagnose untersucht, lieferte in der GitHub-Runner-Umgebung nur HTTP-Fehler und wird deshalb **nicht** als zusätzliche Abhängigkeit in die Suchlogik integriert.
 - [50 Testarten](../daten/pflanzensuche_50_de.json), [reproduzierbarer Live-Test](../tools/pflanzensuche_50_live.py) und [Quellen-/Lizenzprüfung](FACHQUELLEN_FREIGABE_2026-10-30.md).
 
 ## Grenzen und notwendige Abnahme
