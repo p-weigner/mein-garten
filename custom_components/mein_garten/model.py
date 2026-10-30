@@ -333,6 +333,67 @@ class GartenDaten:
             neu += 1
         return neu
 
+    def saisonpruefung_anlegen(
+        self, pflanzen_id: str, saison_id: str, anker_jahr: int,
+        name: str, faellig_am: str, fenster_von: str, fenster_bis: str,
+    ) -> dict:
+        """Erst nach eigener Terminwahl – keine automatische Aussaatanweisung.
+
+        Nicht als frei konfigurierbarer WebSocket-Befehl registrieren.
+        SaisonService liefert nur kataloggeprüfte Parameter.
+        """
+        plant = _existiert(self._data["pflanzen"], pflanzen_id, "Pflanze")
+        if (not isinstance(saison_id, str) or not saison_id
+                or len(saison_id) > 100 or any(
+                    c not in "abcdefghijklmnopqrstuvwxyz0123456789-" for c in saison_id
+                )):
+            raise DatensatzFehler("Unbekannte Saisonvorlage")
+        if type(anker_jahr) is not int or not 2020 <= anker_jahr <= 2100:
+            raise DatensatzFehler("Ungültiges Referenzjahr")
+        faellig_am, fenster_von, fenster_bis = (
+            _datum(faellig_am), _datum(fenster_von), _datum(fenster_bis)
+        )
+        if any(x is None for x in (faellig_am, fenster_von, fenster_bis)):
+            raise DatensatzFehler("Für das Saisonfenster fehlen Datumsangaben")
+        if not fenster_von <= faellig_am <= fenster_bis:
+            raise DatensatzFehler("Termin außerhalb des Saisonfensters")
+        # Vollständige, auch erledigte Jahresereignisse bleiben eindeutig.
+        if any(
+            t.get("pflanzen_id") == pflanzen_id
+            and isinstance(t.get("saisonbezug"), dict)
+            and t["saisonbezug"].get("katalog_id") == saison_id
+            and t["saisonbezug"].get("anker_jahr") == anker_jahr
+            for t in self._data["aufgaben"]
+        ):
+            raise DatensatzFehler("Diese Saisonkontrolle ist bereits vorgemerkt")
+        if len(self._data["aufgaben"]) >= 3000:
+            raise DatensatzFehler("Maximale Anzahl an Gartenaufgaben erreicht")
+        obj = {
+            "id": _id(),
+            "name": _text(name, "Saisonkontrolle", 200),
+            "faellig_am": faellig_am,
+            "pflanzen_id": pflanzen_id,
+            "bereich_id": plant["bereich_id"],
+            "status": "offen",
+            "erledigt_utc": None,
+            "erstellt_utc": _jetzt(),
+            "herkunft": "saisonpruefung",
+            "aufgabentyp": "einfach",
+            "ergebnis": None,
+            "saisonbezug": {
+                "quelle": "OpenPlantDB",
+                "lizenz": "CC0 1.0",
+                "katalog_id": saison_id,
+                "anker_jahr": anker_jahr,
+                "fenster_von": fenster_von,
+                "fenster_bis": fenster_bis,
+                "pruefstatus": "unverbindliche_Planungshilfe",
+                "freigabe": "manuell_durch_benutzer",
+            },
+        }
+        self._data["aufgaben"].append(obj)
+        return deepcopy(obj)
+
     def frostpruefung_anlegen(
         self, datum: str, temperatur_c: float, schwelle_c: float,
     ) -> dict | None:
