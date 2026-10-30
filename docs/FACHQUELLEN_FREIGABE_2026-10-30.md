@@ -7,7 +7,7 @@
 | Quelle | Nachweis | Eignung | Automatische Saisonmaßnahmen? |
 |---|---|---|---|
 | OpenPlantbook | [Webseite](https://open.plantbook.io/browse-db/), [HA-Anbindung](https://github.com/Olen/home-assistant-openplantbook) | Exakt abgeglichene botanische Art, fünf zusätzliche Pflege-Freitextfelder via `include: care`; öffentlich einsehbare Plattform weist ausdrücklich darauf hin, dass Nutzerdaten nicht verifiziert sind | **Nein**. Keine nachgewiesenen strukturierten, für Deutschland verifizierten Monats-/Saisonregeln; Rechte für abgeleitete deutsche, dauerhaft gespeicherte Texte vor Produktivstart klären |
-| GBIF | [Species API](https://www.gbif.org/developer/species) | Internationale taxonomische Namen, Art- und Synonymprüfung; kein Pflegekalender | Nein |
+| GBIF | [Species API](https://techdocs.gbif.org/en/openapi/v1/species) | Internationale Taxonomie, wissenschaftliche Suche sowie zusätzliche `qField=VERNACULAR`-Suche im akzeptierten Pflanzen-Backbone; ein deutscher Sammelname kann mehrere echte Arten liefern | Nein |
 | iNaturalist | [Taxonomy-API](https://api.inaturalist.org/v1/docs/) | Deutsche Suchvorschläge und wissenschaftliche Taxa; Rang und Artenzuordnung müssen berücksichtigt werden | Nein |
 | Wikidata | [Lizenz CC0](https://www.wikidata.org/wiki/Wikidata:Licensing) | Deutsche Trivialnamen/Aliase mit P225 als taxonomischer Kandidat; Pflanzenart separat validieren | Nein |
 | OpenPlantDB | [Schema](https://github.com/cwfrazier1/openplantdb/blob/main/SCHEMA.md), [CC0-Projekt](https://github.com/cwfrazier1/openplantdb) | Strukturierte Aussaat- und Anzuchtwerte für etwa 294 Pflanzen, `last_frost`/USDA-Zonen; methodisch als zusätzliche *Rohdatenquelle* interessant | **Noch nicht**. Klimaanker und Sortenbezug beziehen sich auf US-Rahmen; ohne validierte Übertragung auf die Region Brandenburg keine automatischen Pflanztermine |
@@ -33,7 +33,7 @@ Eine strukturierte Saisonregel darf erst dann **automatisch eine konkrete Tätig
 
 Ein separater 50-Arten-Benchmark bildet die fünf vereinbarten Gartengruppen mit je 10 Arten ab: [Testliste](../daten/pflanzensuche_50_de.json), [Live-Testskript](../tools/pflanzensuche_50_live.py) und [GitHub-Actions-Workflow](../.github/workflows/garten-pflanzensuche-50.yml).
 
-**Ausgangslauf:** 41/50 erwartete binomiale Namen in den ersten 15 Ergebnissen; 28/50 an Platz 1. Der Befund belegt nur den **exakten Schreibweisenabgleich**; taxonomische Synonyme werden nicht automatisch als Erfolg gezählt. 9 Fälle benötigen eine bessere deutsche Namensabdeckung oder eine validierte Synonymzuordnung. Automatisches Hinzufügen von neun vordefinierten Namen wäre keine skalierbare Lösung.
+**Gemessene Entwicklung:** Ausgangslauf 41/50 exakte botanische Namen unter den ersten 15 Ergebnissen und 28/50 auf Platz 1. Nach Relevanzoptimierung 42/50 (38/50 Rang 1). Mit GBIF-Trivialnamensindex und Schutz bisheriger deutscher Namensränge jetzt **48/50 (38/50 Rang 1)**. Nur die exakte Schreibweise der erwarteten botanischen Art zählt, keine ungeprüften Synonyme. Zwei deutsche Schreibvarianten blieben offen. Es wurden **keine** Benchmarkpflanzen fest in den Produktiv-Suchalgorithmus eingebaut.
 
 **Geplante Bewertung jeder weiteren Iteration:** Treffer in Top 15, Rang 1, Fehl-/Mehrdeutigkeit je Gruppe, tatsächlicher Anbieterstatus. Kein automatischer „Erfolg“ bei technisch ausgefallener API oder wissenschaftlich abweichendem Taxon.
 
