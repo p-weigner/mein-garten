@@ -409,3 +409,113 @@ test("Gefundene Schreibvariante wird nicht als eindeutig zugeordnete Art dargest
   card._onClick({ target: { closest: () => el } });
   assert.ok(noteText.includes("bitte die tatsächliche Art prüfen"));
 });
+
+
+test("Der Saisonkalender zeigt nur manuell zu bestätigende Fenster", () => {
+  const card = buildCard();
+  card._tab = "kalender";
+  card._saison = {
+    anker: {last_frost: "2027-05-15", first_frost: ""},
+    vorschlaege: [{
+      pflanzen_id: "p1", pflanze: "<Tomate>", wissenschaftlich: "Solanum lycopersicum",
+      katalog_id: "tomato", titel: "Vorziehen prüfen",
+      fenster_von: "2027-03-20", fenster_bis: "2027-04-03",
+      vorgemerkt: false, quelle: "OpenPlantDB", lizenz: "CC0 1.0",
+    }],
+  };
+  card._render();
+  const html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes("Saisonfenster"));
+  assert.ok(html.includes("Vorziehen prüfen"));
+  assert.ok(html.includes("20.03.2027"));
+  assert.ok(html.includes("OpenPlantDB"));
+  assert.ok(html.includes("Kontrolle planen"));
+  assert.ok(html.includes("&lt;Tomate&gt;"));
+  assert.ok(!html.includes("<Tomate>"));
+  assert.ok(!html.includes("Automatisch aussäen"));
+});
+
+test("Fehlender Frostanker erzeugt keine kontrollierbare Saisonaufgabe", () => {
+  const card = buildCard();
+  card._tab = "kalender";
+  card._saison = {
+    anker: {last_frost: "", first_frost: ""},
+    vorschlaege: [{
+      pflanzen_id: "p1", pflanze: "Tomate", wissenschaftlich: "Solanum lycopersicum",
+      katalog_id: "tomato", titel: "Vorziehen prüfen",
+      fenster_von: null, fenster_bis: null,
+      fehlender_anker: "last_frost", vorgemerkt: false,
+    }],
+  };
+  card._render();
+  assert.ok(card.shadowRoot.innerHTML.includes("Frost-Referenzdatum"));
+  assert.ok(!card.shadowRoot.innerHTML.includes('data-action="saison-plan"'));
+  assert.ok(card.shadowRoot.innerHTML.includes('data-action="saisonanker-open"'));
+});
+
+test("Saisonfenster kann erst nach eigener Terminwahl angelegt werden", () => {
+  const card = buildCard();
+  const r = {
+    pflanzen_id: "p1", pflanze: "Tomate", wissenschaftlich: "Solanum lycopersicum",
+    katalog_id: "tomato", titel: "Vorziehen prüfen",
+    fenster_von: "2027-03-20", fenster_bis: "2027-04-03", vorgemerkt: false,
+  };
+  card._data.pflanzen = [{id: "p1", name: "Tomate"}];
+  card._saison = {anker: {last_frost: "2027-05-15", first_frost: ""},
+    vorschlaege: [r]};
+  card._tab = "kalender";
+  card._render();
+  const btn = {dataset: {action: "saison-plan", id: "p1", katalog: "tomato"}};
+  card._onClick({target: {closest: () => btn}});
+  assert.equal(card._modal.type, "saison");
+  const html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes('name="datum"'));
+  assert.ok(html.includes('min="2027-03-20"'));
+  assert.ok(html.includes('max="2027-04-03"'));
+  assert.ok(html.includes("Als Kontrolle vormerken"));
+
+  let called = null;
+  card._mutate = (type, args) => {called = {type, args};};
+  const form = {
+    dataset: {form: "saison"},
+    elements: {namedItem: (name) =>
+      name === "datum" ? {value: "2027-03-25"} : {value: ""}},
+  };
+  card._onSubmit({target: form, preventDefault: () => {}});
+  assert.equal(called.type, "saison_vormerken");
+  assert.deepEqual(JSON.parse(JSON.stringify(called.args)), {
+    pflanzen_id: "p1", katalog_id: "tomato", datum: "2027-03-25",
+  });
+});
+
+test("Vorgemerkte Saisonaufgabe ist gegen erneuten Klick gesperrt", () => {
+  const card = buildCard();
+  card._tab = "kalender";
+  card._saison = {anker: {last_frost: "2027-05-15", first_frost: ""},
+    vorschlaege: [{
+      pflanzen_id: "p1", pflanze: "Tomate",
+      wissenschaftlich: "Solanum lycopersicum",
+      katalog_id: "tomato", titel: "Vorziehen prüfen",
+      fenster_von: "2027-03-20", fenster_bis: "2027-04-03",
+      vorgemerkt: true,
+    }]};
+  card._render();
+  const html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes("Vorgemerkt"));
+  assert.ok(html.includes('disabled'));
+  const btn = {dataset: {action: "saison-plan", id: "p1", katalog: "tomato"}};
+  card._onClick({target: {closest: () => btn}});
+  assert.equal(card._modal, null);
+});
+
+test("Frost-Referenzdaten lassen sich ohne API-Schlüssel konfigurieren", () => {
+  const card = buildCard();
+  card._saison = {anker: {last_frost: "2027-05-15", first_frost: ""},
+    vorschlaege: []};
+  card._modal = {type: "saisonanker"};
+  card._render();
+  assert.ok(card.shadowRoot.innerHTML.includes('name="last_frost"'));
+  assert.ok(card.shadowRoot.innerHTML.includes('value="2027-05-15"'));
+  assert.ok(card.shadowRoot.innerHTML.includes("Eine US-Klimazone wird nicht"));
+  assert.ok(!card.shadowRoot.innerHTML.includes("API-Key"));
+});
