@@ -321,7 +321,8 @@
       } else if (action === "saison-plan") {
         const hit = (this._saison?.vorschlaege || []).find((r) =>
           r.pflanzen_id === id && r.katalog_id === btn.dataset.katalog);
-        if (!hit || hit.vorgemerkt || !hit.fenster_von || !hit.fenster_bis) return;
+        if (!hit || hit.vorgemerkt || hit.abgelaufen ||
+            !hit.fenster_von || !hit.fenster_bis) return;
         this._modal = { type: "saison", eintrag: hit };
         this._render();
       } else if (action === "automatik-open") {
@@ -822,6 +823,7 @@
       const hits = saison.vorschlaege || [];
       const active = hits.filter((r) => r.fenster_von);
       const noDates = hits.filter((r) => !r.fenster_von);
+      const expired = hits.filter((r) => r.abgelaufen && !r.vorgemerkt);
       const plants = this._data?.pflanzen || [];
       const supported = new Set(hits.map((r) => r.pflanzen_id));
       const notCovered = plants.filter((p) => !supported.has(p.id));
@@ -843,6 +845,10 @@
         'Die US-Ausgangsdaten sind für deinen Garten nicht regional geprüft. ' +
         'Keine Tätigkeit wird ohne Bestätigung angelegt.</p>' +
         coverage + gaps +
+        (expired.length ?
+          '<div class="notice">Für ' + expired.length +
+          ' Saisonfenster liegt der Zeitraum bereits in der Vergangenheit. ' +
+          'Bitte die Frost-Referenzdaten für die neue Saison eintragen.</div>' : "") +
         (hits.length === 0 ?
           '<div class="small">Für die erfassten Pflanzen liegen noch keine eindeutig passenden, strukturierten Saisonfenster vor. ' +
           'Alle Pflanzen bleiben manuell verwaltbar.</div>' : "") +
@@ -860,8 +866,9 @@
           '<button class="btn tiny" type="button" data-action="saison-plan" data-id="' +
           escapeHtml(r.pflanzen_id) + '" data-katalog="' +
           escapeHtml(r.katalog_id) + '"' +
-          (r.vorgemerkt ? ' disabled' : '') + '>' +
-          (r.vorgemerkt ? 'Vorgemerkt' : 'Kontrolle planen') +
+          (r.vorgemerkt || r.abgelaufen ? ' disabled' : '') + '>' +
+          (r.vorgemerkt ? 'Vorgemerkt' :
+            r.abgelaufen ? 'Vergangen' : 'Kontrolle planen') +
           '</button></div>'
         ).join("") : "") + '</section>';
     }
