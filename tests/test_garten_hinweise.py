@@ -122,7 +122,7 @@ class TestWetterUndEinstellungen(unittest.TestCase):
             ],
         }
         text = wochen_text(daten, date(2026, 10, 30))
-        self.assertIn("1 eigene Pflanzenbeobachtungen", text)
+        self.assertIn("1 eigene Pflanzenbeobachtung", text)
         self.assertIn("Bauernhortensie: Laubfärbung (2026-10-29)", text)
         self.assertNotIn("streng vertraulich", text)
         self.assertNotIn("Angelina", text)
