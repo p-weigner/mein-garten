@@ -43,6 +43,7 @@
     ".modal-backdrop{position:fixed;inset:0;z-index:1000;background:#020804aa;display:flex;justify-content:center;align-items:center;padding:18px}",
     ".dialog{width:min(620px,100%);max-height:min(85vh,900px);overflow-y:auto;background:#1d3025;border:1px solid #67846a;border-radius:22px;padding:24px;box-shadow:0 22px 90px #0009;color:var(--garten-text)}.dialog h2{margin:0 0 17px;font-size:22px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}.field.full{grid-column:1/-1}",
     ".field label{font-size:12px;color:var(--garten-muted);font-weight:700}.field input,.field select,.field textarea{width:100%;padding:11px 12px;outline:none;background:#17271e;border:1px solid #4c6952;border-radius:11px;color:var(--garten-text);min-height:42px}.field textarea{min-height:82px;resize:vertical}.field input:focus,.field select:focus,.field textarea:focus{border-color:#b2d6aa;box-shadow:0 0 0 2px #82b47c30}",
+    ".field.check-field label{display:flex;align-items:center;gap:10px;flex-direction:row;font-weight:600}.field.check-field input[type=checkbox]{width:18px;height:18px;min-height:18px;flex:none;margin:0;accent-color:#91b68c}",
     ".dialog-foot{display:flex;gap:9px;justify-content:flex-end;margin-top:13px;flex-wrap:wrap}.suggestions{max-height:185px;overflow-y:auto;border:1px solid var(--garten-border);background:#17271e;border-radius:11px;margin-bottom:15px}.suggestion{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:9px 12px;width:100%;text-align:left;border:0;border-bottom:1px solid #344b39;background:transparent;color:var(--garten-text)}.suggestion:hover{background:#2d4634}.suggestion:last-child{border-bottom:0}.small{font-size:12px;color:var(--garten-muted)}",
     "@media(max-width:700px){.garden{padding:15px}.hero-icon{display:none}.stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.stat{padding:13px}.stat .count{font-size:25px}.tabs{gap:2px}.tab{padding:11px 8px;min-width:78px;font-size:12px}.grid{grid-template-columns:1fr}.dialog{padding:17px}.form-grid{grid-template-columns:1fr}}",
     "@media(prefers-reduced-motion:reduce){*{transition:none!important}}"
@@ -286,6 +287,7 @@
             pflanzen_id: plant.id,
             bereich_id: plant.bereich_id,
             rhythmus: "jaehrlich",
+            pflegefeld: key,
           },
           careInfo: "Dieser Termin wird von dir festgelegt. Die Quelle " +
             "OpenPlantbook und ihre Übersetzung sind nicht fachlich geprüft.",
@@ -446,6 +448,7 @@
           intervall_tage: val("rhythmus") === "tage" ? Number(val("intervall_tage")) : null,
           pflanzen_id: val("pflanzen_id") || null,
           bereich_id: val("bereich_id") || null,
+          pflegefeld: this._modal?.prefill?.pflegefeld || null,
         });
       } else if (form.dataset.form === "aufgabe") {
         this._mutate("aufgabe_anlegen", {
@@ -529,10 +532,10 @@
         escapeHtml(a.weather_entity) + '" placeholder="weather.home">' +
         '<datalist id="garten-weather-liste">' +
         options(weatherOptions) + '</datalist></div>' +
-        '<div class="field"><label><input type="checkbox" name="freitag_aktiv"' +
+        '<div class="field check-field"><label><input type="checkbox" name="freitag_aktiv"' +
         (a.freitag_aktiv ? ' checked' : '') +
         '> Freitags 16:00 Uhr eine Pflegeübersicht schicken</label></div>' +
-        '<div class="field"><label><input type="checkbox" name="frost_aktiv"' +
+        '<div class="field check-field"><label><input type="checkbox" name="frost_aktiv"' +
         (a.frost_aktiv ? ' checked' : '') +
         '> Bei möglicher Frostgefahr eine Warnung schicken</label></div>' +
         '<div class="field"><label>Warnschwelle (°C, -5 bis +8)</label>' +
@@ -700,7 +703,9 @@
         '<section class="card" style="margin-top:14px"><h3>Meine Wiederholungen (' + rules.length + ')</h3>' +
         (rules.length ? rules.map((r) => '<div class="task"><div><div class="task-name">' + escapeHtml(r.name) +
           '</div><div class="task-meta">' + escapeHtml(r.rhythmus === 'tage' ? 'Alle ' + r.intervall_tage + ' Tage' : 'Jährlich') +
-          ' · Start ' + escapeHtml(dateLabel(r.startdatum)) + (r.aktiv ? '' : ' · Pausiert') +
+          ' · Start ' + escapeHtml(dateLabel(r.startdatum)) +
+          (r.pflegebezug ? ' · Aus Pflegewissen (nicht fachlich geprüft)' : '') +
+          (r.aktiv ? '' : ' · Pausiert') +
           '</div></div><div class="buttons"><button class="btn tiny" data-action="rule-toggle" data-id="' + escapeHtml(r.id) + '">' +
           (r.aktiv ? 'Pausieren' : 'Aktivieren') + '</button><button class="btn ghost tiny danger" data-action="rule-remove" data-id="' +
           escapeHtml(r.id) + '">Entfernen</button></div></div>').join('') : '<p>Keine Wiederholungen vorhanden.</p>') + '</section>';
