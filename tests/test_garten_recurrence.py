@@ -98,5 +98,20 @@ class TestWiederholungen(unittest.TestCase):
             )
 
 
+    def test_frostwetterhinweis_einmalig_und_keine_schnittanweisung(self):
+        a = self.model.frostpruefung_anlegen("2026-11-03", -1.4, 2)
+        self.assertEqual(a["herkunft"], "wetterprognose")
+        self.assertIn("kontrollieren", a["name"])
+        self.assertNotIn("schneiden", a["name"].lower())
+        self.assertIsNone(self.model.frostpruefung_anlegen("2026-11-03", -1.4, 2))
+        restarted = GartenDaten(self.model.snapshot())
+        self.assertIsNone(restarted.frostpruefung_anlegen("2026-11-03", -1.4, 2))
+
+    def test_wetterhinweis_bei_unterschrittener_schwelle(self):
+        with self.assertRaises(DatensatzFehler):
+            self.model.frostpruefung_anlegen("2026-11-03", 8, 2)
+        self.assertEqual(self.model.snapshot()["aufgaben"], [])
+
+
 if __name__ == "__main__":
     unittest.main()
