@@ -581,7 +581,9 @@
           '<p class="small">Text zuletzt aus der Quelle abgerufen am ' +
           escapeHtml(dateLabel(f.zuletzt_bestaetigt_utc.slice(0, 10))) + '.</p>' : '';
         return '<section class="card" style="margin:9px 0;padding:13px">' +
-          '<h3>' + escapeHtml(f.titel || key) + '</h3>' +
+          '<h3>' + escapeHtml(f.titel || key) +
+          (istAlt ? ' <span class="chip warning">Ältere Information</span>' : '') +
+          '</h3>' +
           '<p style="white-space:pre-wrap">' + escapeHtml(f.text) + '</p>' +
           '<p class="small">' + escapeHtml(sprache) + '</p>' + datum +
           (this._carePlant && !istAlt && !profile.aktualisierung ?
@@ -592,9 +594,13 @@
       }).join("");
       const veraltete = vorhanden.filter(([, f]) => f.status === "zwischengespeichert").length;
       const veraltetHinweis = veraltete ?
-        '<div class="notice">' + veraltete + ' Pflegefelder stammen nur aus älteren ' +
-        'gespeicherten Übersetzungen. Sie wurden beim letzten Abruf nicht neu ' +
-        'bestätigt und können nicht für neue Jahreskontrollen übernommen werden. ' +
+        '<div class="notice">' + veraltete +
+        (veraltete === 1 ? ' Pflegefeld stammt' : ' Pflegefelder stammen') +
+        ' nur aus älteren gespeicherten Übersetzungen. ' +
+        (veraltete === 1 ? 'Es wurde' : 'Sie wurden') +
+        ' beim letzten Abruf nicht neu bestätigt und kann' +
+        (veraltete === 1 ? '' : 'en') +
+        ' nicht für neue Jahreskontrollen übernommen werden. ' +
         'Die übrigen neu verfügbaren Angaben bleiben separat sichtbar.</div>' : "";
       const luecken = fehlende > 0 && fields.length ?
         '<p class="small">' + fehlende + ' von ' + fields.length +
