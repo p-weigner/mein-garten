@@ -159,7 +159,7 @@ class TestAlphaPaket(unittest.TestCase):
             validiere_paket(self.package, self.root)
 
     def test_keine_fremde_hauptdatei_im_paket(self):
-        self._write(self.package / "Zuhause.yaml", "title: Zuhause\n")
+        self._write(self.package / "Unbekanntes_Dashboard.yaml", "title: Anders\n")
         with self.assertRaisesRegex(PaketFehler, "Hauptdatei"):
             validiere_paket(self.package, self.root)
 
