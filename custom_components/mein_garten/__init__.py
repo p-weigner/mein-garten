@@ -121,9 +121,20 @@ async def async_setup_entry(hass, entry) -> bool:
     except Exception as exc:
         raise ConfigEntryNotReady("Mein Garten: Pflegecache konnte nicht sicher gelesen werden") from exc
 
+    from .hinweise import GartenHinweise
+
+    hinweise = GartenHinweise(hass, backend)
+    try:
+        await hinweise.async_laden()
+    except Exception as exc:
+        raise ConfigEntryNotReady(
+            "Mein Garten: Benachrichtigungseinstellungen nicht sicher lesbar"
+        ) from exc
+
     hass.data.setdefault(DOMAIN, {})["backend"] = backend
     hass.data[DOMAIN]["suche"] = Pflanzensuche(hass)
     hass.data[DOMAIN]["pflege"] = pflege
+    hass.data[DOMAIN]["hinweise"] = hinweise
 
     from homeassistant.helpers.event import async_track_time_change
     from homeassistant.core import callback
@@ -139,8 +150,38 @@ async def async_setup_entry(hass, entry) -> bool:
     def _tageswechsel(_now):
         hass.async_create_task(_plan_pruefen())
 
-    cancel = async_track_time_change(hass, _tageswechsel, hour=0, minute=5, second=0)
-    entry.async_on_unload(cancel)
+    async def _freitagsbericht(jetzt):
+        try:
+            await hinweise.async_freitagsbericht(jetzt)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("Mein Garten: Wochenbericht fehlgeschlagen")
+
+    async def _frost_pruefen(jetzt):
+        try:
+            await hinweise.async_frost_pruefen(jetzt)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("Mein Garten: Frostprüfung fehlgeschlagen")
+
+    @callback
+    def _wochentermin(jetzt):
+        hass.async_create_task(_freitagsbericht(jetzt))
+
+    @callback
+    def _frosttermin(jetzt):
+        hass.async_create_task(_frost_pruefen(jetzt))
+
+    entry.async_on_unload(
+        async_track_time_change(hass, _tageswechsel, hour=0, minute=5, second=0)
+    )
+    entry.async_on_unload(
+        async_track_time_change(hass, _wochentermin, hour=16, minute=0, second=0)
+    )
+    for hour in (6, 18):
+        entry.async_on_unload(
+            async_track_time_change(hass, _frosttermin, hour=hour, minute=15, second=0)
+        )
     hass.async_create_task(_plan_pruefen())
     return True
 
@@ -150,4 +191,5 @@ async def async_unload_entry(hass, entry) -> bool:
     hass.data.get(DOMAIN, {}).pop("backend", None)
     hass.data.get(DOMAIN, {}).pop("suche", None)
     hass.data.get(DOMAIN, {}).pop("pflege", None)
+    hass.data.get(DOMAIN, {}).pop("hinweise", None)
     return True
