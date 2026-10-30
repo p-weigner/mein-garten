@@ -245,6 +245,25 @@ class TestSaisonService(unittest.IsolatedAsyncioTestCase):
                          "c6287784527ebb4162e242394ee08f46d338218b")
         self.assertEqual(term["saisonbezug"]["freigabe"], "manuell_durch_benutzer")
 
+    async def test_geaenderte_pflanzenart_zwischen_pruefung_und_speichern_blockiert(self):
+        await self.service.async_anker_speichern({
+            "last_frost": "2027-05-15", "first_frost": "",
+        })
+        normal = self.backend.async_aendern
+
+        async def concurrent_change(method, **params):
+            self.backend.model.pflanze_bearbeiten(
+                self.tomate["id"], wissenschaftlich="Buddleja davidii"
+            )
+            return await normal(method, **params)
+
+        self.backend.async_aendern = concurrent_change
+        with self.assertRaisesRegex(DatensatzFehler, "botanische Pflanzenart"):
+            await self.service.async_vormerken(
+                self.tomate["id"], "tomato", "2027-03-24"
+            )
+        self.assertEqual(self.backend.snapshot()["aufgaben"], [])
+
     async def test_keine_fernbefehle_oder_gefahrsachen_als_namen(self):
         await self.service.async_anker_speichern({
             "last_frost": "2027-05-15", "first_frost": "",
