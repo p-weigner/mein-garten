@@ -146,6 +146,15 @@ class TestSaisonKatalog(unittest.TestCase):
                 with self.assertRaises(SaisonFehler):
                     pruefe_anker(vals)
 
+    def test_vergangenes_saisonfenster_wird_als_abgelaufen_markiert(self):
+        opts = {"last_frost": "2027-05-15", "first_frost": ""}
+        plant = [{"id": "p1", "name": "Tomate",
+                  "wissenschaftlich": "Solanum lycopersicum"}]
+        before = vorschlaege_fuer(self.catalog, opts, plant, [], date(2027, 3, 15))
+        after = vorschlaege_fuer(self.catalog, opts, plant, [], date(2028, 1, 1))
+        self.assertFalse(before[0]["abgelaufen"])
+        self.assertTrue(after[0]["abgelaufen"])
+
     def test_einmal_vorgemerkte_saison_erkennbar(self):
         record = {
             "id": "t1", "pflanzen_id": "p1",
@@ -261,6 +270,18 @@ class TestSaisonService(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(DatensatzFehler, "botanische Pflanzenart"):
             await self.service.async_vormerken(
                 self.tomate["id"], "tomato", "2027-03-24"
+            )
+        self.assertEqual(self.backend.snapshot()["aufgaben"], [])
+
+    async def test_vergangenes_saisonfenster_kein_neuer_termin(self):
+        await self.service.async_anker_speichern({
+            "last_frost": "2027-05-15", "first_frost": "",
+        })
+        self.service._heute = lambda: date(2028, 1, 1)
+        self.assertTrue(self.service.stand()["vorschlaege"][0]["abgelaufen"])
+        with self.assertRaisesRegex(SaisonFehler, "Vergangene Saisontermine"):
+            await self.service.async_vormerken(
+                self.tomate["id"], "tomato", "2027-03-22"
             )
         self.assertEqual(self.backend.snapshot()["aufgaben"], [])
 
