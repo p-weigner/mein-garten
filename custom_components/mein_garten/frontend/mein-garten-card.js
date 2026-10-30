@@ -60,6 +60,9 @@
       this._suggestions = [];
       this._searchMessage = "";
       this._searchGeneration = 0;
+      this._care = null;
+      this._careLoading = false;
+      this._carePlant = null;
       this._working = false;
       this._error = "";
       this._connection = null;
@@ -260,6 +263,15 @@
         this._searchMessage = "";
         this._query = "";
         this._render();
+      } else if (action === "care-open") {
+        const plant = this._getPlant(id);
+        if (!plant) return;
+        this._modal = { type: "pflege", existing: plant };
+        this._care = null;
+        this._carePlant = id;
+        this._careLoading = true;
+        this._render();
+        this._loadCare(id);
       } else if (action === "area-new") {
         this._modal = { type: "bereich" };
         this._render();
@@ -302,6 +314,48 @@
           { aufgaben_id: id }
         );
       }
+    }
+
+    async _loadCare(id) {
+      try {
+        const result = await this._call("pflegeprofil", { pflanzen_id: id });
+        if (this._carePlant !== id || !this._modal || this._modal.type !== "pflege") return;
+        this._care = result;
+      } catch (err) {
+        if (this._carePlant !== id || !this._modal || this._modal.type !== "pflege") return;
+        this._care = { status: "fehler", meldung: this._errorText(err, "Pflegeprofil nicht verfügbar") };
+      } finally {
+        if (this._carePlant === id && this._modal && this._modal.type === "pflege") {
+          this._careLoading = false;
+          this._render();
+        }
+      }
+    }
+
+    _careHTML() {
+      if (this._careLoading) return '<p class="small">Deutsche Pflegeinformationen werden geladen …</p>';
+      const profile = this._care;
+      if (!profile) return '<p class="small">Kein Pflegeprofil verfügbar.</p>';
+      const labels = {
+        quelle_nicht_eingerichtet: "OpenPlantbook ist nicht eingerichtet.",
+        quelle_nicht_erreichbar: "OpenPlantbook ist momentan nicht erreichbar.",
+        art_nicht_gefunden: "Für diese botanische Art sind noch keine Pflegeinformationen vorhanden.",
+        art_nicht_bestaetigt: "Die botanische Art konnte nicht eindeutig bestätigt werden.",
+        art_unbekannt: "Bitte zuerst einen gültigen botanischen Artnamen auswählen.",
+        kein_deutscher_text: "Noch keine geprüfte deutsche Übersetzung verfügbar.",
+        quellenantwort_ungueltig: "Unerwartete Antwort der Pflegequelle.",
+        fehler: "Pflegeprofil konnte nicht geladen werden."
+      };
+      const heading = '<div class="notice">Quelle: <a href="https://open.plantbook.io/" target="_blank" rel="noopener noreferrer">OpenPlantbook</a> · Automatisch übersetzt, nicht fachlich geprüft. Daraus werden keine automatischen Pflegeaufgaben erzeugt.</div>';
+      const fields = Object.values(profile.felder || {});
+      const body = fields.map((f) => '<section class="card" style="margin:9px 0;padding:13px"><h3>' +
+        escapeHtml(f.titel) + '</h3><p style="white-space:pre-wrap">' +
+        escapeHtml(f.text || (f.status === "uebersetzung_ausstehend" ?
+          "Übersetzung ausstehend; keine erfundenen Angaben." : "Keine Angabe verfügbar.")) +
+        '</p></section>').join("");
+      return (profile.status !== "ok" ? '<p class="small">' +
+        escapeHtml(profile.meldung || labels[profile.status] || "Keine Angaben verfügbar.") +
+        '</p>' : "") + heading + body;
     }
 
     _getPlant(id) {
@@ -408,11 +462,12 @@
     _modalHTML() {
       if (!this._modal) return "";
       const type = this._modal.type;
-      const title = type === "pflanze"
+      const title = type === "pflege" ? "Pflegewissen: " + (this._modal.existing?.name || "") : type === "pflanze"
         ? (this._modal.existing ? "Pflanze bearbeiten" : "Neue Pflanze")
         : type === "aufgabe" ? "Neue Pflegeaufgabe" : "Neuer Gartenbereich";
       let body = "";
-      if (type === "pflanze") body = this._plantForm();
+      if (type === "pflege") body = this._careHTML();
+      else if (type === "pflanze") body = this._plantForm();
       else if (type === "aufgabe") body = this._taskForm();
       else body = '<form data-form="bereich"><div class="field"><label>Bereichsname *</label>' +
         '<input name="name" required maxlength="120" placeholder="z. B. Hochbeet, Terrasse, Vorgarten"></div>' +
@@ -483,7 +538,8 @@
               (p.wissenschaftlich ? '<p><em>' + escapeHtml(p.wissenschaftlich) + '</em></p>' : "") +
               '<span class="chip">' + escapeHtml(area ? area.name : "Nicht zugeordnet") + '</span>' +
               (p.notizen ? '<p style="margin-top:12px;white-space:pre-wrap">' + escapeHtml(p.notizen) + '</p>' : "") +
-              '<div class="footer"><button class="btn tiny" data-action="plant-edit" data-id="' +
+              '<div class="footer"><button class="btn tiny" data-action="care-open" data-id="' +
+              escapeHtml(p.id) + '">Pflegewissen</button><button class="btn tiny" data-action="plant-edit" data-id="' +
               escapeHtml(p.id) + '">Bearbeiten</button>' +
               '<button class="btn ghost tiny danger" data-action="plant-remove" data-id="' +
               escapeHtml(p.id) + '">Entfernen</button></div></section>';
