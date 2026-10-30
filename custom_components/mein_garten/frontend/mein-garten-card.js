@@ -302,7 +302,10 @@
         const plant = this._getPlant(id);
         const key = btn.dataset.field || "";
         const field = this._care?.felder?.[key];
-        if (!plant || !field || !field.text) return;
+        // Historische, nicht erneut geprüfte Freitexte sind keine Grundlage
+        // für eine neue wiederkehrende Pflegekontrolle.
+        if (!plant || !field || !field.text ||
+            field.status === "zwischengespeichert" || this._care?.aktualisierung) return;
         const titel = {
           watering: "Gießbedarf prüfen",
           sunlight: "Standort prüfen",
@@ -546,7 +549,7 @@
         art_nicht_bestaetigt: "Die botanische Art konnte nicht eindeutig bestätigt werden.",
         art_unbekannt: "Bitte zuerst einen gültigen botanischen Artnamen auswählen.",
         kein_deutscher_text: "OpenPlantbook hat aktuell keinen verwendbaren deutschen Pflegehinweis geliefert.",
-        teilweise: "Einige Pflegefelder sind noch nicht übersetzt und werden bei einem späteren Abruf erneut geprüft.",
+        teilweise: "Einige Pflegeinformationen konnten nicht erneut geladen oder übersetzt werden.",
         quellenantwort_ungueltig: "Unerwartete Antwort der Pflegequelle.",
         fehler: "Pflegeprofil konnte nicht geladen werden.",
         aktualisierung_zu_frueh: "Die letzte Quellenprüfung liegt noch keine fünf Minuten zurück."
@@ -565,21 +568,34 @@
         'Nicht fachlich geprüft. Fremdsprachige Inhalte werden automatisch ' +
         'übersetzt; daraus entstehen keine automatischen Pflegeaufgaben.</div>' : "";
       const body = vorhanden.map(([key, f]) => {
-        const sprache = f.status === "maschinenuebersetzt" ?
+        const istAlt = f.status === "zwischengespeichert";
+        const sprache = istAlt ?
+          "Älterer gespeicherter Hinweis – nicht erneut aus der Quelle bestätigt und nicht fachlich geprüft" :
+          f.status === "maschinenuebersetzt" ?
           "Maschinell übersetzt – nicht fachlich geprüft" :
           f.status === "original_deutsch" ?
           "Deutscher Quelltext – nicht fachlich geprüft" :
           "Ungeprüfter Pflegehinweis";
+        const datum = istAlt && typeof f.zuletzt_bestaetigt_utc === "string" &&
+          /^\d{4}-\d{2}-\d{2}/.test(f.zuletzt_bestaetigt_utc) ?
+          '<p class="small">Text zuletzt aus der Quelle abgerufen am ' +
+          escapeHtml(dateLabel(f.zuletzt_bestaetigt_utc.slice(0, 10))) + '.</p>' : '';
         return '<section class="card" style="margin:9px 0;padding:13px">' +
           '<h3>' + escapeHtml(f.titel || key) + '</h3>' +
           '<p style="white-space:pre-wrap">' + escapeHtml(f.text) + '</p>' +
-          '<p class="small">' + escapeHtml(sprache) + '</p>' +
-          (this._carePlant ?
+          '<p class="small">' + escapeHtml(sprache) + '</p>' + datum +
+          (this._carePlant && !istAlt && !profile.aktualisierung ?
             '<button type="button" class="btn tiny" data-action="care-plan" data-id="' +
             escapeHtml(this._carePlant) + '" data-field="' + escapeHtml(key) +
             '">Jährliche Kontrolle dazu planen</button>' : '') +
           '</section>';
       }).join("");
+      const veraltete = vorhanden.filter(([, f]) => f.status === "zwischengespeichert").length;
+      const veraltetHinweis = veraltete ?
+        '<div class="notice">' + veraltete + ' Pflegefelder stammen nur aus älteren ' +
+        'gespeicherten Übersetzungen. Sie wurden beim letzten Abruf nicht neu ' +
+        'bestätigt und können nicht für neue Jahreskontrollen übernommen werden. ' +
+        'Die übrigen neu verfügbaren Angaben bleiben separat sichtbar.</div>' : "";
       const luecken = fehlende > 0 && fields.length ?
         '<p class="small">' + fehlende + ' von ' + fields.length +
         ' Pflegefeldern haben derzeit keinen deutschen Hinweis. ' +
@@ -621,8 +637,8 @@
         (this._careLoading ? 'Aktualisierung läuft …' :
           'Bei Datenlücken oder Quellenausfällen. Höchstens alle fünf Minuten.') +
         '</span></div>' : "";
-      return grundlagen + status + cacheHinweis + heading + body + luecken +
-        ohneFreitext + refresh;
+      return grundlagen + status + cacheHinweis + heading + veraltetHinweis +
+        body + luecken + ohneFreitext + refresh;
     }
 
     _getPlant(id) {
