@@ -1,8 +1,11 @@
 """Isolierte Sicherheits- und Vertragsprüfungen der Pflegeprofilverarbeitung."""
+import asyncio
+from copy import deepcopy
+from datetime import timedelta
 import unittest
 from unittest.mock import AsyncMock, MagicMock
 from custom_components.mein_garten.care import (
-    CARE_FIELDS, PflegeService, _same_species, _segments, _source_field, _valid_species,
+    CARE_FIELDS, PflegeService, _same_species, _segments, _source_field, _valid_species, _now,
 )
 
 
@@ -65,13 +68,103 @@ class TestPflegeAbruf(unittest.IsolatedAsyncioTestCase):
         service = PflegeService.__new__(PflegeService)
         service.hass = MagicMock()
         service.hass.services = services
-        service._translate = AsyncMock(side_effect=lambda x: "DE " + x)
+        service._deutscher_text = AsyncMock(side_effect=lambda species, field, raw: "DE " + raw)
         result = await service._fetch("Hydrangea macrophylla")
         self.assertEqual(result["status"], "ok")
         self.assertFalse(result["automatische_aufgaben_erlaubt"])
         self.assertEqual(len(result["felder"]), 5)
         self.assertEqual(services.calls[-1][2]["include"], "care")
         self.assertEqual(result["felder"]["pruning"]["status"], "maschinenuebersetzt")
+
+    async def test_teiluebersetztes_profil_wird_nicht_30_tage_blockiert(self):
+        services = FakeServices({
+            "search": {"Lavandula angustifolia": "Lavandula angustifolia"},
+            "get": {
+                "pid": "Lavandula angustifolia",
+                "watering": "Water occasionally",
+                "soil": "Well-drained soil",
+            },
+        })
+        service = PflegeService.__new__(PflegeService)
+        service.hass = MagicMock()
+        service.hass.services = services
+        service._deutscher_text = AsyncMock(
+            side_effect=lambda species, field, raw: "Wenig gießen" if field == "watering" else None
+        )
+        result = await service._fetch("Lavandula angustifolia")
+        self.assertEqual(result["status"], "teilweise")
+        self.assertEqual(result["felder"]["watering"]["text"], "Wenig gießen")
+        self.assertIsNone(result["felder"]["soil"]["text"])
+
+    async def test_bereits_deutsche_quelltexte_keine_englischnachuebersetzung(self):
+        services = FakeServices({
+            "search": {"Lavandula angustifolia": "Lavandula angustifolia"},
+            "get": {
+                "pid": "Lavandula angustifolia",
+                "lang": "de",
+                "watering": "Gießen, sobald der Boden trocken ist.",
+            },
+        })
+        service = PflegeService.__new__(PflegeService)
+        service.hass = MagicMock()
+        service.hass.services = services
+        service._deutscher_text = AsyncMock()
+        result = await service._fetch("Lavandula angustifolia")
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["felder"]["watering"]["status"], "original_deutsch")
+        service._deutscher_text.assert_not_awaited()
+
+    async def test_uebersetzte_teilfelder_ueberleben_cache_refresh(self):
+        class Store:
+            def __init__(self):
+                self.saved = None
+            async def async_save(self, data):
+                self.saved = deepcopy(data)
+
+        services = FakeServices({
+            "search": {"Lavandula angustifolia": "Lavandula angustifolia"},
+            "get": {
+                "pid": "Lavandula angustifolia",
+                "watering": "Water moderately",
+                "soil": "Well-drained soil",
+            },
+        })
+        service = PflegeService.__new__(PflegeService)
+        service.hass = MagicMock()
+        service.hass.services = services
+        service._store = Store()
+        service._lock = asyncio.Lock()
+        service._data = {
+            "version": 1, "profile": {}, "budget": {"tag": "", "zeichen": 0},
+            "translations": {},
+        }
+
+        used = []
+        async def first_try(text):
+            used.append(text)
+            return "Mäßig gießen" if text == "Water moderately" else None
+        service._translate = first_try
+        first = await service.async_profil({"wissenschaftlich": "Lavandula angustifolia"})
+        self.assertEqual(first["status"], "teilweise")
+        self.assertEqual(len(used), 2)
+        self.assertEqual(len(service._data["translations"]), 1)
+
+        cached = await service.async_profil({"wissenschaftlich": "Lavandula angustifolia"})
+        self.assertEqual(cached["status"], "teilweise")
+        self.assertEqual(len(used), 2)
+
+        # Kürzere Cachefrist nachweisen, ohne Netzwerk oder Host-Uhr zu manipulieren.
+        service._data["profile"]["lavandula angustifolia"]["abgerufen_utc"] = (
+            _now() - timedelta(hours=19)
+        ).isoformat()
+        service._translate = AsyncMock(return_value="Durchlässiger Boden")
+        second = await service.async_profil({"wissenschaftlich": "Lavandula angustifolia"})
+        self.assertEqual(second["status"], "ok")
+        self.assertEqual(second["felder"]["watering"]["text"], "Mäßig gießen")
+        self.assertEqual(second["felder"]["soil"]["text"], "Durchlässiger Boden")
+        service._translate.assert_awaited_once_with("Well-drained soil")
+        self.assertEqual(len(service._data["translations"]), 2)
+        self.assertNotIn("Water moderately", str(service._store.saved))
 
     async def test_abweichender_detail_pid_wird_abgelehnt(self):
         services = FakeServices({
