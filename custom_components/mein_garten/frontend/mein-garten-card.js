@@ -24,6 +24,17 @@
     return year + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   };
   const byDate = (a, b) => (a.faellig_am || "9999-99-99").localeCompare(b.faellig_am || "9999-99-99");
+  const zeitpunktLabel = (raw) => {
+    if (typeof raw !== "string" ||
+        !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(raw))
+      return "Zeitpunkt nicht gespeichert";
+    const value = new Date(raw);
+    return Number.isFinite(value.getTime()) ?
+      value.toLocaleString("de-DE", {
+        day: "2-digit", month: "2-digit", year: "numeric",
+        hour: "2-digit", minute: "2-digit"
+      }) : "Zeitpunkt nicht gespeichert";
+  };
   const ENTWICKLUNGSPHASEN = [
     { value: "austrieb", label: "Austrieb" },
     { value: "knospenbildung", label: "Knospenbildung" },
@@ -85,6 +96,7 @@
       this._care = null;
       this._careLoading = false;
       this._carePlant = null;
+      this._verlaufLimit = 20;
       this._working = false;
       this._error = "";
       this._connection = null;
@@ -330,6 +342,17 @@
           careInfo: "Dieser Termin wird von dir festgelegt. Die Quelle " +
             "OpenPlantbook und ihre Übersetzung sind nicht fachlich geprüft.",
         };
+        this._render();
+      } else if (action === "pflegeverlauf-open") {
+        const plant = this._getPlant(id);
+        if (!plant) return;
+        this._verlaufLimit = 20;
+        this._modal = { type: "pflegeverlauf", existing: plant };
+        this._render();
+      } else if (action === "pflegeverlauf-mehr") {
+        if (this._modal?.type !== "pflegeverlauf" ||
+            this._modal.existing?.id !== id || !this._getPlant(id)) return;
+        this._verlaufLimit = Math.min(this._verlaufLimit + 20, 2000);
         this._render();
       } else if (action === "entwicklung-open") {
         const plant = this._getPlant(id);
@@ -1022,16 +1045,105 @@
           '<p class="small">Noch keine Entwicklungsphase erfasst.</p>');
     }
 
+    _pflegeverlaufDaten(pflanzenId) {
+      const relevant = (this._data?.aufgaben || []).filter((task) =>
+        task && task.pflanzen_id === pflanzenId && task.status === "erledigt");
+      relevant.sort((a, b) => String(b.erledigt_utc || "").localeCompare(
+        String(a.erledigt_utc || "")) ||
+        String(b.faellig_am || "").localeCompare(String(a.faellig_am || "")));
+      const ereignisse = new Map();
+      for (const item of this._data?.historie || []) {
+        if (item && item.art === "aufgabe_erledigt" &&
+            typeof item.objekt_id === "string") {
+          ereignisse.set(item.objekt_id, item);
+        }
+      }
+      const giesskontrollen = relevant.filter((x) =>
+        x.aufgabentyp === "giesskontrolle" ||
+        ["gegossen", "kontrolliert_kein_wasser"].includes(x.ergebnis));
+      const gegossen = giesskontrollen.filter((x) => x.ergebnis === "gegossen");
+      const keinWasser = giesskontrollen.filter((x) =>
+        x.ergebnis === "kontrolliert_kein_wasser");
+      return {
+        erledigt: relevant,
+        ereignisse,
+        giesskontrollen: giesskontrollen.length,
+        gegossen: gegossen.length,
+        keinWasser: keinWasser.length,
+        letzteKontrolle: giesskontrollen[0] || null,
+        zuletztGegossen: gegossen[0] || null,
+      };
+    }
+
+    _pflegeverlaufHTML() {
+      const plant = this._modal?.existing;
+      if (!plant || !this._getPlant(plant.id)) return "";
+      const info = this._pflegeverlaufDaten(plant.id);
+      const total = info.erledigt.length;
+      const max = Math.max(20, this._verlaufLimit || 20);
+      const items = info.erledigt.slice(0, max);
+      const zahlen = [
+        ["Erledigt", total],
+        ["Gegossen", info.gegossen],
+        ["Kein Wasser nötig", info.keinWasser],
+      ];
+      const stats = '<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">' +
+        zahlen.map(([name, value]) => '<div class="stat"><div class="count">' +
+          value + '</div><div class="label">' + escapeHtml(name) + '</div></div>'
+        ).join("") + '</div>';
+      const letzteKontrolle = info.letzteKontrolle ?
+        '<p class="small">Letzte Gießkontrolle: ' +
+        escapeHtml(zeitpunktLabel(info.letzteKontrolle.erledigt_utc)) +
+        ' · ' + (info.letzteKontrolle.ergebnis === "gegossen" ? "Gegossen" :
+          info.letzteKontrolle.ergebnis === "kontrolliert_kein_wasser" ?
+          "Kontrolliert – kein Wasser nötig" : "Ergebnis nicht dokumentiert") + '</p>' :
+        '<p class="small">Noch keine Gießkontrolle dokumentiert.</p>';
+      const letztesGiessen = info.zuletztGegossen ?
+        '<p class="small">Zuletzt tatsächlich gegossen: ' +
+        escapeHtml(zeitpunktLabel(info.zuletztGegossen.erledigt_utc)) + '</p>' :
+        '<p class="small">Noch kein tatsächliches Gießen dokumentiert.</p>';
+      const zeilen = items.map((task) => {
+        const event = info.ereignisse.get(task.id);
+        const ergebnis = task.ergebnis === "gegossen" ?
+          '<span class="chip">Gegossen</span>' :
+          task.ergebnis === "kontrolliert_kein_wasser" ?
+          '<span class="chip muted">Kein Wasser nötig</span>' :
+          '<span class="chip muted">Erledigt</span>';
+        return '<div class="task"><div><div class="task-name">' +
+          escapeHtml(task.name) + '</div>' +
+          '<div class="task-meta">Erledigt: ' +
+          escapeHtml(zeitpunktLabel(task.erledigt_utc)) +
+          (task.faellig_am ? ' · Geplant: ' + escapeHtml(dateLabel(task.faellig_am)) : '') +
+          (event?.person ? ' · ' + escapeHtml(event.person) : '') +
+          '</div></div>' + ergebnis + '</div>';
+      }).join("");
+      const more = total > items.length ?
+        '<button class="btn tiny ghost" type="button" data-action="pflegeverlauf-mehr" ' +
+        'data-id="' + escapeHtml(plant.id) + '">Weitere 20 anzeigen (' +
+        (total - items.length) + ' verbleibend)</button>' : '';
+      return '<div class="notice">Deine tatsächlich dokumentierten Arbeiten. ' +
+        'Eine Gießkontrolle ohne Wasser zählt nicht als Gießen. Die Historie ' +
+        'erstellt keine neuen Termine oder Pflegeempfehlungen.</div>' +
+        stats + '<div style="margin-top:14px">' + letzteKontrolle +
+        letztesGiessen + '</div>' +
+        '<h3 style="margin-top:18px">Erledigte Arbeiten (' + total + ')</h3>' +
+        (zeilen || '<p class="small">Für diese Pflanze wurden noch keine ' +
+          'Pflegearbeiten als erledigt gespeichert.</p>') + more;
+    }
+
     _modalHTML() {
       if (!this._modal) return "";
       const type = this._modal.type;
       const title = type === "pflege" ? "Pflegewissen: " + (this._modal.existing?.name || "") : type === "pflanze"
         ? (this._modal.existing ? "Pflanze bearbeiten" : "Neue Pflanze")
-        : type === "entwicklung" ? "Pflanzenentwicklung: " + (this._modal.existing?.name || "") : type === "saisonanker" ? "Frost-Referenzdaten" : type === "saison" ? "Saisonfenster vormerken" : type === "automatik" ? "Automatische Benachrichtigungen" : type === "giessen" ? "Gießkontrolle abschließen" : type === "regel" ? "Neue Wiederholung" : type === "aufgabe" ? "Neue Pflegeaufgabe" : "Neuer Gartenbereich";
+        : type === "entwicklung" ? "Pflanzenentwicklung: " + (this._modal.existing?.name || "")
+        : type === "pflegeverlauf" ? "Pflegeverlauf: " + (this._modal.existing?.name || "")
+        : type === "saisonanker" ? "Frost-Referenzdaten" : type === "saison" ? "Saisonfenster vormerken" : type === "automatik" ? "Automatische Benachrichtigungen" : type === "giessen" ? "Gießkontrolle abschließen" : type === "regel" ? "Neue Wiederholung" : type === "aufgabe" ? "Neue Pflegeaufgabe" : "Neuer Gartenbereich";
       let body = "";
       if (type === "pflege") body = this._careHTML();
       else if (type === "pflanze") body = this._plantForm();
       else if (type === "entwicklung") body = this._entwicklungHTML();
+      else if (type === "pflegeverlauf") body = this._pflegeverlaufHTML();
       else if (type === "automatik") body = this._automatikForm();
       else if (type === "saisonanker") body = this._saisonankerForm();
       else if (type === "saison") body = this._saisonForm();
@@ -1131,7 +1243,8 @@
                 escapeHtml(phaseLabel(current.phase)) + ' · ' +
                 escapeHtml(dateLabel(current.beobachtet_am)) + '</p>' : "") +
               '<div class="footer"><button class="btn tiny" data-action="care-open" data-id="' +
-              escapeHtml(p.id) + '">Pflegewissen</button><button class="btn tiny" data-action="entwicklung-open" data-id="' +
+              escapeHtml(p.id) + '">Pflegewissen</button><button class="btn tiny" data-action="pflegeverlauf-open" data-id="' +
+              escapeHtml(p.id) + '">Verlauf</button><button class="btn tiny" data-action="entwicklung-open" data-id="' +
               escapeHtml(p.id) + '">Entwicklung</button><button class="btn tiny" data-action="plant-edit" data-id="' +
               escapeHtml(p.id) + '">Bearbeiten</button>' +
               '<button class="btn ghost tiny danger" data-action="plant-remove" data-id="' +
