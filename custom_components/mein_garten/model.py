@@ -336,7 +336,7 @@ class GartenDaten:
     def saisonpruefung_anlegen(
         self, pflanzen_id: str, saison_id: str, anker_jahr: int,
         name: str, faellig_am: str, fenster_von: str, fenster_bis: str,
-        quell_commit: str,
+        quell_commit: str, wissenschaftlich: str,
     ) -> dict:
         """Erst nach eigener Terminwahl – keine automatische Aussaatanweisung.
 
@@ -344,6 +344,13 @@ class GartenDaten:
         SaisonService liefert nur kataloggeprüfte Parameter.
         """
         plant = _existiert(self._data["pflanzen"], pflanzen_id, "Pflanze")
+        # Die Art kann sich während einer parallelen Bearbeitung ändern:
+        # vor dem tatsächlichen Speichern erneut im transaktionalen
+        # Modell prüfen, statt eine fremde Saisonregel zu übernehmen.
+        if (not isinstance(wissenschaftlich, str)
+                or " ".join(plant.get("wissenschaftlich", "").split()).casefold()
+                != " ".join(wissenschaftlich.split()).casefold()):
+            raise DatensatzFehler("Die botanische Pflanzenart wurde inzwischen geändert")
         if (not isinstance(saison_id, str) or not saison_id
                 or len(saison_id) > 100 or any(
                     c not in "abcdefghijklmnopqrstuvwxyz0123456789-" for c in saison_id
