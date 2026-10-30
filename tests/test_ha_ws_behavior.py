@@ -256,5 +256,70 @@ class TestGartenWebsocket(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.backend.model.snapshot()["aufgaben"][0]["status"], "offen")
 
 
+    async def test_saison_ws_stand_zeigt_anker_und_vorschlaege(self):
+        class FakeSeason:
+            def stand(self):
+                return {
+                    "anker": {"last_frost": "2027-05-15", "first_frost": ""},
+                    "vorschlaege": [], "katalog_arten": 152,
+                }
+        self.hass.data["mein_garten"]["saison"] = FakeSeason()
+        self.api.ws_get(self.hass, self.connection, {"id": 30})
+        self.assertEqual(self.connection.results[0][1]["saison"]["katalog_arten"], 152)
+        self.assertEqual(self.connection.results[0][1]["saison"]["anker"]["last_frost"],
+                         "2027-05-15")
+
+    async def test_saisonanker_ws_valide_speicherung_und_synchronisation(self):
+        options = {"last_frost": "", "first_frost": ""}
+        async def save(data):
+            options.update(data)
+            return dict(options)
+        self.hass.data["mein_garten"]["saison"] = types.SimpleNamespace(
+            stand=lambda: {"anker": dict(options), "vorschlaege": []},
+            async_anker_speichern=save,
+        )
+        await self.api.ws_saisonanker_speichern(self.hass, self.connection, {
+            "id": 31, "last_frost": "2027-05-15", "first_frost": "2027-10-15",
+        })
+        self.assertEqual(self.connection.errors, [])
+        self.assertEqual(self.connection.results[0][1]["saison"]["anker"]["first_frost"],
+                         "2027-10-15")
+        self.assertEqual(self.sent_signals, ["mein_garten_updated"])
+
+    async def test_saisonplanung_ws_nimmt_nur_id_und_datum_an(self):
+        plant = self.backend.model.pflanze_anlegen("Tomate", "Solanum lycopersicum")
+        expected = {"pflanzen_id": plant["id"], "katalog_id": "tomato",
+                    "datum": "2027-03-25"}
+        async def plan(plant_id, rule_id, when):
+            self.assertEqual({
+                "pflanzen_id": plant_id, "katalog_id": rule_id, "datum": when,
+            }, expected)
+            return {"id": "task1", "name": "Vorziehen prüfen"}
+        self.hass.data["mein_garten"]["saison"] = types.SimpleNamespace(
+            stand=lambda: {"anker": {}, "vorschlaege": []},
+            async_vormerken=plan,
+        )
+        await self.api.ws_saison_vormerken(self.hass, self.connection, {
+            "id": 32, **expected,
+        })
+        self.assertEqual(self.connection.errors, [])
+        self.assertEqual(self.connection.results[0][1]["objekt"]["id"], "task1")
+
+    async def test_saisonplanung_ws_blockiert_manipulierten_termin(self):
+        from custom_components.mein_garten.season import SaisonFehler
+        async def reject(*_args):
+            raise SaisonFehler("Termin liegt außerhalb des gespeicherten Saisonfensters")
+        self.hass.data["mein_garten"]["saison"] = types.SimpleNamespace(
+            stand=lambda: {"anker": {}, "vorschlaege": []},
+            async_vormerken=reject,
+        )
+        await self.api.ws_saison_vormerken(self.hass, self.connection, {
+            "id": 33, "pflanzen_id": "p1", "katalog_id": "tomato",
+            "datum": "2050-01-01",
+        })
+        self.assertEqual(self.connection.errors[0][1], "ungueltige_eingabe")
+        self.assertFalse(self.connection.results)
+
+
 if __name__ == "__main__":
     unittest.main()
