@@ -284,3 +284,69 @@ test("Die Wetter- und iPhone-Schalter sind im Kalender sichtbar und standardmä�
   assert.ok(!html.includes('name="freitag_aktiv" checked'));
   assert.ok(!html.includes('name="frost_aktiv" checked'));
 });
+
+
+test("Gießkontrolle zeigt zwei Entscheidungen und keine direkte Ein-Klick-Erledigung", () => {
+  const card = buildCard();
+  card._tab = "kalender";
+  card._data.aufgaben = [
+    { id: "w1", name: "Gießbedarf prüfen", status: "offen",
+      faellig_am: "2026-11-01", aufgabentyp: "giesskontrolle" },
+    { id: "t1", name: "Laub entfernen", status: "offen",
+      faellig_am: "2026-11-01", aufgabentyp: "einfach" },
+  ];
+  card._render();
+  assert.ok(card.shadowRoot.innerHTML.includes('data-action="task-result" data-id="w1"'));
+  assert.ok(card.shadowRoot.innerHTML.includes('data-action="task-done" data-id="t1"'));
+  assert.ok(!card.shadowRoot.innerHTML.includes('data-action="task-done" data-id="w1"'));
+  const btn = { dataset: { action: "task-result", id: "w1" } };
+  card._onClick({ target: { closest: () => btn } });
+  assert.equal(card._modal.type, "giessen");
+  assert.ok(card.shadowRoot.innerHTML.includes("Kontrolliert – kein Wasser nötig"));
+  assert.ok(card.shadowRoot.innerHTML.includes('data-result="gegossen"'));
+});
+
+test("Die Wasserentscheidung wird mit eindeutigem Ergebnis ans Backend übergeben", () => {
+  const card = buildCard();
+  const task = { id: "w1", name: "Gießen", aufgabentyp: "giesskontrolle", status: "offen" };
+  card._data.aufgaben = [task];
+  card._modal = { type: "giessen", existing: task };
+  let sent = null;
+  card._mutate = (type, args) => { sent = { type, args }; };
+  const btn = {
+    dataset: { action: "task-water-choice", id: "w1", result: "kontrolliert_kein_wasser" }
+  };
+  card._onClick({ target: { closest: () => btn } });
+  assert.equal(sent.type, "aufgabe_erledigen");
+  assert.equal(sent.args.aufgaben_id, "w1");
+  assert.equal(sent.args.ergebnis, "kontrolliert_kein_wasser");
+});
+
+test("Abgeschlossene Gießkontrolle zeigt den dokumentierten Pflegezustand", () => {
+  const card = buildCard();
+  card._tab = "kalender";
+  card._data.aufgaben = [
+    { id: "w1", name: "Lavendel prüfen", status: "erledigt",
+      aufgabentyp: "giesskontrolle", ergebnis: "kontrolliert_kein_wasser",
+      faellig_am: "2026-11-01" },
+  ];
+  card._render();
+  assert.ok(card.shadowRoot.innerHTML.includes("Kontrolliert – kein Wasser nötig"));
+  assert.ok(card.shadowRoot.innerHTML.includes('data-action="task-reopen"'));
+});
+
+test("Pflegeprofil-Wasser übernimmt die differenzierte Aufgabenart", () => {
+  const card = buildCard();
+  const plant = { id: "p1", name: "Tomate", bereich_id: null };
+  card._data.pflanzen = [plant];
+  card._modal = { type: "pflege", existing: plant };
+  card._carePlant = "p1";
+  card._care = {
+    status: "ok",
+    felder: { watering: { titel: "Gießen", text: "Wasserbedarf überprüfen." } }
+  };
+  const btn = { dataset: { action: "care-plan", id: "p1", field: "watering" } };
+  card._onClick({ target: { closest: () => btn } });
+  assert.equal(card._modal.prefill.aufgabentyp, "giesskontrolle");
+  assert.ok(card.shadowRoot.innerHTML.includes('name="aufgabentyp" value="giesskontrolle"'));
+});
