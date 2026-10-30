@@ -382,3 +382,30 @@ test("Exakter deutscher Artname bleibt gegenüber dem GBIF-Sammelvorschlag klar 
   assert.ok(html.includes("Art bestätigt"));
   assert.ok(html.includes("Trivialname – Art prüfen"));
 });
+
+
+test("Gefundene Schreibvariante wird nicht als eindeutig zugeordnete Art dargestellt", () => {
+  const card = buildCard();
+  card._modal = { type: "pflanze", existing: null };
+  card._suggestions = [
+    { wissenschaftlich: "Hydrangea paniculata",
+      deutsch: "Rispen-Hortensie", bestaetigt: true,
+      quellen: ["iNaturalist", "Schreibvariante"] },
+  ];
+  card._render();
+  assert.ok(card._suggestionHTML().includes("Namensvariante – Art prüfen"));
+  assert.ok(!card._suggestionHTML().includes('>Art bestätigt</span>'));
+  const el = { dataset: { action: "suggestion", index: "0" } };
+  let noteText = "";
+  const form = {
+    elements: {
+      namedItem: (key) => ({ value: key === "name" ? "Rispenhortensie" : "" }),
+    },
+  };
+  const textNode = { set textContent(v) { noteText = v; } };
+  card.shadowRoot.querySelector = (selector) =>
+    selector === 'form[data-form="pflanze"]' ? form :
+      selector === "#garten-artenhinweis" ? textNode : null;
+  card._onClick({ target: { closest: () => el } });
+  assert.ok(noteText.includes("bitte die tatsächliche Art prüfen"));
+});
