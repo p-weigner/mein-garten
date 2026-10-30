@@ -1,6 +1,6 @@
 # 🌿 Mein Garten – Home Assistant Green
 
-> **Entwicklungsbranch – keine Installationsfreigabe:** Die neue Version mit dynamischer deutscher Namenssuche, lokalen Pflegeprofilen, kombinierten Gießentscheidungen, jährlichen Pflegekontrollen, optionaler Frost-/Freitags-Push-Logik und **152 CC0-Saisonfenstern mit eigener Datumsfreigabe** wird in [Draft-PR #1](https://github.com/p-weigner/mein-garten/pull/1) geprüft. [Funktionsstand, Einstellungen, Sicherheit und offene Abnahmeprüfungen](docs/ENTWICKLUNGSSTAND_2026-10-30.md). Diese Änderungen wurden **nicht auf dem Home Assistant Green installiert**. Das Dashboard „Zuhause“ bleibt unberührt.
+> **Entwicklungsbranch – keine Installationsfreigabe:** Die neue Version mit dynamischer deutscher Namenssuche, lokalen Pflegeprofilen, kombinierten Gießentscheidungen, jährlichen Pflegekontrollen, optionaler Frost-/Freitags-Push-Logik und **1.292 CC0-Saisonfenstern mit eigener Datumsfreigabe** wird in [Draft-PR #1](https://github.com/p-weigner/mein-garten/pull/1) geprüft. [Funktionsstand, Einstellungen, Sicherheit und offene Abnahmeprüfungen](docs/ENTWICKLUNGSSTAND_2026-10-30.md). Diese Änderungen wurden **nicht auf dem Home Assistant Green installiert**. Das Dashboard „Zuhause“ bleibt unberührt.
 
 Eigenständiges Gartendashboard für Pflanzen, Gartenbereiche, Pflegeaufgaben und später automatisch übersetzte artspezifische Pflegeinformationen.
 
@@ -9,7 +9,7 @@ Eigenständiges Gartendashboard für Pflanzen, Gartenbereiche, Pflegeaufgaben un
 ## Zusätzliche Funktionen nur im Entwicklungsbranch
 
 - [50 deutsche Pflanzennamen erfolgreich im Live-Test gesucht](https://github.com/p-weigner/mein-garten/actions/runs/41047293989), weitere Abdeckung nicht garantiert.
-- **Saisonfenster für 152 eindeutig passende botanische Arten** aus einer fest versionierten OpenPlantDB-Quelle (CC0). Benutzer wählen ihre Frühjahrs-/Herbstfrost-Referenzdaten selbst, bestätigen jede neue Erinnerungsaufgabe einzeln. Keine automatische Schnitt-/Düngearbeit.
+- **Saisonfenster für 1.292 botanische Arten** aus zwei fest versionierten OpenPlantDB-Datensätzen (CC0); bei unserer 50-Pflanzen-Testliste sind 15 Arten vertreten. Benutzer wählen ihre Frühjahrs-/Herbstfrost-Referenzdaten selbst, bestätigen jede neue Erinnerungsaufgabe einzeln. Keine automatische Schnitt-/Düngearbeit.
 - Kombinierte Gießaufgaben mit dokumentiertem „Gegossen“ oder „Kontrolliert – kein Wasser nötig“, eigene Pflegehistorie, Benutzer-Wiederholungen und Frostprüfungen.
 - [Nachvollziehbare Datenbasis und fachliche Grenzen](docs/SAISONFENSTER_CC0_2026-10-30.md). Aktuelle Testreihe: [240 Python-Tests und 27 Node-Tests erfolgreich](https://github.com/p-weigner/mein-garten/actions/runs/41049157546).
 - Die aktuell installierte ältere Garten-Alpha ist davon zu unterscheiden. **Diese neuen Änderungen sind noch nicht auf Home Assistant Green getestet oder installiert.**
@@ -35,7 +35,7 @@ Eigenständiges Gartendashboard für Pflanzen, Gartenbereiche, Pflegeaufgaben un
 | Permapeople | 19/21 exakte Grunddatenprofile; kein vollständiger Schnitt-/Düngekalender |
 | OpenPlantbook `include: care` | 10/13 exakte Profile mit fünf gefüllten Pflegefeldern; Inhalt nicht fachlich freigegeben |
 | MyMemory-Übersetzung | 5/5 eigene Beispielsätze erfolgreich ins Deutsche übersetzt |
-| Backend | 152 Python-Tests bestanden; inklusive echter Datenspeicher- und WebSocket-Vertragsmock-Tests |
+| Backend der ursprünglichen Alpha | 152 Python-Tests (historischer Stand vor den neuen Funktionen) |
 | Frontend | 11 Node-Tests bestanden, JavaScript-Syntax geprüft |
 | HA 2026.10 Probatio | WebSocket-Schemas mit echter Probatio-Version 0.13.0 geprüft |
 | Echter Home-Assistant-Green-Start | **Noch offen** |
