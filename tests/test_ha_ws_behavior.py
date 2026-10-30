@@ -107,6 +107,23 @@ class TestGartenWebsocket(unittest.IsolatedAsyncioTestCase):
         self.assertIn(self.api.ws_pflanzen_suchen, self.registered)
         self.assertIn(self.api.ws_subscribe, self.registered)
 
+    async def test_europaeische_eive_standortwerte_erscheinen_nur_als_optional_snapshot(self):
+        self.hass.data["mein_garten"]["eive_europa"] = types.SimpleNamespace(
+            stand_fuer=lambda plants: {
+                "quelle": "EIVE 1.0",
+                "lizenz": "CC BY 4.0",
+                "profile": {},
+                "automatische_aufgaben": False,
+            }
+        )
+        result = self.api._snapshot(self.backend, self.hass)
+        self.assertEqual(result["eive"]["quelle"], "EIVE 1.0")
+        self.assertEqual(result["eive"]["lizenz"], "CC BY 4.0")
+        self.assertFalse(result["eive"]["automatische_aufgaben"])
+        self.hass.data["mein_garten"].pop("eive_europa")
+        without = self.api._snapshot(self.backend, self.hass)
+        self.assertIsNone(without["eive"])
+
     async def test_startzustand(self):
         self.api.ws_get(self.hass, self.connection, {"id": 1})
         self.assertEqual(self.connection.results[0][1]["version"], 1)
