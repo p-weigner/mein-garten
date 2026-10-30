@@ -21,6 +21,7 @@ FORBIDDEN_NAMES = {
     "secrets.yaml", "known_devices.yaml", "configuration.yaml",
     "automations.yaml", "scripts.yaml", "scenes.yaml",
     "auth", "home-assistant_v2.db", "home-assistant.log",
+    "zuhause.yaml", "ui-lovelace.yaml", "lovelace.yaml",
 }
 FORBIDDEN_SUFFIXES = (".pyc", ".pyo", ".key", ".pem", ".p12", ".pfx", ".sqlite", ".db")
 REQUIRED_INTEGRATION = (
