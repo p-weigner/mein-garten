@@ -1317,3 +1317,168 @@ test("EIVE-Daten werden HTML-sicher gerendert", () => {
   assert.ok(!html.includes('<img src=x onerror'));
   assert.ok(html.includes('CC BY 4.0'));
 });
+
+
+test("Pflegeverlauf trennt echte Gießvorgänge von Kontrollen ohne Wasser", () => {
+  const card = buildCard();
+  card._data.pflanzen = [
+    { id: "p1", name: "Lavendel", wissenschaftlich: "Lavandula angustifolia" },
+    { id: "p2", name: "Hortensie", wissenschaftlich: "Hydrangea macrophylla" },
+  ];
+  card._data.aufgaben = [
+    { id: "a1", pflanzen_id: "p1", name: "Gießbedarf prüfen",
+      status: "erledigt", aufgabentyp: "giesskontrolle",
+      ergebnis: "gegossen", erledigt_utc: "2026-10-20T12:00:00+00:00",
+      faellig_am: "2026-10-20" },
+    { id: "a2", pflanzen_id: "p1", name: "Gießbedarf prüfen",
+      status: "erledigt", aufgabentyp: "giesskontrolle",
+      ergebnis: "kontrolliert_kein_wasser", erledigt_utc: "2026-10-29T11:00:00+00:00",
+      faellig_am: "2026-10-29" },
+    { id: "a3", pflanzen_id: "p1", name: "Boden prüfen",
+      status: "erledigt", aufgabentyp: "einfach",
+      ergebnis: "erledigt", erledigt_utc: "2026-10-25T13:00:00+00:00" },
+    { id: "a4", pflanzen_id: "p1", name: "Wieder geöffnet",
+      status: "offen", aufgabentyp: "giesskontrolle",
+      ergebnis: null, erledigt_utc: null },
+    { id: "a5", pflanzen_id: "p2", name: "Gießen",
+      status: "erledigt", aufgabentyp: "giesskontrolle",
+      ergebnis: "gegossen", erledigt_utc: "2026-10-30T14:00:00+00:00" },
+  ];
+  card._data.historie = [
+    { art: "aufgabe_erledigt", objekt_id: "a1", person: "Gärtnerin" },
+    { art: "aufgabe_erledigt", objekt_id: "a2", person: "Gärtner" },
+    { art: "aufgabe_wieder_geoeffnet", objekt_id: "a4", person: "Andere Person" },
+  ];
+  const info = card._pflegeverlaufDaten("p1");
+  assert.equal(info.erledigt.length, 3);
+  assert.equal(info.giesskontrollen, 2);
+  assert.equal(info.gegossen, 1);
+  assert.equal(info.keinWasser, 1);
+  assert.equal(info.letzteKontrolle.id, "a2");
+  assert.equal(info.zuletztGegossen.id, "a1");
+  assert.deepEqual(Array.from(info.erledigt.map((x) => x.id)), ["a2", "a3", "a1"]);
+  card._onClick({ target: { closest: () => ({
+    disabled: false, dataset: { action: "pflegeverlauf-open", id: "p1" },
+  }) }});
+  assert.equal(card._modal.type, "pflegeverlauf");
+  const html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes("Pflegeverlauf: Lavendel"));
+  assert.ok(html.includes("Zuletzt tatsächlich gegossen"));
+  assert.ok(html.includes("Letzte Gießkontrolle"));
+  assert.ok(html.includes("Kontrolliert – kein Wasser nötig"));
+  assert.ok(html.includes("Gärtnerin"));
+  assert.ok(html.includes("Gärtner"));
+  assert.ok(!html.includes("Wieder geöffnet"));
+  assert.ok(!html.includes("Andere Person"));
+  assert.ok(!html.includes("Hortensie"));
+  assert.ok(html.includes("Eine Gießkontrolle ohne Wasser zählt nicht als Gießen"));
+  assert.ok(!html.includes('data-action="task-done"'));
+});
+
+test("Pflanzenkarte zeigt letzte dokumentierte Gießkontrolle, keine fremden Pflanzen", () => {
+  const card = buildCard();
+  card._data.pflanzen = [
+    { id: "p1", name: "Lavendel", gruppe: "Gemüse und Kräuter", bereich_id: null },
+    { id: "p2", name: "Hortensie", gruppe: "Blumen, Stauden und Rosen", bereich_id: null },
+  ];
+  card._data.aufgaben = [
+    { id: "k1", pflanzen_id: "p1", name: "Gießkontrolle",
+      status: "erledigt", aufgabentyp: "giesskontrolle",
+      ergebnis: "kontrolliert_kein_wasser", erledigt_utc: "2026-10-30T12:34:00+00:00" },
+    { id: "k2", pflanzen_id: "p2", name: "Gießkontrolle",
+      status: "erledigt", aufgabentyp: "giesskontrolle",
+      ergebnis: "gegossen", erledigt_utc: "2026-10-29T12:34:00+00:00" },
+  ];
+  const html = card._plantsHTML();
+  assert.ok(html.includes("Letzte Gießkontrolle:"));
+  assert.ok(html.includes("Kein Wasser nötig"));
+  assert.ok(html.includes("Gegossen"));
+  assert.ok(html.includes('data-action="pflegeverlauf-open" data-id="p1"'));
+  assert.ok(html.includes('data-action="pflegeverlauf-open" data-id="p2"'));
+  assert.ok(html.includes("30.10.2026"));
+});
+
+test("Pflegeverlauf zeigt keine gelöschten, fremden oder wieder geöffneten Arbeiten", () => {
+  const card = buildCard();
+  const plant = { id: "p1", name: "Rose", wissenschaftlich: "Rosa canina" };
+  card._data.pflanzen = [plant];
+  card._data.aufgaben = [{
+    id: "a1", pflanzen_id: "p1", name: "Wieder geöffnet",
+    status: "offen", ergebnis: null,
+  }, {
+    id: "a2", pflanzen_id: "p2", name: "Gießarbeit einer anderen Pflanze",
+    status: "erledigt", ergebnis: "gegossen", aufgabentyp: "giesskontrolle",
+  }];
+  card._data.historie = [{
+    objekt_id: "a-deleted", art: "aufgabe_erledigt",
+    person: "Vertrauliche historische Person",
+  }];
+  card._modal = { type: "pflegeverlauf", existing: plant };
+  const html = card._pflegeverlaufHTML();
+  assert.ok(html.includes("Noch keine Gießkontrolle dokumentiert"));
+  assert.ok(html.includes("Noch kein tatsächliches Gießen dokumentiert"));
+  assert.ok(html.includes("noch keine Pflegearbeiten"));
+  assert.ok(!html.includes("Wieder geöffnet"));
+  assert.ok(!html.includes("andere Pflanze"));
+  assert.ok(!html.includes("Vertrauliche"));
+});
+
+test("Pflegeverlauf blättert ohne Datenverlust in Schritten von 20", () => {
+  const card = buildCard();
+  card._data.pflanzen = [{ id: "p1", name: "Rose" }];
+  card._data.aufgaben = Array.from({ length: 23 }, (_, i) => ({
+    id: "h" + i, pflanzen_id: "p1", name: "Pflegeeintrag " + i,
+    status: "erledigt", ergebnis: "erledigt",
+    erledigt_utc: "2026-10-" + String(i + 1).padStart(2, "0") + "T10:00:00+00:00",
+  }));
+  card._onClick({ target: { closest: () => ({
+    disabled: false, dataset: { action: "pflegeverlauf-open", id: "p1" },
+  }) }});
+  let html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes("Pflegeeintrag 22"));
+  assert.ok(!html.includes("Pflegeeintrag 0</div>"));
+  assert.ok(html.includes("3 verbleibend"));
+  card._onClick({ target: { closest: () => ({
+    disabled: false, dataset: { action: "pflegeverlauf-mehr", id: "p1" },
+  }) }});
+  html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes("Pflegeeintrag 0"));
+  assert.ok(!html.includes("verbleibend"));
+  assert.equal(card._verlaufLimit, 40);
+});
+
+test("Pflegeverlauf escaped Namen und Personalangaben und erkennt ungültige Zeitpunkte", () => {
+  const card = buildCard();
+  const plant = { id: "p1", name: "Pflanze <script>", wissenschaftlich: "Rosa canina" };
+  card._data.pflanzen = [plant];
+  card._data.aufgaben = [{
+    id: "a1", pflanzen_id: "p1",
+    name: '<img src=x onerror=alert(1)>',
+    status: "erledigt", ergebnis: "gegossen",
+    aufgabentyp: "giesskontrolle",
+    erledigt_utc: "<img src=x onerror=alert(1)>",
+  }];
+  card._data.historie = [{
+    objekt_id: "a1", art: "aufgabe_erledigt", person: "<script>privat</script>",
+  }];
+  card._modal = { type: "pflegeverlauf", existing: plant };
+  const html = card._modalHTML();
+  for (const expected of [
+    "&lt;script&gt;", "&lt;img src=x onerror=alert(1)&gt;",
+    "Zeitpunkt nicht gespeichert", "&lt;script&gt;privat&lt;/script&gt;",
+  ]) assert.ok(html.includes(expected), expected);
+  assert.ok(!html.includes("<script>"));
+  assert.ok(!html.includes("<img src=x"));
+});
+
+test("Pflegeverlauf ignoriert manipulierte Verlauf-Mehr-Klicks für andere Pflanzen", () => {
+  const card = buildCard();
+  card._data.pflanzen = [{ id: "p1", name: "Rose" }, { id: "p2", name: "Lavendel" }];
+  card._modal = { type: "pflegeverlauf", existing: card._data.pflanzen[0] };
+  card._verlaufLimit = 20;
+  card._onClick({ target: { closest: () => ({
+    disabled: false, dataset: { action: "pflegeverlauf-mehr", id: "p2" },
+  }) }});
+  assert.equal(card._verlaufLimit, 20);
+  assert.equal(card._modal.existing.id, "p1");
+});
