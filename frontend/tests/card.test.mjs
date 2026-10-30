@@ -225,3 +225,61 @@ test("Wiederkehrende HA-State-Updates erzeugen keine doppelten Abos", async () =
   assert.equal(subscribeCount, 1);
   card.disconnectedCallback();
 });
+
+
+test("Pflegeprofile bieten nur bei echten Texten eine manuell bestätigte Jahreskontrolle", () => {
+  const card = buildCard();
+  const pflanze = {
+    id: "p1", name: "Wald-Hortensie", wissenschaftlich: "Hydrangea arborescens",
+    bereich_id: null, gruppe: "Blumen, Stauden und Rosen",
+  };
+  card._data.pflanzen = [pflanze];
+  card._modal = { type: "pflege", existing: pflanze };
+  card._carePlant = "p1";
+  card._careLoading = false;
+  card._care = {
+    status: "ok",
+    felder: {
+      pruning: { titel: "Schnitt", text: "<b>unverifiziert</b>" },
+      watering: { titel: "Gießen", text: null },
+    },
+  };
+  card._render();
+  const html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes('data-action="care-plan"'));
+  assert.ok(html.includes('data-field="pruning"'));
+  assert.ok(!html.includes('data-field="watering"'));
+  assert.ok(html.includes("&lt;b&gt;unverifiziert&lt;/b&gt;"));
+  assert.ok(!html.includes("<b>unverifiziert</b>"));
+
+  const clicked = { dataset: { action: "care-plan", id: "p1", field: "pruning" } };
+  card._onClick({ target: { closest: () => clicked } });
+  assert.equal(card._modal.type, "regel");
+  assert.equal(card._modal.prefill.pflanzen_id, "p1");
+  assert.equal(card._modal.prefill.rhythmus, "jaehrlich");
+  assert.ok(card.shadowRoot.innerHTML.includes("nicht fachlich geprüft"));
+  assert.ok(card.shadowRoot.innerHTML.includes("Schnittbedarf prüfen"));
+});
+
+test("Die Wetter- und iPhone-Schalter sind im Kalender sichtbar und standardmäßig aus", () => {
+  const card = buildCard();
+  card._tab = "kalender";
+  card._render();
+  assert.ok(card.shadowRoot.innerHTML.includes('data-action="automatik-open"'));
+  card._modal = { type: "automatik" };
+  card._automatik = {
+    weather_entity: "weather.home", notify_target: "notify.angelinas_iphone_15_pro",
+    freitag_aktiv: false, frost_aktiv: false, frost_grenze_c: 2,
+  };
+  card._hass = {
+    states: { "weather.home": { state: "sunny" }, "notify.angelinas_iphone_15_pro": {} },
+    services: { notify: {} },
+  };
+  card._render();
+  const html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes("notify.angelinas_iphone_15_pro"));
+  assert.ok(html.includes("weather.home"));
+  assert.ok(html.includes("Freitags 16:00"));
+  assert.ok(!html.includes('name="freitag_aktiv" checked'));
+  assert.ok(!html.includes('name="frost_aktiv" checked'));
+});
