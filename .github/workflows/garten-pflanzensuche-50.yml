@@ -9,6 +9,7 @@ on:
       - ".github/workflows/garten-pflanzensuche-50.yml"
       - "tools/pflanzensuche_50_live.py"
       - "daten/pflanzensuche_50_de.json"
+      - "custom_components/mein_garten/search.py"
 
 permissions:
   contents: read
