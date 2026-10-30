@@ -11,6 +11,8 @@ on:
       - "tests/test_eive_europa_quellenprobe.py"
       - "tools/eive_europa_artenabdeckung.py"
       - "tests/test_eive_europa_artenabdeckung.py"
+      - "tools/eive_europa_export.py"
+      - "tests/test_eive_europa_export.py"
       - "daten/pflanzensuche_50_de.json"
 
 permissions:
@@ -37,6 +39,17 @@ jobs:
         run: python -m tools.eive_europa_quellenprobe
       - name: Exakte EIVE-Abdeckung bei 50 deutschen Pflanzen messen
         run: python -m tools.eive_europa_artenabdeckung
+      - name: Deterministischen Offline-Katalog mit Quellenangaben erzeugen
+        run: |
+          python -m unittest discover -s tests -p test_eive_europa_export.py -v
+          python -m tools.eive_europa_export
+      - name: Komprimierten CC-BY-Offline-Katalog als Forschungsartefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: EIVE_Europa_CC_BY_Offline_Katalog
+          path: berichte/eive_europa_ccby_v1.json.gz.b64
+          retention-days: 30
+          if-no-files-found: error
       - name: Kleinen Schema- und Quellenbericht hochladen
         uses: actions/upload-artifact@v4
         with:
