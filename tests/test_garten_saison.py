@@ -128,7 +128,7 @@ class FakeStore:
     async def async_load(self):
         return deepcopy(self.state)
     async def async_save(self, data):
-        self.state = deepcopy(data)
+        type(self).state = deepcopy(data)
 
 
 class FakeBackend:
