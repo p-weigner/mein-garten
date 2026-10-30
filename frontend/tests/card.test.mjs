@@ -1652,3 +1652,34 @@ test("Gießkontext schützt private Pflanzenbezeichnungen vor HTML-Injection", (
   assert.ok(!html.includes('<img src=x'));
   assert.ok(!html.includes("Gießbedarf prüfen – <img"));
 });
+
+
+test("Auswahlabschluss im iPhone-Suchfeld löst keine zweite Pflanzen-Suche aus", () => {
+  const card = buildCard();
+  card._modal = { type: "pflanze", existing: null };
+  card._query = "Bauernhortensie";
+  card._searchGeneration = 5;
+  let externalCalls = 0;
+  card._search = () => { externalCalls++; };
+  card._onInput({
+    type: "change",
+    target: {dataset: {role: "plant-search"}, value: "Bauernhortensie"},
+  });
+  assert.equal(card._query, "Bauernhortensie");
+  assert.equal(card._searchGeneration, 5);
+  assert.equal(externalCalls, 0);
+});
+
+test("Der Gießverlauf lässt bei unbekannter Pflanze keine historischen Daten durch", () => {
+  const card = buildCard();
+  card._data.pflanzen = [{ id: "p1", name: "Lavendel" }];
+  card._data.aufgaben = [{
+    id: "a1", pflanzen_id: "p1", status: "erledigt",
+    aufgabentyp: "giesskontrolle", ergebnis: "gegossen",
+    erledigt_utc: "2026-10-30T07:00:00+00:00",
+  }];
+  const html = card._giessKontextHTML("p2", "giesskontrolle");
+  assert.ok(html.includes("keine zugeordneten Pflegeinformationen"));
+  assert.ok(!html.includes("30.10.2026"));
+  assert.ok(!html.includes("Zuletzt tatsächlich gegossen"));
+});
