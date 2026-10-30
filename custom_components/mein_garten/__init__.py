@@ -52,6 +52,22 @@ class GartenBackend:
             async_dispatcher_send(self.hass, SIGNAL_UPDATED)
         return anzahl
 
+    async def async_frostpruefung_anlegen(
+        self, datum: str, temperatur_c: float, schwelle_c: float,
+    ) -> bool:
+        """Wetterwarnung nur bei neuen Terminen dauerhaft registrieren."""
+        from homeassistant.helpers.dispatcher import async_dispatcher_send
+
+        async with self._lock:
+            neuer_stand = GartenDaten(self._modell.snapshot())
+            aufgabe = neuer_stand.frostpruefung_anlegen(datum, temperatur_c, schwelle_c)
+            if aufgabe is None:
+                return False
+            await self._store.async_save(neuer_stand.snapshot())
+            self._modell = neuer_stand
+        async_dispatcher_send(self.hass, SIGNAL_UPDATED)
+        return True
+
     async def async_aendern(self, methode: str, **parameter) -> dict:
         """Nur vollständig validierten Zustand schreiben, danach publizieren."""
         from homeassistant.helpers.dispatcher import async_dispatcher_send
