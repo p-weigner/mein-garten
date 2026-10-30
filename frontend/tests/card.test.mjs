@@ -257,6 +257,7 @@ test("Pflegeprofile bieten nur bei echten Texten eine manuell bestätigte Jahres
   assert.equal(card._modal.type, "regel");
   assert.equal(card._modal.prefill.pflanzen_id, "p1");
   assert.equal(card._modal.prefill.rhythmus, "jaehrlich");
+  assert.equal(card._modal.prefill.pflegefeld, "pruning");
   assert.ok(card.shadowRoot.innerHTML.includes("nicht fachlich geprüft"));
   assert.ok(card.shadowRoot.innerHTML.includes("Schnittbedarf prüfen"));
 });
