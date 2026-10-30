@@ -20,6 +20,7 @@ COMMIT = "c6287784527ebb4162e242394ee08f46d338218b"
 SOURCE_SHA256 = "aa2a9dc02203c6849e24e2f8d47a5339281638d504b1adfc211e771585a8f751"
 CATALOG_SHA256 = "fb368b13a28d42bebdedadeff6e76fca09f322d4b2ca04dbeb3637fbf37e7a38"
 SOURCE_URL = "https://github.com/cwfrazier1/openplantdb"
+SOURCE_DATA_URL = f"{SOURCE_URL}/blob/{COMMIT}/data/plants.json"
 FILE = Path(__file__).parent / "data" / "standort_cc0_v1.json"
 MAX_BYTES = 900_000
 FIELDS = ("sun", "water", "frost_tolerance", "season")
@@ -54,11 +55,7 @@ def pruefe_standortdaten(raw: Any) -> dict[str, dict[str, str]]:
         or raw["quelle"] != SOURCE or raw["lizenz"] != LICENSE
         or raw["ausgangs_commit"] != COMMIT
         or raw["quelle_sha256"] != SOURCE_SHA256
-        or raw["herkunft"] != SOURCE_URL.replace(
-            "https://github.com/cwfrazier1/openplantdb",
-            "https://github.com/cwfrazier1/openplantdb/blob/"
-            + COMMIT + "/data/plants.json",
-        )
+        or raw["herkunft"] != SOURCE_DATA_URL
         or raw["pruefstatus"] != "unverbindliche_Quellkategorien"
         or raw["felder"] != list(FIELDS)
         or not isinstance(raw["arten"], list)
