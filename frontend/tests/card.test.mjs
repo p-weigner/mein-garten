@@ -1482,3 +1482,173 @@ test("Pflegeverlauf ignoriert manipulierte Verlauf-Mehr-Klicks für andere Pflan
   assert.equal(card._verlaufLimit, 20);
   assert.equal(card._modal.existing.id, "p1");
 });
+
+
+test("Manuelle Gießkontrolle zeigt die letzte tatsächliche Bewässerung ohne daraus einen Termin abzuleiten", () => {
+  const card = buildCard();
+  card._data.pflanzen = [
+    { id: "p1", name: "Echter Lavendel", bereich_id: "a1" },
+    { id: "p2", name: "Bauernhortensie", bereich_id: null },
+  ];
+  card._data.aufgaben = [
+    { id: "g1", pflanzen_id: "p1", name: "Lavendel gegossen",
+      aufgabentyp: "giesskontrolle", status: "erledigt",
+      ergebnis: "gegossen", erledigt_utc: "2026-10-20T11:00:00+00:00" },
+    { id: "g2", pflanzen_id: "p1", name: "Kontrolle, kein Wasser",
+      aufgabentyp: "giesskontrolle", status: "erledigt",
+      ergebnis: "kontrolliert_kein_wasser",
+      erledigt_utc: "2026-10-28T12:00:00+00:00" },
+    { id: "g3", pflanzen_id: "p2", name: "Fremde Pflanze",
+      aufgabentyp: "giesskontrolle", status: "erledigt",
+      ergebnis: "gegossen", erledigt_utc: "2026-10-30T10:00:00+00:00" },
+    { id: "g4", pflanzen_id: "p1", name: "Weitere Gießkontrolle",
+      aufgabentyp: "giesskontrolle", status: "offen", ergebnis: null },
+  ];
+  const html = card._giessKontextHTML("p1", "giesskontrolle");
+  for (const text of [
+    "Dein bisheriger Gießverlauf", "Echter Lavendel", "Letzte Kontrolle:",
+    "Kontrolliert – kein Wasser nötig", "Zuletzt tatsächlich gegossen:",
+    "28.10.2026", "20.10.2026", "1 Gießkontrolle ist bereits offen",
+    "Du legst einen Termin ausschließlich selbst fest",
+  ]) assert.ok(html.includes(text), text);
+  assert.ok(!html.includes("Fremde Pflanze"));
+  assert.ok(!html.includes("Bauernhortensie"));
+  assert.ok(!html.includes('name="startdatum"'));
+  assert.ok(!html.includes('name="faellig_am"'));
+  assert.ok(!html.includes("Gießintervall empfohlen"));
+  assert.equal(card._giessKontextHTML("p1", "einfach"), "");
+});
+
+test("Von der Pflanzenhistorie führt nur ein vorausgefülltes Formular zur Gießkontrolle", () => {
+  const card = buildCard();
+  card._data.pflanzen = [
+    { id: "p1", name: 'Lavendel <script>"privat"</script>', bereich_id: "a1" },
+  ];
+  card._data.bereiche = [{ id: "a1", name: "Kräuterbeet" }];
+  card._modal = { type: "pflegeverlauf", existing: card._data.pflanzen[0] };
+  let mutationCount = 0;
+  card._mutate = async () => { mutationCount++; };
+  assert.ok(card._pflegeverlaufHTML().includes('data-action="giesskontrolle-neu" data-id="p1"'));
+  card._onClick({ target: { closest: () => ({
+    disabled: false, dataset: { action: "giesskontrolle-neu", id: "p1" },
+  }) }});
+  assert.equal(card._modal.type, "aufgabe");
+  assert.equal(card._modal.prefill.pflanzen_id, "p1");
+  assert.equal(card._modal.prefill.bereich_id, "a1");
+  assert.equal(card._modal.prefill.aufgabentyp, "giesskontrolle");
+  const html = card._taskForm();
+  assert.ok(html.includes('name="aufgabentyp" data-role="pflegekontext-typ"'));
+  assert.ok(html.includes('value="giesskontrolle" selected'));
+  assert.ok(html.includes('value="p1" selected'));
+  assert.ok(html.includes('value="a1" selected'));
+  assert.ok(html.includes('Lavendel &lt;script&gt;&quot;privat&quot;&lt;/script&gt;'));
+  assert.ok(html.includes('name="faellig_am"'));
+  assert.ok(!html.includes('name="faellig_am" value='));
+  assert.equal(mutationCount, 0);
+  assert.equal(card._data.aufgaben.length, 0);
+});
+
+test("Ein Gießauftrag für unbekannte Pflanze wird nicht durch manipulierten Klick geöffnet", () => {
+  const card = buildCard();
+  card._modal = { type: "pflegeverlauf", existing: { id: "p1", name: "Rose" } };
+  card._onClick({ target: { closest: () => ({
+    disabled: false, dataset: { action: "giesskontrolle-neu", id: "unknown" },
+  }) }});
+  assert.equal(card._modal.type, "pflegeverlauf");
+  assert.equal(card._data.aufgaben.length, 0);
+});
+
+test("Historische Daten erscheinen bei der Gießentscheidung, ohne den Task selbst zu ändern", () => {
+  const card = buildCard();
+  const plant = { id: "p1", name: "Rose" };
+  card._data.pflanzen = [plant];
+  const task = {
+    id: "water1", name: "Gießbedarf prüfen", pflanzen_id: "p1",
+    status: "offen", aufgabentyp: "giesskontrolle",
+  };
+  card._data.aufgaben = [
+    task,
+    { id: "water-old", pflanzen_id: "p1", status: "erledigt",
+      aufgabentyp: "giesskontrolle", ergebnis: "gegossen",
+      erledigt_utc: "2026-10-25T10:00:00+00:00" },
+  ];
+  card._modal = { type: "giessen", existing: task };
+  const html = card._waterForm();
+  assert.ok(html.includes("Gegossen"));
+  assert.ok(html.includes("Zuletzt tatsächlich gegossen:"));
+  assert.ok(html.includes("25.10.2026"));
+  assert.ok(!html.includes("1 Gießkontrolle ist bereits offen"));
+  assert.equal(task.status, "offen");
+  assert.equal(task.ergebnis, undefined);
+});
+
+test("Pflegekontext reagiert auf iPhone-Auswahllisten ohne andere Eingaben zurückzusetzen", () => {
+  const card = buildCard();
+  card._data.pflanzen = [
+    { id: "p1", name: "Lavendel" }, { id: "p2", name: "Hortensie" },
+  ];
+  card._data.aufgaben = [
+    { id: "a1", pflanzen_id: "p2", status: "erledigt",
+      aufgabentyp: "giesskontrolle", ergebnis: "gegossen",
+      erledigt_utc: "2026-10-30T08:00:00+00:00" },
+  ];
+  const controls = {
+    pflanzen_id: { value: "p1" },
+    aufgabentyp: { value: "giesskontrolle" },
+    name: { value: "Eigener Text bleibt stehen" },
+    faellig_am: { value: "2026-11-02" },
+  };
+  const panel = { innerHTML: "" };
+  const form = {
+    dataset: { form: "aufgabe" },
+    elements: { namedItem: (key) => controls[key] },
+    querySelector: (selector) => selector === '[data-role="pflegekontext"]' ? panel : null,
+  };
+  const target = {
+    dataset: { role: "pflegekontext-pflanze" },
+    closest: () => form,
+  };
+  card._onInput({ type: "change", target });
+  assert.ok(panel.innerHTML.includes("Noch keine Gießkontrolle dokumentiert"));
+  controls.pflanzen_id.value = "p2";
+  card._onInput({ type: "change", target });
+  assert.ok(panel.innerHTML.includes("Hortensie"));
+  assert.ok(panel.innerHTML.includes("Zuletzt tatsächlich gegossen"));
+  controls.aufgabentyp.value = "einfach";
+  card._onInput({ type: "input", target: {
+    dataset: { role: "pflegekontext-typ" }, closest: () => form,
+  }});
+  assert.equal(panel.innerHTML, "");
+  assert.equal(controls.name.value, "Eigener Text bleibt stehen");
+  assert.equal(controls.faellig_am.value, "2026-11-02");
+});
+
+test("Regel-Formular zeigt Gießhistorie, wählt aber kein Pflegeintervall aus Verlauf", () => {
+  const card = buildCard();
+  card._data.pflanzen = [{ id: "p1", name: "Hortensie" }];
+  card._modal = {
+    type: "regel", prefill: {
+      name: "Gießbedarf prüfen", pflanzen_id: "p1",
+      pflegefeld: "watering", aufgabentyp: "giesskontrolle",
+      rhythmus: "jaehrlich",
+    },
+  };
+  const html = card._ruleForm();
+  assert.ok(html.includes("Dein bisheriger Gießverlauf"));
+  assert.ok(html.includes("Noch kein tatsächliches Gießen dokumentiert"));
+  assert.ok(html.includes('name="startdatum" type="date" required'));
+  assert.ok(!html.includes('name="startdatum" type="date" required value='));
+  assert.ok(html.includes('name="aufgabentyp" value="giesskontrolle"'));
+  assert.ok(html.includes("Diese Wiederholung wird von dir angelegt"));
+});
+
+test("Gießkontext schützt private Pflanzenbezeichnungen vor HTML-Injection", () => {
+  const card = buildCard();
+  card._data.pflanzen = [{
+    id: "p1", name: '<img src=x onerror=alert("secret")>',
+  }];
+  const html = card._giessKontextHTML("p1", "giesskontrolle");
+  assert.ok(html.includes("&lt;img src=x"));
+  assert.ok(!html.includes('<img src=x'));
+  assert.ok(!html.includes("Gießbedarf prüfen – <img"));
+});
