@@ -1,10 +1,18 @@
 # 🌿 Mein Garten – Home Assistant Green
 
-> **Entwicklungsbranch – keine Installationsfreigabe:** Die neue Version mit dauerhaftem Pflanzennamenscache, deutschen Pflegeprofilen, jährlichen Pflegekontrollen, optionalen Frost-Wetteraufgaben sowie Freitags-Push wird in [Draft-PR #1](https://github.com/p-weigner/mein-garten/pull/1) geprüft. [Funktionsstand, Einstellungen, Sicherheit und offene Abnahmeprüfungen](docs/ENTWICKLUNGSSTAND_2026-10-30.md). Diese Änderungen wurden **nicht auf dem Home Assistant Green installiert**. Das Dashboard „Zuhause“ bleibt unberührt.
+> **Entwicklungsbranch – keine Installationsfreigabe:** Die neue Version mit dynamischer deutscher Namenssuche, lokalen Pflegeprofilen, kombinierten Gießentscheidungen, jährlichen Pflegekontrollen, optionaler Frost-/Freitags-Push-Logik und **152 CC0-Saisonfenstern mit eigener Datumsfreigabe** wird in [Draft-PR #1](https://github.com/p-weigner/mein-garten/pull/1) geprüft. [Funktionsstand, Einstellungen, Sicherheit und offene Abnahmeprüfungen](docs/ENTWICKLUNGSSTAND_2026-10-30.md). Diese Änderungen wurden **nicht auf dem Home Assistant Green installiert**. Das Dashboard „Zuhause“ bleibt unberührt.
 
 Eigenständiges Gartendashboard für Pflanzen, Gartenbereiche, Pflegeaufgaben und später automatisch übersetzte artspezifische Pflegeinformationen.
 
 **Status: V1 Alpha – erste zusammenhängende Oberfläche und lokales Backend entwickelt.** Die Benutzerinstallation auf einem echten Home Assistant Green ist noch nicht durchgeführt. Automatische Pflegepläne und deutsche API-Pflegeprofile sind noch nicht freigegeben.
+
+## Zusätzliche Funktionen nur im Entwicklungsbranch
+
+- [50 deutsche Pflanzennamen erfolgreich im Live-Test gesucht](https://github.com/p-weigner/mein-garten/actions/runs/41047293989), weitere Abdeckung nicht garantiert.
+- **Saisonfenster für 152 eindeutig passende botanische Arten** aus einer fest versionierten OpenPlantDB-Quelle (CC0). Benutzer wählen ihre Frühjahrs-/Herbstfrost-Referenzdaten selbst, bestätigen jede neue Erinnerungsaufgabe einzeln. Keine automatische Schnitt-/Düngearbeit.
+- Kombinierte Gießaufgaben mit dokumentiertem „Gegossen“ oder „Kontrolliert – kein Wasser nötig“, eigene Pflegehistorie, Benutzer-Wiederholungen und Frostprüfungen.
+- [Nachvollziehbare Datenbasis und fachliche Grenzen](docs/SAISONFENSTER_CC0_2026-10-30.md). Aktuelle Testreihe: [240 Python-Tests und 27 Node-Tests erfolgreich](https://github.com/p-weigner/mein-garten/actions/runs/41049157546).
+- Die aktuell installierte ältere Garten-Alpha ist davon zu unterscheiden. **Diese neuen Änderungen sind noch nicht auf Home Assistant Green getestet oder installiert.**
 
 ## Aktueller Funktionsumfang
 
