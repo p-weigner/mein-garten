@@ -15,6 +15,11 @@ from .recurrence import regel_faellig
 SCHEMA_VERSION = 1
 AUFGABENTYPEN = ("einfach", "giesskontrolle")
 GIESSERGEBNISSE = ("gegossen", "kontrolliert_kein_wasser")
+# Eigene Beobachtungen, keine vom DWD gemessenen oder fachlich freigegebenen Phasen.
+BEOBACHTUNGSPHASEN = (
+    "austrieb", "knospenbildung", "bluete_beginn",
+    "fruchtansatz", "fruchtreife", "laubfaerbung", "blattfall",
+)
 PFLANZENGRUPPEN = (
     "Blumen, Stauden und Rosen",
     "Sträucher, Hecken und Bäume",
@@ -82,13 +87,20 @@ class GartenDaten:
                 "aufgaben": [],
                 "historie": [],
                 "regeln": [],
+                "beobachtungen": [],
             }
         if not isinstance(data, dict) or data.get("version") != SCHEMA_VERSION:
             raise DatensatzFehler("Unbekanntes Garten-Datenformat. Daten nicht überschreiben.")
         # Alte V1-Alpha-Speicher ohne Wiederholungsregeln bleiben kompatibel.
         if "regeln" not in data:
             data = {**data, "regeln": []}
-        for key in ("bereiche", "pflanzen", "aufgaben", "historie", "regeln"):
+        # Die ersten Alpha-Versionen haben noch keine Entwicklungsbeobachtungen.
+        if "beobachtungen" not in data:
+            data = {**data, "beobachtungen": []}
+        for key in (
+            "bereiche", "pflanzen", "aufgaben", "historie", "regeln",
+            "beobachtungen",
+        ):
             if not isinstance(data.get(key), list):
                 raise DatensatzFehler(f"Garten-Datenfehler: {key}")
             if any(not isinstance(v, dict) or not isinstance(v.get("id"), str)
@@ -205,6 +217,14 @@ class GartenDaten:
         entfernte_tasks = [
             t["id"] for t in self._data["aufgaben"] if t["pflanzen_id"] == pflanzen_id
         ]
+        entfernte_beobachtungen = [
+            o["id"] for o in self._data["beobachtungen"]
+            if o["pflanzen_id"] == pflanzen_id
+        ]
+        self._data["beobachtungen"] = [
+            o for o in self._data["beobachtungen"]
+            if o["pflanzen_id"] != pflanzen_id
+        ]
         self._data["aufgaben"] = [
             t for t in self._data["aufgaben"] if t["pflanzen_id"] != pflanzen_id
         ]
@@ -212,9 +232,82 @@ class GartenDaten:
         # der entfernten Pflanze ebenfalls löschen.
         self._data["historie"] = [
             e for e in self._data["historie"]
-            if e["objekt_id"] != pflanzen_id and e["objekt_id"] not in entfernte_tasks
+            if e["objekt_id"] != pflanzen_id
+            and e["objekt_id"] not in entfernte_tasks
+            and e["objekt_id"] not in entfernte_beobachtungen
         ]
         return deepcopy(plant)
+
+    def beobachtung_anlegen(
+        self, pflanzen_id: str, phase: str, beobachtet_am: str,
+        notiz: str = "", person: str | None = None,
+        heute: date | None = None,
+    ) -> dict:
+        """Eigene Entwicklungsphase: Tatsachenbeobachtung, keine Pflegeanweisung.
+
+        DWD-Phänologie und Wetterprognosen werden hier NICHT als persönlich
+        beobachtete Tatsache eingetragen. Datum und Phase müssen bestätigt
+        sein; fremde API-Daten können diese Operation nicht automatisch auslösen.
+        """
+        plant = _existiert(self._data["pflanzen"], pflanzen_id, "Pflanze")
+        if not isinstance(phase, str) or phase not in BEOBACHTUNGSPHASEN:
+            raise DatensatzFehler("Unbekannte Entwicklungsphase")
+        beobachtet_am = _datum(beobachtet_am)
+        if beobachtet_am is None:
+            raise DatensatzFehler("Bitte das Beobachtungsdatum auswählen")
+        heute = heute or date.today()
+        if not isinstance(heute, date):
+            raise DatensatzFehler("Ungültiges heutiges Datum")
+        day = date.fromisoformat(beobachtet_am)
+        if day > heute:
+            raise DatensatzFehler("Eine Beobachtung kann nicht in der Zukunft liegen")
+        if day.year < 1900:
+            raise DatensatzFehler("Beobachtungsdatum außerhalb des unterstützten Bereichs")
+        notiz = _text(notiz, "Notizen", 500, leer_erlaubt=True)
+        if person is not None:
+            person = _text(person, "Beobachtende Person", 200)
+        existing = next((
+            b for b in self._data["beobachtungen"]
+            if b["pflanzen_id"] == pflanzen_id
+            and b["phase"] == phase
+            and b["beobachtet_am"] == beobachtet_am
+        ), None)
+        if existing:
+            # Idempotenter erneut gesendeter Formular-Submit.
+            # Andere Notizen dürfen nicht still überschrieben werden.
+            if existing["notiz"] != notiz:
+                raise DatensatzFehler(
+                    "Diese Entwicklungsphase wurde am selben Tag bereits dokumentiert"
+                )
+            return deepcopy(existing)
+        if len(self._data["beobachtungen"]) >= 2000:
+            raise DatensatzFehler("Maximale Anzahl an Entwicklungsbeobachtungen erreicht")
+        record = {
+            "id": _id(),
+            "pflanzen_id": pflanzen_id,
+            "phase": phase,
+            "beobachtet_am": beobachtet_am,
+            "notiz": notiz,
+            "person": person,
+            "wissenschaftlich": plant["wissenschaftlich"],
+            "quelle": "eigene_beobachtung",
+            "erstellt_utc": _jetzt(),
+        }
+        self._data["beobachtungen"].append(record)
+        self._event("pflanzenphase_beobachtet", record["id"], person)
+        return deepcopy(record)
+
+    def beobachtung_entfernen(self, beobachtung_id: str) -> dict:
+        """Korrigierbare Beobachtung einschließlich Aktivitätsbezug löschen."""
+        obj = _existiert(self._data["beobachtungen"], beobachtung_id, "Beobachtung")
+        self._data["beobachtungen"] = [
+            o for o in self._data["beobachtungen"] if o["id"] != beobachtung_id
+        ]
+        # Privacy: gelöschte lokale Beobachtungen nicht im Ereignisprotokoll behalten.
+        self._data["historie"] = [
+            h for h in self._data["historie"] if h["objekt_id"] != beobachtung_id
+        ]
+        return deepcopy(obj)
 
     def regel_anlegen(
         self, name: str, startdatum: str, rhythmus: str,
