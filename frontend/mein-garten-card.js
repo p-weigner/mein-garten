@@ -1038,7 +1038,11 @@
           'gültige Stationsmeldungen vor.</p>') +
         '<p class="small" style="margin-top:12px">Datenstand: ' +
         escapeHtml(dateLabel(dataset.abgerufen_am)) +
-        ' · Quelle: Deutscher Wetterdienst (DWD), Climate Data Center · CC BY 4.0 · ' +
+        ' · Quelle: Deutscher Wetterdienst (DWD), Climate Data Center · ' +
+        'Statistisch aufbereitet durch Mein Garten · ' +
+        '<a href="https://creativecommons.org/licenses/by/4.0/deed.de" ' +
+        'target="_blank" rel="noopener noreferrer" style="color:var(--garten-accent)">' +
+        'CC BY 4.0</a> · ' +
         '<a href="https://opendata.dwd.de/climate_environment/CDC/observations_germany/phenology/immediate_reporters/wild/recent/" ' +
         'target="_blank" rel="noopener noreferrer" style="color:var(--garten-accent)">' +
         'Originaldaten</a></p></section>';
