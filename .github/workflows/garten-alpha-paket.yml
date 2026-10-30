@@ -35,6 +35,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Excel-Lesebibliothek für isolierte EIVE-Forschungsprüfungen
+        run: python -m pip install "openpyxl==3.1.5"
       - name: Python-Quelltexte prüfen
         run: python -m compileall -q custom_components/mein_garten
       - name: Backend-, Such- und Speicher-Tests
