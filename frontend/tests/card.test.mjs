@@ -839,3 +839,151 @@ test("DWD-Beobachtungslabels werden HTML-sicher dargestellt", () => {
   assert.ok(!html.includes("<script>alert(1)</script>"));
   assert.ok(!html.includes("<img src=x"));
 });
+
+
+test("10k-CC0-Standort-Steckbrief ist sofort sichtbar, auch wenn OpenPlantbook lädt", () => {
+  const card = buildCard();
+  const plant = {
+    id: "p1", name: "Hundsrose", wissenschaftlich: "Rosa canina",
+  };
+  card._data.pflanzen = [plant];
+  card._standort = {
+    katalog_arten: 10642,
+    quell_commit: "c6287784527ebb4162e242394ee08f46d338218b",
+    quelle: "OpenPlantDB", lizenz: "CC0 1.0",
+    profile: {
+      p1: {
+        wissenschaftlich: "Rosa canina",
+        merkmale: {
+          sun: "full", water: "low",
+          frost_tolerance: "hardy", season: "perennial",
+        },
+      },
+    },
+  };
+  card._modal = {type: "pflege", existing: plant};
+  card._carePlant = "p1";
+  card._careLoading = true;
+  card._care = null;
+  card._render();
+  const html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes("Standort-Steckbrief"));
+  assert.ok(html.includes("Rosa canina"));
+  assert.ok(html.includes("Sonnig"));
+  assert.ok(html.includes("Eher gering"));
+  assert.ok(html.includes("frosttolerant"));
+  assert.ok(html.includes("Mehrjährig"));
+  assert.ok(html.includes("Deutsche Pflegeinformationen werden geladen"));
+  assert.ok(html.includes("keine automatischen Pflegeaufgaben"));
+  assert.ok(!html.includes("Jährliche Kontrolle dazu planen"));
+});
+
+test("OpenPlantbook-Ausfall entfernt keine kostenlosen CC0-Standortmerkmale", () => {
+  const card = buildCard();
+  const plant = {id: "p1", name: "Sommerflieder", wissenschaftlich: "Buddleja davidii"};
+  card._data.pflanzen = [plant];
+  card._standort = {
+    quell_commit: "c6287784527ebb4162e242394ee08f46d338218b",
+    profile: { p1: {wissenschaftlich: "Buddleja davidii",
+      merkmale: {sun: "full", water: "low", season: "perennial"}} },
+  };
+  card._modal = {type: "pflege", existing: plant};
+  card._carePlant = "p1";
+  card._careLoading = false;
+  card._care = {status: "quelle_nicht_eingerichtet", felder: {}};
+  card._render();
+  const html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes("Standort-Steckbrief"));
+  assert.ok(html.includes("Sonnig"));
+  assert.ok(html.includes("OpenPlantbook ist nicht eingerichtet"));
+});
+
+test("Widersprüchliche CC0-Wasserangaben werden nicht als Gießintervall erfunden", () => {
+  const card = buildCard();
+  const plant = {id: "p1", name: "Hortensie", wissenschaftlich: "Hydrangea macrophylla"};
+  card._data.pflanzen = [plant];
+  card._standort = {
+    quell_commit: "c6287784527ebb4162e242394ee08f46d338218b",
+    profile: {p1: {
+      wissenschaftlich: "Hydrangea macrophylla",
+      merkmale: {sun: "partial", frost_tolerance: "hardy", season: "perennial"},
+    }},
+  };
+  card._modal = {type: "pflege", existing: plant};
+  card._carePlant = "p1";
+  card._careLoading = false;
+  card._care = {status: "art_nicht_gefunden", felder: {}};
+  card._render();
+  const html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes("Halbschattig"));
+  assert.ok(!html.includes("Wasserbedarf laut Quelle"));
+  assert.ok(html.includes("kein Gießintervall"));
+  assert.ok(!html.includes("Jetzt gießen"));
+});
+
+test("Unbekannte botanische Arten bekommen keine Merkmale anderer Pflanzen", () => {
+  const card = buildCard();
+  const plant = {id: "p1", name: "Felsenbirne", wissenschaftlich: "Amelanchier lamarckii"};
+  card._data.pflanzen = [plant];
+  card._standort = {katalog_arten: 10642, profile: {}};
+  card._modal = {type: "pflege", existing: plant};
+  card._carePlant = "p1";
+  card._careLoading = false;
+  card._care = {status: "art_nicht_gefunden", felder: {}};
+  card._render();
+  const html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes("Standort-Steckbrief"));
+  assert.ok(html.includes("keine eindeutig verwendbaren Standortmerkmale"));
+  assert.ok(!html.includes("Wasserbedarf laut Quelle"));
+});
+
+test("Veränderte Pflanzenart macht den alten Standort-Steckbrief ungültig", () => {
+  const card = buildCard();
+  const plant = {id: "p1", name: "Rose", wissenschaftlich: "Rosa gallica"};
+  card._data.pflanzen = [plant];
+  card._standort = {profile: {p1: {
+    wissenschaftlich: "Rosa canina",
+    merkmale: {sun: "full", water: "low"},
+  }}};
+  card._modal = {type: "pflege", existing: plant};
+  card._carePlant = "p1";
+  card._careLoading = true;
+  card._render();
+  const html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes("keine eindeutig verwendbaren Standortmerkmale"));
+  assert.ok(!html.includes("Lichtbedarf laut Quelle"));
+});
+
+test("Standort-Steckbrief bleibt optional bei alten Garten-Datenständen", () => {
+  const card = buildCard();
+  const plant = {id: "p1", name: "Lavendel", wissenschaftlich: "Lavandula angustifolia"};
+  card._data.pflanzen = [plant];
+  card._standort = null;
+  card._modal = {type: "pflege", existing: plant};
+  card._carePlant = "p1";
+  card._careLoading = false;
+  card._care = {status: "quelle_nicht_eingerichtet", felder: {}};
+  card._render();
+  assert.ok(card.shadowRoot.innerHTML.includes("OpenPlantbook ist nicht eingerichtet"));
+  assert.ok(!card.shadowRoot.innerHTML.includes("Standort-Steckbrief"));
+});
+
+test("Botanische Namen aus dem Standort-Snapshot sind HTML-escaped", () => {
+  const card = buildCard();
+  const species = 'Rosa <img src=x onerror=alert(1)>';
+  const plant = {id: "p1", name: "Rose", wissenschaftlich: species};
+  card._data.pflanzen = [plant];
+  card._standort = {
+    quell_commit: "c6287784527ebb4162e242394ee08f46d338218b",
+    profile: {p1: {wissenschaftlich: species,
+      merkmale: {sun: "full"}}},
+  };
+  card._modal = {type: "pflege", existing: plant};
+  card._carePlant = "p1";
+  card._careLoading = true;
+  card._render();
+  const html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes("&lt;img"));
+  assert.ok(!html.includes('<img src=x onerror'));
+  assert.ok(!html.includes("automatisches Gießen"));
+});
