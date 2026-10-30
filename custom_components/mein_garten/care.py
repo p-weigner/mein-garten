@@ -262,7 +262,78 @@ class PflegeService:
             status = "teilweise" if missing_translations < source_fields else "kein_deutscher_text"
         else:
             status = "ok"
-        return self._result(species, status, fields)
+        result = self._result(species, status, fields)
+        for field in fields.values():
+            if isinstance(field.get("text"), str) and field["text"].strip():
+                field["belegt_utc"] = result["abgerufen_utc"]
+        return result
+
+    @staticmethod
+    def _alte_teilfelder_sichern(neu: dict, vorher: dict) -> int:
+        """Übernimmt nur als ALT markierte deutsche Texte derselben Art/Quelle.
+
+        Eine erfolgreiche Teilantwort ersetzt nur die tatsächlich erneut
+        geladenen Felder. Frühere Texte werden weder als frische Quellangabe
+        ausgegeben noch zur automatischen Pflegeterminplanung freigegeben.
+        """
+        if (
+            neu.get("status") not in {"ok", "teilweise"}
+            or neu.get("quelle") != "OpenPlantbook"
+            or vorher.get("quelle") != "OpenPlantbook"
+            or not _same_species(neu.get("art", ""), vorher.get("art", ""))
+            or not isinstance(neu.get("felder"), dict)
+            or not isinstance(vorher.get("felder"), dict)
+        ):
+            return 0
+        alte_felder = vorher["felder"]
+        aktuelle_felder = neu["felder"]
+        uebernommen = 0
+        for key, titel in CARE_FIELDS:
+            fresh = aktuelle_felder.get(key)
+            if not isinstance(fresh, dict):
+                # Unvollständige API-Antwort ohne Feld ist keine fachlich
+                # geprüfte Bestätigung des alten Hinweises.
+                fresh = {"titel": titel, "text": None, "status": "keine_angabe"}
+            if isinstance(fresh.get("text"), str) and fresh["text"].strip():
+                # Vollständig neue, zugeordnete Quellangabe besitzt Vorrang.
+                fresh["belegt_utc"] = neu["abgerufen_utc"]
+                aktuelle_felder[key] = fresh
+                continue
+            old = alte_felder.get(key)
+            if not isinstance(old, dict):
+                continue
+            text = old.get("text")
+            if (
+                not isinstance(text, str) or not text.strip()
+                or len(text) > MAX_TEXT_CHARS
+                or old.get("quelle", "OpenPlantbook") != "OpenPlantbook"
+            ):
+                continue
+            original_datum = (
+                old.get("zuletzt_bestaetigt_utc")
+                or old.get("belegt_utc")
+                or vorher.get("abgerufen_utc")
+            )
+            # Originaldatum darf bei wiederholten Teilantworten nicht
+            # mit dem Datum der neuen (unvollständigen) Antwort mitwandern.
+            if not isinstance(original_datum, str):
+                original_datum = ""
+            grund = fresh.get("status")
+            if grund not in ("keine_angabe", "uebersetzung_ausstehend"):
+                grund = "keine_angabe"
+            aktuelle_felder[key] = {
+                "titel": titel,
+                "text": text,
+                "status": "zwischengespeichert",
+                "quelle": "OpenPlantbook",
+                "quellstatus": grund,
+                "zuletzt_bestaetigt_utc": original_datum,
+            }
+            uebernommen += 1
+        if uebernommen:
+            neu["status"] = "teilweise"
+            neu["veraltete_felder"] = uebernommen
+        return uebernommen
 
     async def async_profil(self, plant: dict, *, aktualisieren: bool = False) -> dict:
         """Lädt das Pflegeprofil mit Cache und begrenzter manueller Wiederholungsprüfung.
@@ -340,6 +411,9 @@ class PflegeService:
                     previous = deepcopy(stored)
                     previous["aktualisierung"] = result["status"]
                     return previous
+
+            if cached:
+                self._alte_teilfelder_sichern(result, stored)
 
             if result["status"] in {
                 "ok", "teilweise", "kein_deutscher_text", "art_nicht_gefunden"
