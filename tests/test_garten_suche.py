@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 from custom_components.mein_garten.search import (
     Pflanzensuche, _dedupe, _inat_results, _norm, _plant_name,
     _wikidata_taxa, _gbif_results, _gbif_vernacular_results, _GBIF_BACKBONE,
-    _relevanter_deutscher_name,
+    _relevanter_deutscher_name, _deutscher_namenkern,
 )
 
 
@@ -69,6 +69,14 @@ class TestTaxonParsing(unittest.TestCase):
         self.assertEqual([v["wissenschaftlich"] for v in results], ["Prunus avium"])
         self.assertEqual(results[0]["quellen"], ["GBIF-Trivialnamen"])
         self.assertEqual(results[0]["deutsch"], "")
+
+    def test_bindestriche_und_umlaute_ohne_artennamenverzeichnis(self):
+        self.assertEqual(_deutscher_namenkern("Rispen-Hortensie"),
+                         _deutscher_namenkern("Rispenhortensie"))
+        self.assertEqual(_deutscher_namenkern("Fächer-Ahorn"),
+                         _deutscher_namenkern("Faecherahorn"))
+        self.assertNotEqual(_deutscher_namenkern("Rispen-Hortensie"),
+                            _deutscher_namenkern("Bauernhortensie"))
 
     def test_deutscher_name_auch_mit_adjektiv_erkennbar(self):
         self.assertTrue(_relevanter_deutscher_name("Fetthenne", "Prächtige Fetthenne"))
@@ -158,6 +166,64 @@ class TestDynamischeSuche(unittest.IsolatedAsyncioTestCase):
         self.service._gbif = AsyncMock(return_value=[])
         result = await self.service.async_suchen("Apfelbaum")
         self.assertEqual(result["pflanzen"][0]["wissenschaftlich"], "Malus domestica")
+
+    async def test_kompositum_bindestrich_suche_ohne_fest_codierte_art(self):
+        self.service._i_nat = AsyncMock(side_effect=[
+            [], [
+                {"wissenschaftlich": "Hydrangea paniculata",
+                 "deutsch": "Rispen-Hortensie", "bestaetigt": True,
+                 "quellen": ["iNaturalist"]},
+                {"wissenschaftlich": "Poa pratensis",
+                 "deutsch": "Wiesen-Rispengras", "bestaetigt": True,
+                 "quellen": ["iNaturalist"]},
+            ],
+        ])
+        self.service._wikidata = AsyncMock(return_value=[])
+        self.service._gbif_vernacular = AsyncMock(return_value=[])
+        result = await self.service.async_suchen("Rispenhortensie")
+        self.assertEqual(len(result["pflanzen"]), 1)
+        self.assertEqual(result["pflanzen"][0]["wissenschaftlich"], "Hydrangea paniculata")
+        self.assertIn("Schreibvariante", result["pflanzen"][0]["quellen"])
+        self.assertEqual(self.service._i_nat.await_args_list[1].args, ("Rispen",))
+
+    async def test_zusammengesetzter_name_mit_adjektiv_bleibt_mehrdeutig(self):
+        self.service._i_nat = AsyncMock(side_effect=[
+            [], [
+                {"wissenschaftlich": "Acer palmatum",
+                 "deutsch": "Fächer-Ahorn",
+                 "bestaetigt": True, "quellen": ["iNaturalist"]},
+            ],
+        ])
+        self.service._wikidata = AsyncMock(return_value=[])
+        self.service._gbif_vernacular = AsyncMock(side_effect=[
+            [], [
+                {"wissenschaftlich": "Acer pseudosieboldianum",
+                 "deutsch": "", "bestaetigt": True,
+                 "quellen": ["GBIF-Trivialnamen"]},
+                {"wissenschaftlich": "Acer palmatum",
+                 "deutsch": "", "bestaetigt": True,
+                 "quellen": ["GBIF-Trivialnamen"]},
+            ],
+        ])
+        result = await self.service.async_suchen("Japanischer Fächerahorn")
+        self.assertEqual(result["pflanzen"][0]["wissenschaftlich"], "Acer palmatum")
+        self.assertEqual(len(result["pflanzen"]), 2)
+        self.assertIn("Schreibvariante", result["pflanzen"][0]["quellen"])
+        self.assertEqual(self.service._gbif_vernacular.await_args_list[-1].args,
+                         ("Fächerahorn",))
+
+    async def test_kompositum_unpassende_prefixarten_nicht_erraten(self):
+        self.service._i_nat = AsyncMock(side_effect=[
+            [], [
+                {"wissenschaftlich": "Hydrangea macrophylla",
+                 "deutsch": "Bauernhortensie",
+                 "bestaetigt": True, "quellen": ["iNaturalist"]},
+            ],
+        ])
+        self.service._wikidata = AsyncMock(return_value=[])
+        self.service._gbif_vernacular = AsyncMock(return_value=[])
+        result = await self.service.async_suchen("Rispenhortensie")
+        self.assertEqual(result["pflanzen"], [])
 
     async def test_deutscher_originaltreffer_wird_nicht_durch_gbif_verdraengt(self):
         self.service._i_nat = AsyncMock(return_value=[
