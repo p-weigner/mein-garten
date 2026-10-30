@@ -101,6 +101,14 @@ Keine Codeänderung für neu angelegte Pflanzen. Die persönlichen Gartennotizen
 - Vergangene Saisonfenster werden anhand der Home-Assistant-Ortszeit markiert und können nicht erneut als „neue“ Termine angelegt werden.
 - Weitere Informationen: [CC0-Saisonfenster](SAISONFENSTER_CC0_2026-10-30.md).
 
+## Neue Paketintegritätsprüfung und vorbereitete Green-Abnahme (30.10.2026)
+
+Der Entwicklungsbranch enthält jetzt eine **automatische Prüfung des vollständigen Alpha-Testpakets** in [`qa/validate_alpha_package.py`](../qa/validate_alpha_package.py). Nach den Backend-/Frontend- und echten Probatio-Schema-Tests vergleicht GitHub Actions jedes enthaltene Integrations- und Frontendfile mit dem **ausgecheckten Quellcommit**, kontrolliert die eigenständige Garten-YAML, die Manifestversion und den eindeutigen Kartentyp, erkennt unerwartete private Konfiguration, Backups, Schlüsseldateien oder symbolische Links und veröffentlicht erst danach das Artefakt. Der maschinenlesbare Bericht `ABNAHME.json` enthält Datei-Fingerabdrücke und trennt den **PR-Quellcommit** vom GitHub-Testsuite-Merge-SHA.
+
+Wichtig: Eine **CI-Paketprüfung ist keine Installation und kein Test auf Home Assistant Green**; der Bericht markiert Live-Installation und Prüfung des bestehenden Hauptdashboards explizit als ausstehend. [Sicherer Test-/Installationspfad](ALPHA_INSTALLATION.md) und [vollständiger HA-Green-/iPhone-Abnahmeplan](HA_GREEN_ABNAHME_2026-10-30.md). **Keine Installation per HACS `main` als vermeintlicher Ersatz für den noch offenen Draft-Branch.**
+
+[Technischer Gesamttest zum überprüften Quellstand](https://github.com/p-weigner/mein-garten/actions/runs/41106580279): **371 Python-Tests und 78 Frontend-Tests**, 0 Fehler, aktualisiertes GitHub-Actions-Artefakt. Bei jedem späteren Commit muss der **exakt passende** CI-Lauf erneut erfolgreich sein.
+
 ## Grenzen und notwendige Abnahme
 
 1. **Artspezifische Saison-Automatik noch nicht freigegeben:** Eine vertrauenswürdige, lizenzrechtlich zulässige und fachlich validierte strukturierte Quelle für Schnitt-, Dünge- und Pflanzenpflegekalender fehlt weiterhin. Es werden keine entsprechenden Maßnahmen aus einem ungeprüften Pflegefreitext abgeleitet.
