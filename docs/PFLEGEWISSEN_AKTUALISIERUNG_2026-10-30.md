@@ -14,7 +14,9 @@ OpenPlantbook kann zeitweise keine Art finden, eine fehlerhafte Antwort liefern 
 4. **Pflegequelle erneut prüfen** lädt das Profil auf Wunsch erneut, auch bevor die normale Cachefrist abläuft.
 5. Während der erneuten Prüfung bleiben bereits geladene Pflegehinweise sichtbar; die Schaltfläche wird vorübergehend deaktiviert.
 6. Ist OpenPlantbook nicht erreichbar oder liefert keine verwendbaren neuen Texte, werden vorhandene deutsche Hinweise als **alter, nicht erneut bestätigter Cache-Stand** angezeigt. Der Fehlerzustand ist transparent sichtbar.
-7. Der Abruf kann frühestens **fünf Minuten** nach einer vorangegangenen manuellen Prüfung erneut gestartet werden. Der normale Abruf und die lokale Anzeige bleiben nutzbar.
+7. **Neu: Bei Teilantworten** bleiben auch einzelne bereits gespeicherte deutsche Felder erhalten. Beispiel: Ein aktualisierter Gießhinweis ersetzt nur den Gießtext; fehlt der neue Schnitthinweis, bleibt der bisherige Schnitttext mit der Kennzeichnung **„Ältere Information“** sowie dem Datum des letzten zugehörigen Quellabrufs sichtbar. Neu geladene Hinweise haben stets Vorrang.
+8. **Sicherheit:** Aus einem als älter markierten Text lässt sich keine neue jährliche Pflegekontrolle planen. Bei einem vollständigen Quellenfehler gilt die Sperre für alle aus dem letzten Cache übernommenen Texte. Die App errät keine Schnitt-, Gieß- oder Düngetermine.
+9. Der Abruf kann frühestens **fünf Minuten** nach einer vorangegangenen manuellen Prüfung erneut gestartet werden. Der normale Abruf und die lokale Anzeige bleiben nutzbar.
 
 ## Genaues Daten- und Fehlerverhalten
 
@@ -22,7 +24,7 @@ OpenPlantbook kann zeitweise keine Art finden, eine fehlerhafte Antwort liefern 
 - **Normaler Cache:** Vollständig übersetzte Profile bis zu 30 Tage, unvollständige Profile bis zu 18 Stunden. Eine manuelle Neuprüfung kann das überschreiben, nicht jedoch die externe Tagesgrenze der Übersetzung.
 - **Drosselung:** Mindestens fünf Minuten zwischen manuellen Prüfversuchen **pro botanischer Art**, in der laufenden Home-Assistant-Instanz. Bei Neustart wird dieser kurze Prüfversuchs-Zähler zurückgesetzt; der persistente **5.000-Zeichen-Tageszähler** der maschinellen Übersetzung bleibt erhalten.
 - **Deutsche Alttexte:** Wenn der erneute Abruf ausfällt oder **gar keine** brauchbaren deutschen Felder enthält, bleiben zuvor gespeicherte Texte erhalten. Es wird kein neuer Erfolg vorgetäuscht.
-- **Teilantworten:** Werden einzelne Felder erfolgreich und andere nicht erfolgreich geladen, zeigt die Oberfläche die tatsächlich zurückgegebenen Felder. Eine lückenhafte neue Antwort garantiert noch **keine** individuelle Wiederherstellung jedes zuvor bekannten Einzeltextes; das ist eine gesonderte künftige Verbesserung.
+- **Teilantworten:** Bei fehlendem oder nicht übersetztem Einzelfeld bleibt ausschließlich der zuvor für **dieselbe botanische Art und OpenPlantbook-Quelle** gespeicherte deutsche Text erhalten, mit `status: zwischengespeichert` und dem ursprünglichen Datum `zuletzt_bestaetigt_utc`. Das Datum wird bei weiteren Teilantworten nicht künstlich erneuert. Sobald eine neue deutsche Angabe kommt, ersetzt sie das ältere Feld. Ein altes Feld erhält keine neue Jahreskontroll-Aktion. Ein abweichender Artname, eine andere Quelle oder ein offensichtlich ungültiger Text werden nicht übernommen.
 - **Dokumentierte Herkunft:** OpenPlantbook-Texte sind nicht fachlich geprüft; ggf. maschinell übersetzte Texte werden als solche gekennzeichnet. Ältere Daten werden im Fehlerfall mit dem ursprünglichen Abrufdatum ausgewiesen.
 - **Privatsphäre:** Persönliche Notizen werden nicht an OpenPlantbook oder MyMemory gesendet. Die Schnittstelle sendet nur die botanische Art einer eigenen Pflanze an den vorhandenen Pflegeadapter.
 - **Keine autonome Pflege:** Die Neuprüfung legt keine Gieß-, Schnitt-, Dünge- oder Pflanztermine an. Bereits vorhandene manuelle Planung und differenzierte Gieß-Erledigung bleiben unverändert.
@@ -33,9 +35,11 @@ OpenPlantbook kann zeitweise keine Art finden, eine fehlerhafte Antwort liefern 
 - `custom_components/mein_garten/care.py`: optionale manuelle Neuprüfung mit Lock, artbezogenem Rate-Limit und Rückfall auf gespeicherte deutsche Profile.
 - `custom_components/mein_garten/api.py`: optionale boolesche WebSocket-Eingabe `aktualisieren` bei `mein_garten/pflegeprofil`; nur für tatsächlich gespeicherte Pflanzen.
 - `frontend/mein-garten-card.js` und `custom_components/mein_garten/frontend/mein-garten-card.js`: identische Karte mit Wiederholungsaktion, Ladezustand, Cache-Warnung und separaten Notizen.
-- `tests/test_garten_pflege.py`, `tests/test_ha_ws_behavior.py` und `frontend/tests/card.test.mjs`: neue Backend-, API-, Bedienungs-, Sicherheits- und Fehlerfalltests.
+- `tests/test_garten_pflege.py`, `tests/test_ha_ws_behavior.py` und `frontend/tests/card.test.mjs`: Backend-, API-, Bedienungs-, Sicherheits- und Fehlerfalltests, einschließlich Einzelfeld-Historie, späterer Quellenaktualisierung, Artbindung, HTML-Escaping und gesperrter Terminplanung bei älteren Texten.
 
 ## Testnachweis
+
+Der erfolgreiche Basislauf von **328 Python- und 56 Frontend-Tests** bleibt als Vorversion dokumentiert. Die erweiterte Einzelfeld-Historie erhält einen neuen Gesamttestlauf, der separat abzunehmen ist.
 
 [Erfolgreicher GitHub-Actions-Lauf 41077570176](https://github.com/p-weigner/mein-garten/actions/runs/41077570176):
 
