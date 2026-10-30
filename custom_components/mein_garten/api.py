@@ -372,6 +372,37 @@ async def ws_pflanze_entfernen(hass, connection, msg):
 
 
 @websocket_api.websocket_command({
+    probatio.Required("type"): "mein_garten/beobachtung_anlegen",
+    probatio.Required("pflanzen_id"): str,
+    probatio.Required("phase"): str,
+    probatio.Required("beobachtet_am"): str,
+    probatio.Optional("notiz", default=""): str,
+})
+@websocket_api.async_response
+async def ws_beobachtung_anlegen(hass, connection, msg):
+    """Nur explizit vom HA-Nutzer erfasste Pflanzenentwicklung."""
+    await _aendern(hass, connection, msg, "beobachtung_anlegen", {
+        "pflanzen_id": msg["pflanzen_id"],
+        "phase": msg["phase"],
+        "beobachtet_am": msg["beobachtet_am"],
+        "notiz": msg.get("notiz", ""),
+        "person": connection.user.name or connection.user.id,
+    })
+
+
+@websocket_api.websocket_command({
+    probatio.Required("type"): "mein_garten/beobachtung_entfernen",
+    probatio.Required("beobachtung_id"): str,
+})
+@websocket_api.async_response
+async def ws_beobachtung_entfernen(hass, connection, msg):
+    """Eigene Beobachtung einschließlich Aktivitätsbezug korrigierbar löschen."""
+    await _aendern(hass, connection, msg, "beobachtung_entfernen", {
+        "beobachtung_id": msg["beobachtung_id"],
+    })
+
+
+@websocket_api.websocket_command({
     probatio.Required("type"): "mein_garten/aufgabe_anlegen",
     probatio.Required("name"): str,
     probatio.Optional("faellig_am"): probatio.Any(None, str),
@@ -435,6 +466,7 @@ def registriere_ws_befehle(hass) -> None:
         ws_pflegeplan_aktualisieren,
         ws_bereich_anlegen, ws_bereich_umbenennen, ws_bereich_entfernen,
         ws_pflanze_anlegen, ws_pflanze_bearbeiten, ws_pflanze_entfernen,
+        ws_beobachtung_anlegen, ws_beobachtung_entfernen,
         ws_aufgabe_anlegen, ws_aufgabe_erledigen,
         ws_aufgabe_wieder_oeffnen, ws_aufgabe_entfernen,
     ):
