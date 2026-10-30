@@ -44,7 +44,12 @@ class GartenBackend:
 
         async with self._lock:
             neu = GartenDaten(self._modell.snapshot())
-            anzahl = neu.pflegeplan_aktualisieren()
+            from datetime import datetime, timezone
+            from .recurrence import lokaler_kalendertag
+
+            tz = getattr(getattr(self.hass, "config", None), "time_zone", "UTC")
+            heute = lokaler_kalendertag(datetime.now(timezone.utc), tz)
+            anzahl = neu.pflegeplan_aktualisieren(heute)
             if anzahl:
                 await self._store.async_save(neu.snapshot())
                 self._modell = neu
