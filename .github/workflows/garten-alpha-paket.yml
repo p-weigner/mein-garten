@@ -2,6 +2,13 @@ name: Mein Garten V1 – Alpha-Paket
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "custom_components/mein_garten/**"
+      - "frontend/**"
+      - "tests/**"
+      - "qa/**"
+      - ".github/workflows/garten-alpha-paket.yml"
   push:
     branches: [main]
     paths:
