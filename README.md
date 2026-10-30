@@ -44,6 +44,7 @@ Eigenständiges Gartendashboard für Pflanzen, Gartenbereiche, Pflegeaufgaben un
 | Backend der ursprünglichen Alpha | 152 Python-Tests (historischer Stand vor den neuen Funktionen) |
 | Frontend | 11 Node-Tests bestanden, JavaScript-Syntax geprüft |
 | HA 2026.10 Probatio | WebSocket-Schemas mit echter Probatio-Version 0.13.0 geprüft |
+| Entwicklungsbranch: End-to-End-Alpha-Paketprüfung | **371 Python-Tests + 78 Frontend-Tests** (Stand des erfolgreichen Builds vom 30.10.2026); echte HA-2026.10-WebSocket-Schemas geprüft. Paketdateien, Manifest, V1-Ressource, eigene YAML und Ausschluss privater Dateien werden vor dem Artifact-Upload geprüft. Der Bericht `ABNAHME.json` kennzeichnet den PR-Quellcommit separat vom GitHub-Merge-Commit. |
 | Echter Home-Assistant-Green-Start | **Noch offen** |
 
 Die Live-Tests belegen nicht die Datenbankabdeckung sämtlicher Pflanzen. Auch maschinell übersetzte Pflegehinweise dürfen ohne Fachprüfung noch keine automatischen Schnitt- und Düngearbeiten anlegen.
@@ -51,7 +52,8 @@ Die Live-Tests belegen nicht die Datenbankabdeckung sämtlicher Pflanzen. Auch m
 ## Version Alpha testen
 
 - **[Automatischer Paket-Build mit allen Tests](.github/workflows/garten-alpha-paket.yml)** – vollständiges Paket als GitHub-Actions-Artefakt.
-- **[Vollständige Installationsanleitung](docs/ALPHA_INSTALLATION.md)** – inklusive HACS und eigener Lovelace-Ressource.
+- **[Alpha-Installationsvorbereitung](docs/ALPHA_INSTALLATION.md)** – nur das erfolgreiche Artefakt zum **exakt gleichen PR-HEAD-Commit** verwenden; HACS von `main` liefert nicht automatisch den Entwicklungsbranch. Keine aktuelle Installationsfreigabe.
+- **[Home-Assistant-Green-/iPhone-Abnahmeplan](docs/HA_GREEN_ABNAHME_2026-10-30.md)** – mit konkreten Bestehen-/Abbruchkriterien, Daten- und Dashboard-Schutz.
 - **[Fehlerbehebung nach JavaScript-Ressourcenwechsel](docs/KONFIGURATIONSFEHLER_LOVELACE.md)** – alte und neue Gartenkarte können parallel bestehen.
 - **[Vollständige Dashboard-YAML](frontend/dashboard-mein-garten.yaml)** – nur für das neue eigenständige Garten-Dashboard.
 - **[Vollständiger Frontend-JavaScript-Code](frontend/mein-garten-card.js)** – im HACS-Integrationsordner automatisch mitgeliefert.
@@ -69,10 +71,10 @@ Keine monatlichen Pflichtabonnements. Für die freie Pflanzensuche sind nur öff
 
 ## Nächste Ausbaustufe
 
-1. Installations- und Laufzeittest mit der Alpha-Version auf Home Assistant.
-2. Die Pflegequellen ans Backend anschließen, klare botanische Identität prüfen und Rechte zur dauerhaften Nutzung der Texte berücksichtigen.
-3. Echte deutsche Pflegehinweise mit Quellenangabe und privatem Übersetzungscache in der Pflanzenansicht anzeigen.
-4. Fachlich geeignete saisonale Pflegeregeln, Kalenderintegration, Wetterwarnungen und die freitägliche iPhone-Zusammenfassung ergänzen.
-5. Optional Fotobestimmung und weiterführende Gartenbereichsansichten.
+1. Den **vollständigen Alpha-Build für exakt den aktuellen PR-HEAD** abschließen und bei jedem neuen Commit erneut prüfen. Die Paketprüfung muss eine passende `ABNAHME.json` enthalten.
+2. **Erst nach bewusster Entscheidung** des Nutzers, mit vorhandenem vollständigem Backup, den [HA-Green-/iPhone-Abnahmeplan](docs/HA_GREEN_ABNAHME_2026-10-30.md) durchführen. Vorher weder `main` mergen noch die bestehende Installation überschreiben.
+3. Gießkontext, Formularbedienung, Datenpersistenz, Such- und Quellen-Ausfälle sowie die Freitags-/Frostbenachrichtigungen auf dem echten Gerät prüfen. Fehler aus realen Logs gezielt beheben.
+4. Fachlich geprüfte, lizenzrechtlich zulässige **strukturierte Pflegeanweisungen für deutsche Gartenpflanzen** erschließen; ohne belastbare Art- und Klimazuordnung weiter **keine** automatischen Schnitt-/Dünge-/Pflanztermine.
+5. Spätere Ergänzungen wie optionale Fotobestimmung, der visuelle Gartenplan und eigenständige HA-Kalenderentitäten erst nach stabiler Alpha-Live-Abnahme.
 
 **Datenschutz:** Keine privaten Gartenfotos, Adressen, Notizen oder API-Schlüssel in dieses öffentliche Repository einchecken. Die Pflanzensuche sendet ausschließlich eingegebene Suchbegriffe an iNaturalist/Wikidata.
