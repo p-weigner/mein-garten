@@ -325,6 +325,9 @@ class GartenDaten:
                 "herkunft": "benutzerregel",
                 "aufgabentyp": regel.get("aufgabentyp", "einfach"),
                 "ergebnis": None,
+                # Herkunft am Fälligkeitsexemplar erhalten, auch wenn später
+                # die Wiederholungsregel gelöscht wird.
+                "pflegebezug": deepcopy(regel.get("pflegebezug")),
                 "regel_id": regel["id"],
             })
             neu += 1
