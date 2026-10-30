@@ -380,5 +380,33 @@ class TestGartenWebsocket(unittest.IsolatedAsyncioTestCase):
         self.assertIn(self.api.ws_beobachtung_entfernen, self.registered)
 
 
+    async def test_dwd_phaenologie_ist_reiner_lesewert_im_ws_snapshot(self):
+        dwd_data = {
+            "quelle": "Deutscher Wetterdienst",
+            "lizenz": "CC BY 4.0",
+            "werte": [{
+                "indikator": "hasel_bluete", "region": "nordost",
+                "jahr": 2026, "median": "2026-02-20",
+                "stationen": 18,
+            }],
+        }
+        self.hass.data["mein_garten"]["dwd_phaenologie"] = types.SimpleNamespace(
+            stand=lambda: dwd_data
+        )
+        self.api.ws_get(self.hass, self.connection, {"id": 55})
+        response = self.connection.results[0][1]
+        self.assertEqual(response["dwd_phaenologie"], dwd_data)
+        self.assertFalse(self.connection.errors)
+        self.api.registriere_ws_befehle(self.hass)
+        self.assertFalse(any("dwd" in handler.__name__
+                             for handler in self.registered))
+        self.assertEqual(self.backend.model.snapshot()["aufgaben"], [])
+
+    async def test_ohne_dwd_quelle_bleibt_garten_ws_verwendbar(self):
+        self.api.ws_get(self.hass, self.connection, {"id": 56})
+        response = self.connection.results[0][1]
+        self.assertIsNone(response["dwd_phaenologie"])
+        self.assertEqual(response["daten"]["pflanzen"], [])
+
 if __name__ == "__main__":
     unittest.main()
