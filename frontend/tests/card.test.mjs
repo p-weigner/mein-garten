@@ -519,3 +519,30 @@ test("Frost-Referenzdaten lassen sich ohne API-Schlüssel konfigurieren", () => 
   assert.ok(card.shadowRoot.innerHTML.includes("Eine US-Klimazone wird nicht"));
   assert.ok(!card.shadowRoot.innerHTML.includes("API-Key"));
 });
+
+
+test("Die tatsächliche Saisonabdeckung eigener Pflanzen bleibt sichtbar", () => {
+  const card = buildCard();
+  card._tab = "kalender";
+  card._data.pflanzen = [
+    {id: "p1", name: "Tomate", wissenschaftlich: "Solanum lycopersicum"},
+    {id: "p2", name: "<Rispenhortensie>", wissenschaftlich: "Hydrangea paniculata"},
+  ];
+  card._saison = {
+    katalog_arten: 1292,
+    anker: {last_frost: "2027-05-15", first_frost: ""},
+    vorschlaege: [{
+      pflanzen_id: "p1", pflanze: "Tomate", wissenschaftlich: "Solanum lycopersicum",
+      katalog_id: "tomato", titel: "Vorziehen prüfen",
+      fenster_von: "2027-03-20", fenster_bis: "2027-04-03",
+      vorgemerkt: false,
+    }],
+  };
+  card._render();
+  const html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes("Für 1 von 2 erfassten Pflanzen"));
+  assert.ok(html.includes("1292 botanische Arten"));
+  assert.ok(html.includes("&lt;Rispenhortensie&gt;"));
+  assert.ok(!html.includes("<Rispenhortensie>"));
+  assert.ok(html.includes("weiterhin mit eigenen Aufgaben"));
+});
