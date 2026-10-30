@@ -15,6 +15,10 @@
 | Wetteraufgabe | Bei aktivierter Frostprüfung ein einmaliger Kalendereintrag pro prognostiziertem Frosttag: **Pflanzen kontrollieren**, keine Behandlung; Dublettenschutz im Datenspeicher |
 | Push | Optionale Push-Nachricht für mögliche Frostgefahr und eine zusammenfassende Benachrichtigung freitags 16 Uhr über ausgewählte Home-Assistant-Notify-Entität oder gerätespezifischen Dienst |
 | Standardsicherheit | Pushs anfänglich **aus**. Es wird kein allgemeiner Broadcast-Dienst angeboten; Wetter- und Notify-Ziel müssen explizit angegeben werden |
+| Kombinierte Erledigung | Einfache Aufgaben bleiben 1-Klick-Aufgaben. Gießkontrollen verlangen die Entscheidung „Gegossen“ oder „Kontrolliert – kein Wasser nötig“. Beide Fälle werden mit Benutzer, Zeitpunkt und Ergebnis in der Historie geführt |
+| Differenzierte Wiederholungen | Neu angelegte Gießkontrollen behalten ihre Art bei Fälligkeit, Neustart und Folgeintervall. Der Quellstatus bleibt auch nach Entfernen einer Wiederholungsregel am erledigten Termin |
+| Pflegeprofil-Cache | Vollständig übersetzte Profile bleiben bis zu 30 Tage zwischengespeichert, teilweise übersetzte nur kurz; bereits übersetzte Felder werden per Quellenfingerabdruck lokal wiederverwendet. Eindeutig als deutsch deklarierte Quellfelder werden nicht durch Englisch-Deutsch-Übersetzung verändert |
+| Such-Breitenprüfung | 50 reale deutsche Gartennamen aus fünf Gruppen mit aktuellem Suchcode geprüft: 42/50 erwartete botanische Art in den ersten 15 Vorschlägen, 38/50 auf Rang 1. Acht Lücken/Mehrdeutigkeiten bleiben offen; keine festen Beispielaliases in der App |
 
 **Ausführung (lokale Home-Assistant-Zeitzone):** wiederkehrende Aufgaben jeden Tag um 00:05 Uhr und bei Aktivierung/Erstellung; Frostprüfung täglich 06:15 und 18:15 Uhr; Wochenübersicht freitags um 16:00 Uhr. Nach einem Neustart wird der Pflegeplan erneut geprüft. Ein automatischer Push unmittelbar nach der Installation ist nicht vorgesehen.
 
@@ -32,6 +36,13 @@
 - Lokal erfasste positive Pflanzennamen: `.storage/mein_garten_namen_v1.data`
 
 Keine Codeänderung für neu angelegte Pflanzen. Die persönlichen Gartennotizen und Gartenbereiche werden weder an die Pflanzensuche noch an die Übersetzung gesendet. Für Übersetzungen werden die **externen Pflegequelltexte** an MyMemory übermittelt. Die Suchbegriffe werden an iNaturalist, Wikidata und GBIF gesendet.
+
+## Botanische Suchabdeckung: echte 50er-Testreihe
+
+- [Erster Live-Test](https://github.com/p-weigner/mein-garten/actions/runs/41043378877): 41/50 Art-Treffer in Top 15, 28/50 auf Rang 1.
+- [Zweiter Live-Test nach Sortierkorrektur](https://github.com/p-weigner/mein-garten/actions/runs/41043740909): **42/50 Art-Treffer in Top 15, 38/50 auf Rang 1**.
+- Fehlende exakte Zuordnungen: Rispenhortensie, Gewöhnlicher Flieder, Felsenbirne, Apfelbaum, Süßkirsche, Zwetschge, Engelstrompete, Japanischer Fächerahorn. Ein fehlender Binomial-Treffer ist nicht automatisch ein Beleg, dass keine botanischen Synonyme vorhanden sind.
+- [50 Testarten](../daten/pflanzensuche_50_de.json), [reproduzierbarer Live-Test](../tools/pflanzensuche_50_live.py) und [Quellen-/Lizenzprüfung](FACHQUELLEN_FREIGABE_2026-10-30.md).
 
 ## Grenzen und notwendige Abnahme
 
