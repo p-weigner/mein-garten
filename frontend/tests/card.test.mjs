@@ -1163,3 +1163,92 @@ test("Nur der aktuelle geöffnete Pflanzendialog darf Pflegequellen erneut prüf
   assert.equal(calls, 0);
   assert.equal(card._careLoading, false);
 });
+
+
+test("Teilantwort: alter Schnitt wird von aktuellen Gießhinweisen sichtbar getrennt", () => {
+  const card = buildCard();
+  const plant = {id: "p1", name: "Hundsrose", wissenschaftlich: "Rosa canina"};
+  card._data.pflanzen = [plant];
+  card._modal = {type: "pflege", existing: plant};
+  card._carePlant = "p1";
+  card._careLoading = false;
+  card._care = {
+    status: "teilweise", veraltete_felder: 1,
+    felder: {
+      watering: {titel: "Gießen", text: "Aktueller deutscher Text",
+        status: "original_deutsch", belegt_utc: "2026-10-30T14:00:00+00:00"},
+      pruning: {titel: "Schnitt", text: "Älterer deutscher Text",
+        status: "zwischengespeichert", quellstatus: "uebersetzung_ausstehend",
+        zuletzt_bestaetigt_utc: "2026-10-01T10:00:00+00:00"},
+    },
+  };
+  const html = card._careHTML();
+  assert.ok(html.includes("Aktueller deutscher Text"));
+  assert.ok(html.includes("Älterer deutscher Text"));
+  assert.ok(html.includes("01.10.2026"));
+  assert.ok(html.includes("nicht erneut aus der Quelle bestätigt"));
+  assert.ok(html.includes("1 Pflegefelder stammen nur aus älteren"));
+  assert.ok(html.includes('data-field="watering"'));
+  assert.ok(!html.includes('data-field="pruning"'));
+  assert.ok(!html.includes("Keine Angabe verfügbar."));
+});
+
+test("Historische Pflegefelder können auch durch manipulierte Klicks keinen neuen Termin anlegen", () => {
+  const card = buildCard();
+  const plant = {id: "p1", name: "Hundsrose", wissenschaftlich: "Rosa canina"};
+  card._data.pflanzen = [plant];
+  card._modal = {type: "pflege", existing: plant};
+  card._carePlant = "p1";
+  card._care = {
+    status: "teilweise",
+    felder: {
+      pruning: {titel: "Schnitt", text: "Nicht neu bestätigter Schnitt",
+        status: "zwischengespeichert"},
+    },
+  };
+  card._onClick({target: {closest: () => ({
+    disabled: false, dataset: {action: "care-plan", id: "p1", field: "pruning"},
+  })}});
+  assert.equal(card._modal.type, "pflege");
+});
+
+test("Nach vollständigem Quellenfehler werden alle alten Pflegehinweise nur angezeigt", () => {
+  const card = buildCard();
+  const plant = {id: "p1", name: "Rosa canina", wissenschaftlich: "Rosa canina"};
+  card._data.pflanzen = [plant];
+  card._modal = {type: "pflege", existing: plant};
+  card._carePlant = "p1";
+  card._care = {
+    status: "ok", aktualisierung: "quelle_nicht_erreichbar",
+    abgerufen_utc: "2026-10-01T10:00:00+00:00",
+    felder: {watering: {titel: "Gießen", text: "Älterer Cachetext",
+      status: "maschinenuebersetzt"}},
+  };
+  const html = card._careHTML();
+  assert.ok(html.includes("Älterer Cachetext"));
+  assert.ok(html.includes("nicht neu bestätigt"));
+  assert.ok(!html.includes('data-action="care-plan"'));
+  card._onClick({target: {closest: () => ({
+    disabled: false, dataset: {action: "care-plan", id: "p1", field: "watering"},
+  })}});
+  assert.equal(card._modal.type, "pflege");
+});
+
+test("Unerwartete Feldinhalte werden nicht als HTML in historischem Datum interpretiert", () => {
+  const card = buildCard();
+  const plant = {id: "p1", name: "Hundsrose", wissenschaftlich: "Rosa canina"};
+  card._data.pflanzen = [plant];
+  card._modal = {type: "pflege", existing: plant};
+  card._carePlant = "p1";
+  card._care = {status: "teilweise", felder: {
+    pruning: {titel: "<img src=x onerror=alert(1)>",
+      text: "<script>unsafe</script>", status: "zwischengespeichert",
+      zuletzt_bestaetigt_utc: "<img src=x onerror=alert(1)>"},
+  }};
+  const html = card._careHTML();
+  assert.ok(html.includes("&lt;script&gt;unsafe&lt;/script&gt;"));
+  assert.ok(html.includes("&lt;img src=x onerror=alert(1)&gt;"));
+  assert.ok(!html.includes("<script>unsafe</script>"));
+  assert.ok(!html.includes("<img src=x onerror=alert(1)>"));
+  assert.ok(!html.includes("Text zuletzt aus der Quelle abgerufen am "));
+});
