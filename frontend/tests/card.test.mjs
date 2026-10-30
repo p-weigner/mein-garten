@@ -573,3 +573,147 @@ test("Vergangene Saisonfenster werden nicht erneut zur Planung angeboten", () =>
   card._onClick({target: {closest: () => btn}});
   assert.equal(card._modal, null);
 });
+
+
+test("Pflanzenkarten öffnen eine eigene Entwicklungsansicht ohne neuen Hauptreiter", () => {
+  const card = buildCard();
+  card._tab = "pflanzen";
+  card._data.pflanzen = [{
+    id: "p1", name: "Gartenrose", wissenschaftlich: "Rosa canina",
+    bereich_id: null, gruppe: "Blumen, Stauden und Rosen",
+  }];
+  card._data.beobachtungen = [{
+    id: "b1", pflanzen_id: "p1", phase: "bluete_beginn",
+    beobachtet_am: "2025-06-15", notiz: "",
+  }];
+  card._render();
+  assert.ok(card.shadowRoot.innerHTML.includes('data-action="entwicklung-open"'));
+  assert.ok(card.shadowRoot.innerHTML.includes("Zuletzt beobachtet"));
+  assert.ok(card.shadowRoot.innerHTML.includes("Blütebeginn"));
+  assert.ok(!card.shadowRoot.innerHTML.includes('data-tab="entwicklung"'));
+  const btn = { dataset: { action: "entwicklung-open", id: "p1" } };
+  card._onClick({ target: { closest: () => btn } });
+  assert.equal(card._modal.type, "entwicklung");
+  assert.ok(card.shadowRoot.innerHTML.includes("Pflanzenentwicklung: Gartenrose"));
+});
+
+test("Entwicklungsphase enthält Datum, sieben Stufen und keine Pflegefreigabe", () => {
+  const card = buildCard();
+  const plant = { id: "p1", name: "Hortensie", wissenschaftlich: "Hydrangea macrophylla" };
+  card._data.pflanzen = [plant];
+  card._modal = { type: "entwicklung", existing: plant };
+  card._render();
+  const html = card.shadowRoot.innerHTML;
+  for (const stage of [
+    "Austrieb", "Knospenbildung", "Blütebeginn", "Fruchtansatz",
+    "Fruchtreife", "Laubfärbung", "Blattfall",
+  ]) assert.ok(html.includes(stage), stage);
+  assert.ok(html.includes('data-form="entwicklung"'));
+  assert.ok(html.includes('name="beobachtet_am"'));
+  assert.ok(html.includes('type="date"'));
+  assert.ok(html.includes("keine automatischen Pflege"));
+  assert.ok(!html.includes("Schnitt freigeben"));
+});
+
+test("Entwicklungsbeobachtung sendet nur eigene IDs, Phase, Datum und Notiz", () => {
+  const card = buildCard();
+  const plant = { id: "p1", name: "Hortensie", wissenschaftlich: "Hydrangea macrophylla" };
+  card._data.pflanzen = [plant];
+  card._modal = { type: "entwicklung", existing: plant };
+  let captured = null;
+  card._mutate = (type, args) => { captured = { type, args }; };
+  const values = {
+    phase: "knospenbildung", beobachtet_am: "2025-04-12",
+    notiz: "Erste Knospen an der Terrasse",
+  };
+  const form = {
+    dataset: { form: "entwicklung" },
+    elements: { namedItem: (name) => ({ value: values[name] || "" }) },
+  };
+  card._onSubmit({ target: form, preventDefault: () => {} });
+  assert.equal(captured.type, "beobachtung_anlegen");
+  assert.deepEqual(JSON.parse(JSON.stringify(captured.args)), {
+    pflanzen_id: "p1", phase: "knospenbildung",
+    beobachtet_am: "2025-04-12", notiz: "Erste Knospen an der Terrasse",
+  });
+  assert.equal(captured.args.person, undefined);
+  assert.equal(captured.args.quelle, undefined);
+});
+
+test("Entwicklungsverlauf zeigt Jahre getrennt ohne Wetterprognose zu erfinden", () => {
+  const card = buildCard();
+  const plant = {
+    id: "p1", name: "Bauernhortensie",
+    wissenschaftlich: "Hydrangea macrophylla",
+  };
+  card._data.pflanzen = [plant];
+  card._data.beobachtungen = [
+    { id: "b1", pflanzen_id: "p1", phase: "bluete_beginn",
+      beobachtet_am: "2025-06-01", wissenschaftlich: "Hydrangea macrophylla" },
+    { id: "b2", pflanzen_id: "p1", phase: "bluete_beginn",
+      beobachtet_am: "2026-05-27", wissenschaftlich: "Hydrangea macrophylla" },
+    { id: "b3", pflanzen_id: "p1", phase: "fruchtreife",
+      beobachtet_am: "2025-10-10", wissenschaftlich: "Hydrangea macrophylla" },
+  ];
+  card._modal = { type: "entwicklung", existing: plant };
+  card._render();
+  const html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes("Frühester von dir dokumentierter Blütebeginn"));
+  assert.ok(html.includes("27.05.2026"));
+  assert.ok(html.includes("01.06.2025"));
+  assert.ok(html.includes("keine Vorhersagen"));
+  assert.ok(html.includes("Fruchtreife"));
+});
+
+test("Entwicklungsnotizen werden HTML-sicher dargestellt und Einträge gelöscht", () => {
+  const card = buildCard();
+  const plant = { id: "p1", name: "Hortensie", wissenschaftlich: "Hydrangea macrophylla" };
+  card._data.pflanzen = [plant];
+  card._data.beobachtungen = [{
+    id: "b1", pflanzen_id: "p1", phase: "austrieb",
+    beobachtet_am: "2025-04-01",
+    notiz: "<img src=x onerror=alert(1)>",
+    person: "<script>unsafe</script>",
+    wissenschaftlich: "Hydrangea macrophylla",
+  }];
+  card._modal = { type: "entwicklung", existing: plant };
+  card._render();
+  const html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes("&lt;img"));
+  assert.ok(!html.includes("<img src=x"));
+  assert.ok(html.includes("&lt;script&gt;"));
+  assert.ok(!html.includes("<script>unsafe"));
+  const btn = { dataset: { action: "beobachtung-remove", id: "b1" } };
+  let called = null;
+  card._mutate = (type, args) => { called = { type, args }; };
+  card._onClick({ target: { closest: () => btn } });
+  assert.equal(called.type, "beobachtung_entfernen");
+  assert.deepEqual(JSON.parse(JSON.stringify(called.args)), { beobachtung_id: "b1" });
+});
+
+test("Kalender zeigt tatsächliche Beobachtungen getrennt von Aufgaben", () => {
+  const card = buildCard();
+  card._tab = "kalender";
+  card._data.pflanzen = [{ id: "p1", name: "Kirschbaum" }];
+  card._data.beobachtungen = [{
+    id: "b1", pflanzen_id: "p1", phase: "bluete_beginn",
+    beobachtet_am: "2025-04-10", notiz: "Erste Blüte",
+  }];
+  card._render();
+  const html = card.shadowRoot.innerHTML;
+  assert.ok(html.includes("Eigene Pflanzenbeobachtungen"));
+  assert.ok(html.includes("Kirschbaum"));
+  assert.ok(html.includes("10.04.2025"));
+  assert.ok(html.includes('data-action="entwicklung-open"'));
+  assert.ok(html.includes("Keine offenen Aufgaben"));
+});
+
+test("Alte Gartendaten ohne Beobachtungen sind weiterhin lesbar", () => {
+  const card = buildCard();
+  card._data.beobachtungen = undefined;
+  card._data.pflanzen = [{ id: "p1", name: "Lavendel", bereich_id: null }];
+  card._tab = "pflanzen";
+  card._render();
+  assert.ok(card.shadowRoot.innerHTML.includes("Lavendel"));
+  assert.ok(card.shadowRoot.innerHTML.includes('data-action="entwicklung-open"'));
+});
