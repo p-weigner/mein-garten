@@ -11,6 +11,7 @@ import asyncio
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 import html
+import hashlib
 import logging
 import re
 from typing import Any
@@ -32,6 +33,7 @@ MAX_FIELD_CHARS = 1600
 MAX_TEXT_CHARS = 12000
 COMPLETE_CACHE_DAYS = 30
 PARTIAL_CACHE_HOURS = 18
+MAX_TRANSLATIONS = 1200
 _NAME = re.compile(r"^[A-Z][A-Za-z-]+(?: [a-z×xA-Z.-]+){1,5}$")
 _HTML_TAG = re.compile(r"<[/!]?[a-z][^>]*>", re.IGNORECASE)
 
@@ -88,7 +90,7 @@ class PflegeService:
 
         self.hass = hass
         self._store = Store(hass, 1, STORAGE_KEY)
-        self._data = {"version": 1, "profile": {}, "budget": {"tag": "", "zeichen": 0}}
+        self._data = {"version": 1, "profile": {}, "budget": {"tag": "", "zeichen": 0}, "translations": {}}
         self._lock = asyncio.Lock()
 
     async def async_laden(self) -> None:
@@ -97,9 +99,10 @@ class PflegeService:
             return
         if (not isinstance(saved, dict) or saved.get("version") != 1
                 or not isinstance(saved.get("profile"), dict)
-                or not isinstance(saved.get("budget"), dict)):
+                or not isinstance(saved.get("budget"), dict)
+                or not isinstance(saved.get("translations", {}), dict)):
             raise ValueError("Unbekanntes Format des Pflegecaches; Daten nicht überschreiben")
-        self._data = saved
+        self._data = {**saved, "translations": saved.get("translations", {})}
 
     async def _json_translate(self, segment: str) -> str:
         from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -155,6 +158,29 @@ class PflegeService:
                 return None
         return " ".join(result) if result else None
 
+    def _translation_key(self, species: str, feld: str, original: str) -> str:
+        """Nur der SHA-256-Identifikator wird zu den übersetzten Texten gespeichert."""
+        value = species.casefold() + "\x00" + feld + "\x00" + original
+        return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+    async def _deutscher_text(self, species: str, feld: str, raw: str) -> str | None:
+        key = self._translation_key(species, feld, raw)
+        record = self._data["translations"].get(key)
+        if isinstance(record, dict) and isinstance(record.get("text"), str):
+            if record["text"] and len(record["text"]) <= 12000:
+                return record["text"]
+        translated = await self._translate(raw)
+        if not translated:
+            return None
+        # Nur deutsche Zieltexte mit Quellenfingerabdruck, keine fremden Originaltexte.
+        translations = self._data["translations"]
+        translations[key] = {"text": translated, "zeit": _now().isoformat(timespec="seconds")}
+        if len(translations) > MAX_TRANSLATIONS:
+            oldest = min(translations, key=lambda k: translations[k].get("zeit", ""))
+            del translations[oldest]
+        await self._store.async_save(self._data)
+        return translated
+
     def _result(self, species: str, status: str, fields: dict | None = None) -> dict:
         return {
             "art": species,
@@ -199,20 +225,38 @@ class PflegeService:
             return self._result(species, "art_nicht_bestaetigt")
 
         fields = {}
+        source_fields = 0
+        missing_translations = 0
+        language = str(detail.get("lang") or detail.get("language") or "").casefold()
         for key, label in CARE_FIELDS:
             raw = _source_field(detail.get(key))
             if not raw:
                 fields[key] = {"titel": label, "text": None,
                                "status": "keine_angabe", "quelle": "OpenPlantbook"}
                 continue
-            translated = await self._translate(raw)
+            source_fields += 1
+            if language == "de" or language.startswith("de-"):
+                # Bereits eindeutig deutsch deklarierte Quellfelder nicht erneut
+                # als englisch behandeln. Keine Spekulation per Wortheuristik.
+                translated = raw
+                fieldstatus = "original_deutsch"
+            else:
+                translated = await self._deutscher_text(species, key, raw)
+                fieldstatus = "maschinenuebersetzt" if translated else "uebersetzung_ausstehend"
+            if not translated:
+                missing_translations += 1
             fields[key] = {
                 "titel": label,
                 "text": translated,
-                "status": "maschinenuebersetzt" if translated else "uebersetzung_ausstehend",
+                "status": fieldstatus,
                 "quelle": "OpenPlantbook",
             }
-        status = "ok" if any(x["text"] for x in fields.values()) else "kein_deutscher_text"
+        if source_fields == 0:
+            status = "kein_deutscher_text"
+        elif missing_translations:
+            status = "teilweise" if missing_translations < source_fields else "kein_deutscher_text"
+        else:
+            status = "ok"
         return self._result(species, status, fields)
 
     async def async_profil(self, plant: dict) -> dict:
@@ -232,7 +276,7 @@ class PflegeService:
                 except (ValueError, KeyError, TypeError):
                     pass
             result = await self._fetch(species)
-            if result["status"] in {"ok", "kein_deutscher_text", "art_nicht_gefunden"}:
+            if result["status"] in {"ok", "teilweise", "kein_deutscher_text", "art_nicht_gefunden"}:
                 self._data["profile"][cache_key] = deepcopy(result)
                 # Maximal 300 Arten im privaten Pflegecache; keine Benutzernotizen.
                 if len(self._data["profile"]) > 300:
