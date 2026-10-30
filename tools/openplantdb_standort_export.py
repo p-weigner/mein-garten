@@ -23,7 +23,10 @@ OUTPUT = ROOT / "custom_components" / "mein_garten" / "data" / "standort_cc0_v1.
 LIMIT = 1_350_000
 
 
-def make_dataset(records: list[dict]) -> tuple[dict, dict]:
+def make_dataset(
+    records: list[dict], *, mindest_arten: int = 10_000,
+    maximal_arten: int = 12_000,
+) -> tuple[dict, dict]:
     group = defaultdict(list)
     for entry in records:
         if not isinstance(entry, dict):
@@ -65,7 +68,7 @@ def make_dataset(records: list[dict]) -> tuple[dict, dict]:
             )
             rows.append([name, *traits])
 
-    if len(rows) < 10000 or len(rows) > 12000:
+    if not mindest_arten <= len(rows) <= maximal_arten:
         raise ValueError("Unerwartete Größe des konsistenten CC0-Standortkatalogs")
     if len({r[0].casefold() for r in rows}) != len(rows):
         raise ValueError("Doppelte Pflanzengattung/Artidentität")
