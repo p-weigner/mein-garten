@@ -91,6 +91,22 @@ class TestPflegeErledigungen(unittest.TestCase):
         self.assertEqual(new.pflegeplan_aktualisieren(date(2026, 11, 8)), 1)
         self.assertEqual(new.snapshot()["aufgaben"][-1]["aufgabentyp"], "giesskontrolle")
 
+    def test_quelle_bleibt_nach_entfernen_der_regel_am_erledigten_termin(self):
+        regel = self.garten.regel_anlegen(
+            "Gießbedarf prüfen", "2026-11-01", "tage", intervall_tage=7,
+            pflanzen_id=self.pflanze["id"], pflegefeld="watering",
+            aufgabentyp="giesskontrolle",
+        )
+        self.garten.pflegeplan_aktualisieren(date(2026, 11, 1))
+        task = self.garten.snapshot()["aufgaben"][0]
+        self.garten.aufgabe_erledigen(task["id"], "Angelina", "gegossen")
+        self.garten.regel_entfernen(regel["id"])
+        remaining = self.garten.snapshot()["aufgaben"]
+        self.assertEqual(len(remaining), 1)
+        self.assertEqual(remaining[0]["pflegebezug"]["quelle"], "OpenPlantbook")
+        self.assertEqual(remaining[0]["pflegebezug"]["feld"], "watering")
+        self.assertEqual(remaining[0]["ergebnis"], "gegossen")
+
     def test_alte_speicherdatei_ist_kompatibel(self):
         task = self.garten.aufgabe_anlegen("Frühjahrsarbeiten")
         daten = self.garten.snapshot()
