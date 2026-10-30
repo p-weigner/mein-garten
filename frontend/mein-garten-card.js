@@ -266,6 +266,31 @@
         this._searchMessage = "";
         this._query = "";
         this._render();
+      } else if (action === "care-plan") {
+        const plant = this._getPlant(id);
+        const key = btn.dataset.field || "";
+        const field = this._care?.felder?.[key];
+        if (!plant || !field || !field.text) return;
+        const titel = {
+          watering: "Gießbedarf prüfen",
+          sunlight: "Standort prüfen",
+          soil: "Boden prüfen",
+          pruning: "Schnittbedarf prüfen",
+          fertilization: "Düngebedarf prüfen",
+        }[key];
+        if (!titel) return;
+        this._modal = {
+          type: "regel",
+          prefill: {
+            name: titel + " – " + plant.name,
+            pflanzen_id: plant.id,
+            bereich_id: plant.bereich_id,
+            rhythmus: "jaehrlich",
+          },
+          careInfo: "Dieser Termin wird von dir festgelegt. Die Quelle " +
+            "OpenPlantbook und ihre Übersetzung sind nicht fachlich geprüft.",
+        };
+        this._render();
       } else if (action === "care-open") {
         const plant = this._getPlant(id);
         if (!plant) return;
@@ -362,12 +387,16 @@
         fehler: "Pflegeprofil konnte nicht geladen werden."
       };
       const heading = '<div class="notice">Quelle: <a href="https://open.plantbook.io/" target="_blank" rel="noopener noreferrer">OpenPlantbook</a> · Automatisch übersetzt, nicht fachlich geprüft. Daraus werden keine automatischen Pflegeaufgaben erzeugt.</div>';
-      const fields = Object.values(profile.felder || {});
-      const body = fields.map((f) => '<section class="card" style="margin:9px 0;padding:13px"><h3>' +
+      const fields = Object.entries(profile.felder || {});
+      const body = fields.map(([key, f]) => '<section class="card" style="margin:9px 0;padding:13px"><h3>' +
         escapeHtml(f.titel) + '</h3><p style="white-space:pre-wrap">' +
         escapeHtml(f.text || (f.status === "uebersetzung_ausstehend" ?
           "Übersetzung ausstehend; keine erfundenen Angaben." : "Keine Angabe verfügbar.")) +
-        '</p></section>').join("");
+        '</p>' + (f.text && this._carePlant ?
+          '<button type="button" class="btn tiny" data-action="care-plan" data-id="' +
+          escapeHtml(this._carePlant) + '" data-field="' + escapeHtml(key) +
+          '">Jährliche Kontrolle dazu planen</button>' : '') +
+        '</section>').join("");
       return (profile.status !== "ok" ? '<p class="small">' +
         escapeHtml(profile.meldung || labels[profile.status] || "Keine Angaben verfügbar.") +
         '</p>' : "") + heading + body;
@@ -518,17 +547,24 @@
     _ruleForm() {
       const plants = (this._data.pflanzen || []).map((p) => ({ value: p.id, label: p.name }));
       const areas = (this._data.bereiche || []).map((a) => ({ value: a.id, label: a.name }));
+      const prefill = this._modal?.prefill || {};
+      const selectedRhythm = prefill.rhythmus || "tage";
       return '<form data-form="regel"><div class="form-grid">' +
-        '<div class="field full"><label>Wiederkehrende Aufgabe *</label><input name="name" maxlength="200" required placeholder="z. B. Pflanzen kontrollieren"></div>' +
+        '<div class="field full"><label>Wiederkehrende Aufgabe *</label><input name="name" maxlength="200" required value="' +
+        escapeHtml(prefill.name || "") + '" placeholder="z. B. Pflanzen kontrollieren"></div>' +
         '<div class="field"><label>Erste Fälligkeit *</label><input name="startdatum" type="date" required></div>' +
         '<div class="field"><label>Rhythmus</label><select name="rhythmus">' +
-        '<option value="tage">Alle X Tage</option><option value="jaehrlich">Jedes Jahr</option></select></div>' +
+        '<option value="tage"' + (selectedRhythm === "tage" ? ' selected' : '') +
+        '>Alle X Tage</option><option value="jaehrlich"' + (selectedRhythm === "jaehrlich" ? ' selected' : '') +
+        '>Jedes Jahr</option></select></div>' +
         '<div class="field"><label>Intervall in Tagen</label><input name="intervall_tage" type="number" min="1" max="365" value="14"></div>' +
         '<div class="field"><label>Pflanze</label><select name="pflanzen_id">' +
-        this._options(plants, null, true) + '</select></div>' +
+        this._options(plants, prefill.pflanzen_id || null, true) + '</select></div>' +
         '<div class="field full"><label>Gartenbereich</label><select name="bereich_id">' +
-        this._options(areas, null, true) + '</select></div></div>' +
-        '<div class="notice">Diese Wiederholung wird von dir angelegt. Es werden keine ungeprüften Empfehlungen übernommen.</div>' +
+        this._options(areas, prefill.bereich_id || null, true) + '</select></div></div>' +
+        '<div class="notice">' + escapeHtml(this._modal?.careInfo ||
+          "Diese Wiederholung wird von dir angelegt. Es werden keine ungeprüften Empfehlungen übernommen.") +
+        '</div>' +
         '<div class="dialog-foot"><button type="button" class="btn ghost" data-action="close">Abbrechen</button>' +
         '<button type="submit" class="btn primary">Wiederholung speichern</button></div></form>';
     }
