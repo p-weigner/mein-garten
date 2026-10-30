@@ -29,6 +29,12 @@
 2. **Kalender → Benachrichtigungen** öffnen. Bestehenden iPhone-Empfänger aus Home Assistant auswählen und für Frostwarnungen auch eine vorhandene Wetterentität angeben. Wöchentliche Zusammenfassung und Frostwarnung können separat eingeschaltet werden.
 3. **Kalender → Meine Wiederholungen** verwaltet bestehende manuell angelegte Intervalle und Jahresregeln. Frostaufgaben erscheinen als Wetterprognose gekennzeichnet.
 
+## Neue Quellenqualitätsprüfung nach der Alpha (30.10.2026)
+
+Ein separater GitHub-Actions-Workflow analysiert die CC0-Freitexte von OpenPlantDB (Anbauhinweise und Pflanznotizen) beim festgepinnten Quellcommit mit SHA-256-Prüfung. Ergebnis: **34.841 Rohdaten**, **10.645 exakte Arten**, **9.936 einheitliche Anbautexte**, **650 Arten mit widersprüchlichen Anbautexten**. In der bestehenden 50er-Stichprobe sind nur **19** Anbautexte unter den vorhandenen Varianten einheitlich. Acht neue Offline-Tests sind erfolgreich. [Messung, Einschränkungen und Quellen](ANBAUHINWEISE_QUELLENAUDIT_2026-10-30.md), [CI-Lauf](https://github.com/p-weigner/mein-garten/actions/runs/41074491039).
+
+**Noch nicht integriert:** Diese englischen Pflegefreitexte sind nicht regional und fachlich bestätigt und werden weder importiert noch im Dashboard angezeigt oder für Aufgaben benutzt. Das bestehende deutsche Pflegewissen und alle bisherigen Funktionen bleiben unverändert.
+
 ## Persistenz
 
 - Gartendaten, Nutzerregeln und eigene Pflanzenentwicklungsbeobachtungen: `.storage/mein_garten_v1.data`
