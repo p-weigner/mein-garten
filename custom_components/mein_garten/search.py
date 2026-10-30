@@ -45,7 +45,7 @@ def _deutscher_namenkern(name: str) -> str:
     return "".join(c for c in name if c.isalpha())
 
 
-def _relevanter_deutscher_name(query: str, name: str):
+def _relevanter_deutscher_name(query: str, name: str) -> bool:
     """Z. B. 'Frauenmantel' in 'Weicher Frauenmantel' als echtes Namenssignal.
 
     Keine künstliche botanische Zuordnung: Es wird nur der bereits vom
@@ -441,14 +441,14 @@ class Pflanzensuche:
             if wikidata:
                 wikidata = await self._verify_wikidata(wikidata)
             netz_treffer = _dedupe(inat + wikidata + vernacular + gbif)
-            if not netz_treffer and len(notes) < 4:
-                # Keine verdächtige automatische Zuordnung: ausschließlich
-                # die Aliasnamen aus echten botanischen Suchantworten.
+            offline_treffer = self._lokale_treffer(query)
+            if not netz_treffer and not offline_treffer and len(notes) < 4:
+                # Eine einzige, streng gefilterte Schreibvarianten-Rückfallsuche
+                # nur, wenn weder Online- noch lokale Treffer vorliegen.
                 varianten = await self._varianten(query)
                 if varianten:
                     notes.append("Alternative deutsche Schreibweise – genaue Art bitte prüfen")
                     netz_treffer = varianten
-            offline_treffer = self._lokale_treffer(query)
             all_items = _dedupe(netz_treffer + offline_treffer)
             if offline_treffer and notes:
                 notes.append("Vorhandene Pflanzennamen aus lokalem Cache ergänzt")
